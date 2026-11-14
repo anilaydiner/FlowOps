@@ -1,4 +1,4 @@
-package com.flowops.api.dto;
+package com.flowops.domain.query;
 
 /**
  * Optional filters for the request list endpoint.

@@ -1,8 +1,9 @@
 package com.flowops.api;
 
 import com.flowops.api.dto.PageResponse;
-import com.flowops.api.dto.RequestTypeFilter;
+import com.flowops.domain.query.RequestTypeFilter;
 import com.flowops.api.dto.RequestTypeRequest;
+import com.flowops.domain.RequestTypeSpec;
 import com.flowops.api.dto.RequestTypeResponse;
 import com.flowops.service.RequestTypeService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -93,12 +94,18 @@ public class RequestTypeController {
     })
     public ResponseEntity<RequestTypeResponse> create(@Valid @RequestBody RequestTypeRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(RequestTypeResponse.from(requestTypeService.create(request)));
+                .body(RequestTypeResponse.from(requestTypeService.create(toSpec(request))));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update request type (admin only)")
     public RequestTypeResponse update(@PathVariable Long id, @RequestBody RequestTypeRequest request) {
-        return RequestTypeResponse.from(requestTypeService.update(id, request));
+        return RequestTypeResponse.from(requestTypeService.update(id, toSpec(request)));
+    }
+
+    private RequestTypeSpec toSpec(RequestTypeRequest r) {
+        return new RequestTypeSpec(
+                r.code(), r.name(), r.description(), r.departmentCode(),
+                r.workflowCode(), r.requiredFields(), r.validationRules());
     }
 }

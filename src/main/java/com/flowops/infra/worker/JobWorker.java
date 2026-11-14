@@ -1,4 +1,5 @@
-package com.flowops.service;
+package com.flowops.infra.worker;
+import com.flowops.service.ActionHandler;
 
 import com.flowops.domain.ExecutionJob;
 import com.flowops.domain.ExecutionJobRepository;
@@ -7,6 +8,8 @@ import com.flowops.domain.Request;
 import com.flowops.domain.RequestRepository;
 import com.flowops.domain.RequestStatus;
 import com.flowops.observability.FlowOpsSpans;
+import com.flowops.observability.MetricNames;
+import com.flowops.observability.SpanNames;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
@@ -39,8 +42,6 @@ import java.util.Set;
 public class JobWorker {
 
     private static final Logger log = LoggerFactory.getLogger(JobWorker.class);
-    private static final int BATCH_SIZE = 50;
-    private static final Duration BASE_BACKOFF = Duration.ofSeconds(5);
 
     private final ExecutionJobRepository jobs;
     private final RequestRepository requests;
@@ -58,7 +59,7 @@ public class JobWorker {
         this.actionHandler = actionHandler;
         this.metrics = metrics;
         this.spans = spans;
-        Gauge.builder("flowops.job.pending", this,
+        Gauge.builder(MetricNames.JOB_PENDING, this,
                 w -> w.jobs.countByStatus(JobStatus.PLANNED) + w.jobs.countByStatus(JobStatus.FAILED))
                 .description("Execution jobs awaiting processing (PLANNED + FAILED)")
                 .register(metrics);
@@ -74,7 +75,7 @@ public class JobWorker {
         return running;
     }
 
-    @Scheduled(fixedDelay = 2000)
+    @Scheduled(fixedDelay = WorkerDefaults.TICK_DELAY_MS)
     public void scheduledTick() {
         if (running) {
             process();
@@ -87,7 +88,7 @@ public class JobWorker {
      */
     @Transactional
     public void process() {
-        List<ExecutionJob> batch = jobs.claimBatch(Instant.now(), BATCH_SIZE);
+        List<ExecutionJob> batch = jobs.claimBatch(Instant.now(), WorkerDefaults.BATCH_SIZE);
         if (batch.isEmpty()) {
             return;
         }
@@ -116,7 +117,7 @@ public class JobWorker {
                 "job.action", job.getAction(),
                 "request.id", String.valueOf(job.getRequestId()));
         try {
-            spans.run("job.execute", attrs, () -> {
+            spans.run(SpanNames.JOB_EXECUTE, attrs, () -> {
                 Request request = requests.findById(job.getRequestId())
                         .orElseThrow(() -> new IllegalStateException(
                                 "Request not found for job: " + job.getIdempotencyKey()));
@@ -124,17 +125,17 @@ public class JobWorker {
 
                 Map<String, Object> result = actionHandler.execute(request, job.getAction());
                 job.markCompleted(result);
-                metrics.counter("flowops.job.completed", "action", job.getAction()).increment();
+                metrics.counter(MetricNames.JOB_COMPLETED, "action", job.getAction()).increment();
                 log.info("JOB COMPLETED: key={} action={}", job.getIdempotencyKey(), job.getAction());
                 return null;
             });
         } catch (RuntimeException e) {
-            long backoffSeconds = BASE_BACKOFF.toSeconds() * (1L << job.getRetryCount());
+            long backoffSeconds = WorkerDefaults.BASE_BACKOFF.toSeconds() * (1L << job.getRetryCount());
             Instant nextRetry = Instant.now().plus(Duration.ofSeconds(backoffSeconds));
             job.markFailed(e.getMessage(), nextRetry);
-            metrics.counter("flowops.job.failed", "action", job.getAction()).increment();
+            metrics.counter(MetricNames.JOB_FAILED, "action", job.getAction()).increment();
             if (job.getStatus() == JobStatus.DEAD_LETTER) {
-                metrics.counter("flowops.job.dead_letter", "action", job.getAction()).increment();
+                metrics.counter(MetricNames.JOB_DEAD_LETTER, "action", job.getAction()).increment();
             }
             log.warn("JOB FAIL (retry={}/{}): key={} action={} error={}",
                     job.getRetryCount(), job.getMaxRetries(),

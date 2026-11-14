@@ -1,4 +1,4 @@
-package com.flowops.api.dto;
+package com.flowops.domain.query;
 
 public record RequestTypeFilter(
         String code,

@@ -2,7 +2,7 @@ package com.flowops.api;
 
 import com.flowops.api.dto.CreateRequestRequest;
 import com.flowops.api.dto.PageResponse;
-import com.flowops.api.dto.RequestFilter;
+import com.flowops.domain.query.RequestFilter;
 import com.flowops.api.dto.RequestResponse;
 import com.flowops.api.dto.UpdateRequestRequest;
 import com.flowops.security.UserPrincipal;

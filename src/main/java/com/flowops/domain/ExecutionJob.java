@@ -1,5 +1,6 @@
 package com.flowops.domain;
 
+import com.flowops.domain.exception.InvalidStateTransitionException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -45,8 +46,11 @@ public class ExecutionJob {
     @Column(name = "retry_count", nullable = false)
     private int retryCount = 0;
 
+    /** Default retry budget before a job is dead-lettered. */
+    public static final int DEFAULT_MAX_RETRIES = 5;
+
     @Column(name = "max_retries", nullable = false)
-    private int maxRetries = 5;
+    private int maxRetries = DEFAULT_MAX_RETRIES;
 
     @Column(name = "next_retry_at")
     private Instant nextRetryAt;
@@ -96,29 +100,38 @@ public class ExecutionJob {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getCompletedAt() { return completedAt; }
 
-    public void setStatus(JobStatus status) { this.status = status; }
-    public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
-    public void setNextRetryAt(Instant nextRetryAt) { this.nextRetryAt = nextRetryAt; }
-    public void setLastError(String lastError) { this.lastError = lastError; }
-    public void setResult(Map<String, Object> result) { this.result = result; }
-
     // ── Domain behavior ──────────────────────────────────────────────────
+    // State machine: PLANNED → STARTED → COMPLETED
+    //                        └─────→ FAILED (retryable) → DEAD_LETTER
+    // Workers may only claim PLANNED/FAILED (see ExecutionJobRepository.claimBatch).
 
     public boolean canRetry() {
         return retryCount < maxRetries;
     }
 
+    /** PLANNED|FAILED → STARTED (worker claimed the job). */
     public void markStarted() {
+        if (status != JobStatus.PLANNED && status != JobStatus.FAILED) {
+            throw new InvalidStateTransitionException("execution job", status, "start");
+        }
         this.status = JobStatus.STARTED;
     }
 
+    /** PLANNED|STARTED → COMPLETED. */
     public void markCompleted(Map<String, Object> result) {
+        if (status != JobStatus.PLANNED && status != JobStatus.STARTED) {
+            throw new InvalidStateTransitionException("execution job", status, "complete");
+        }
         this.status = JobStatus.COMPLETED;
         this.result = result != null ? new LinkedHashMap<>(result) : null;
         this.completedAt = Instant.now();
     }
 
+    /** PLANNED|STARTED → FAILED, or → DEAD_LETTER when retries are exhausted. */
     public void markFailed(String error, Instant nextRetryAt) {
+        if (status != JobStatus.PLANNED && status != JobStatus.STARTED) {
+            throw new InvalidStateTransitionException("execution job", status, "fail");
+        }
         this.retryCount++;
         this.lastError = error;
         this.nextRetryAt = nextRetryAt;

@@ -1,4 +1,4 @@
-package com.flowops.service;
+package com.flowops.domain.exception;
 
 import java.util.Map;
 

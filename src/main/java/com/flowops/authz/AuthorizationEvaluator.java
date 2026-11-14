@@ -38,10 +38,10 @@ public class AuthorizationEvaluator {
 
     private static final Logger log = LoggerFactory.getLogger(AuthorizationEvaluator.class);
 
-    public static final String PERM_APPROVE = "request:approve";
-    public static final String PERM_REJECT  = "request:reject";
-    public static final String PERM_CLOSE   = "request:close";
-    public static final String PERM_OVERRIDE_SOD = "request:override:sod";
+    public static final String PERM_APPROVE = PermissionCodes.REQUEST_APPROVE;
+    public static final String PERM_REJECT  = PermissionCodes.REQUEST_REJECT;
+    public static final String PERM_CLOSE   = PermissionCodes.REQUEST_CLOSE;
+    public static final String PERM_OVERRIDE_SOD = PermissionCodes.REQUEST_OVERRIDE_SOD;
 
     private final UserRepository users;
 

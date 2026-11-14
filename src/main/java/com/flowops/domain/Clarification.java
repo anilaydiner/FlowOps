@@ -1,5 +1,6 @@
 package com.flowops.domain;
 
+import com.flowops.domain.exception.ConflictException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -54,6 +55,9 @@ public class Clarification {
 
     /** Record an answer (one-time; the entry becomes read-only). */
     public void answer(String answer, Long answeredBy) {
+        if (isAnswered()) {
+            throw new ConflictException("Clarification already answered");
+        }
         this.answer = answer;
         this.answeredBy = answeredBy;
         this.answeredAt = Instant.now();

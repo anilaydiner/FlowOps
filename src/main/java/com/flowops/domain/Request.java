@@ -12,11 +12,14 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import com.flowops.domain.exception.ConflictException;
+import com.flowops.domain.exception.InvalidStateTransitionException;
 import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A workflow request. Iteration 3 covers the draft lifecycle
@@ -63,22 +66,6 @@ public class Request {
     @Column(name = "submitted_at")
     private Instant submittedAt;
 
-    /** Step instances loaded for API response (not persisted; populated in-transaction). */
-    @jakarta.persistence.Transient
-    private java.util.List<StepInstance> loadedSteps;
-
-    /** Decisions per step instance id, loaded for API response. */
-    @jakarta.persistence.Transient
-    private java.util.Map<Long, java.util.List<Decision>> loadedDecisions;
-
-    /** Clarifications loaded for API response (iteration 7). */
-    @jakarta.persistence.Transient
-    private java.util.List<com.flowops.domain.Clarification> loadedClarifications;
-
-    /** Execution jobs loaded for API response (iteration 7). */
-    @jakarta.persistence.Transient
-    private java.util.List<com.flowops.domain.ExecutionJob> loadedJobs;
-
     protected Request() {
     }
 
@@ -95,25 +82,51 @@ public class Request {
         return r;
     }
 
-    /** Draft-only payload edit. Caller must have verified status == DRAFT. */
+    /**
+     * Allowed lifecycle transitions (PLAN §5).
+     * Terminal states (CLOSED, CANCELLED, EXPIRED) have no outgoing edges.
+     */
+    private static final Map<RequestStatus, Set<RequestStatus>> ALLOWED_TRANSITIONS = Map.of(
+            RequestStatus.DRAFT,       Set.of(RequestStatus.SUBMITTED, RequestStatus.CANCELLED),
+            RequestStatus.SUBMITTED,  Set.of(RequestStatus.IN_REVIEW, RequestStatus.APPROVED,
+                    RequestStatus.CANCELLED, RequestStatus.EXPIRED),
+            RequestStatus.IN_REVIEW,  Set.of(RequestStatus.APPROVED, RequestStatus.REJECTED,
+                    RequestStatus.CANCELLED, RequestStatus.EXPIRED),
+            RequestStatus.APPROVED,   Set.of(RequestStatus.EXECUTED, RequestStatus.CANCELLED),
+            RequestStatus.EXECUTED,   Set.of(RequestStatus.CLOSED),
+            RequestStatus.REJECTED,   Set.of(RequestStatus.CLOSED));
+
+    /** Draft-only payload edit — the invariant is enforced here, not by callers. */
     public void replacePayload(Map<String, Object> newPayload) {
+        if (!isDraft()) {
+            throw new ConflictException("Only DRAFT requests can be edited (current: " + status + ")");
+        }
         this.payload = newPayload != null ? new LinkedHashMap<>(newPayload) : new LinkedHashMap<>();
         this.updatedAt = Instant.now();
     }
 
+    /** Cancel — legal from every non-terminal state. */
     public void cancel() {
-        this.status = RequestStatus.CANCELLED;
-        this.updatedAt = Instant.now();
+        transitionTo(RequestStatus.CANCELLED);
     }
 
-    /** State-machine transition (guarded by {@code @Version} optimistic locking). */
+    /**
+     * State-machine transition: enforces the legal lifecycle above and throws
+     * {@link InvalidStateTransitionException} on an illegal edge.
+     * (Concurrent writers are additionally serialized by the {@code @Version} guard.)
+     */
     public void transitionTo(RequestStatus newStatus) {
+        Set<RequestStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(status, Set.of());
+        if (!allowed.contains(newStatus)) {
+            throw new InvalidStateTransitionException("request", status, newStatus);
+        }
         this.status = newStatus;
         this.updatedAt = Instant.now();
     }
 
+    /** DRAFT → SUBMITTED. */
     public void markSubmitted(Instant at) {
-        this.status = RequestStatus.SUBMITTED;
+        transitionTo(RequestStatus.SUBMITTED);
         this.submittedAt = at;
         this.updatedAt = at;
     }
@@ -134,12 +147,4 @@ public class Request {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public Instant getSubmittedAt() { return submittedAt; }
-    public java.util.List<StepInstance> getLoadedSteps() { return loadedSteps; }
-    public void setLoadedSteps(java.util.List<StepInstance> steps) { this.loadedSteps = steps; }
-    public java.util.Map<Long, java.util.List<Decision>> getLoadedDecisions() { return loadedDecisions; }
-    public void setLoadedDecisions(java.util.Map<Long, java.util.List<Decision>> decisions) { this.loadedDecisions = decisions; }
-    public java.util.List<com.flowops.domain.Clarification> getLoadedClarifications() { return loadedClarifications; }
-    public void setLoadedClarifications(java.util.List<com.flowops.domain.Clarification> c) { this.loadedClarifications = c; }
-    public java.util.List<com.flowops.domain.ExecutionJob> getLoadedJobs() { return loadedJobs; }
-    public void setLoadedJobs(java.util.List<com.flowops.domain.ExecutionJob> j) { this.loadedJobs = j; }
 }

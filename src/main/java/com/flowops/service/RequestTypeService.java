@@ -1,7 +1,9 @@
 package com.flowops.service;
+import com.flowops.domain.exception.NotFoundException;
+import com.flowops.domain.exception.ConflictException;
 
-import com.flowops.api.dto.RequestTypeFilter;
-import com.flowops.api.dto.RequestTypeRequest;
+import com.flowops.domain.query.RequestTypeFilter;
+import com.flowops.domain.RequestTypeSpec;
 import com.flowops.domain.Department;
 import com.flowops.domain.DepartmentRepository;
 import com.flowops.domain.RequestType;
@@ -54,7 +56,7 @@ public class RequestTypeService {
     }
 
     @Transactional
-    public RequestType create(RequestTypeRequest request) {
+    public RequestType create(RequestTypeSpec request) {
         String code = request.code().strip().toUpperCase();
         if (requestTypes.existsByCode(code)) {
             throw new ConflictException("Request type already exists: " + code);
@@ -77,7 +79,7 @@ public class RequestTypeService {
     }
 
     @Transactional
-    public RequestType update(Long id, RequestTypeRequest request) {
+    public RequestType update(Long id, RequestTypeSpec request) {
         RequestType rt = requestTypes.findById(id)
                 .orElseThrow(() -> new NotFoundException("Request type not found: " + id));
         if (request.name() != null && !request.name().isBlank()) {

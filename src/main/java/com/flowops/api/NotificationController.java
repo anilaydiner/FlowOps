@@ -3,13 +3,12 @@ package com.flowops.api;
 import com.flowops.api.dto.NotificationResponse;
 import com.flowops.api.dto.PageResponse;
 import com.flowops.domain.Notification;
-import com.flowops.domain.NotificationRepository;
 import com.flowops.security.UserPrincipal;
+import com.flowops.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -22,9 +21,9 @@ import java.util.List;
 @RequestMapping("/api/v1/notifications")
 public class NotificationController {
 
-    private final NotificationRepository notifications;
+    private final NotificationService notifications;
 
-    public NotificationController(NotificationRepository notifications) {
+    public NotificationController(NotificationService notifications) {
         this.notifications = notifications;
     }
 
@@ -37,58 +36,49 @@ public class NotificationController {
             @ApiResponse(responseCode = "401", description = "Not authenticated")
     })
     public PageResponse<NotificationResponse> list(
+            @Parameter(description = "When true, return only unread notifications")
             @RequestParam(required = false) Boolean unread,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal user
     ) {
-        Pageable pageable = PageRequest.of(page, Math.min(size, 100), Sort.by(Sort.Direction.DESC, "createdAt"));
+        int safeSize = Math.min(Math.max(1, size), 100);
+        Pageable pageable = PageRequest.of(page, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
         if (Boolean.TRUE.equals(unread)) {
             // Fetch all unread, then manually page (small dataset expected)
             List<Notification> allUnread = notifications.findUnread(user.id());
-            int from = Math.min(page * size, allUnread.size());
-            int to = Math.min(from + size, allUnread.size());
+            int from = Math.min(page * safeSize, allUnread.size());
+            int to = Math.min(from + safeSize, allUnread.size());
             List<Notification> slice = allUnread.subList(from, to);
             int total = allUnread.size();
-            int totalPages = (int) Math.ceil((double) total / size);
+            int totalPages = (int) Math.ceil((double) total / safeSize);
             return new PageResponse<>(
                     slice.stream().map(NotificationResponse::from).toList(),
-                    page, size, total, totalPages,
+                    page, safeSize, total, totalPages,
                     page == 0, page >= totalPages - 1
             );
         } else {
-            Page<Notification> result = notifications.findByRecipientId(user.id(), pageable);
-            return PageResponse.from(result.map(NotificationResponse::from));
+            return PageResponse.from(notifications.list(user.id(), pageable).map(NotificationResponse::from));
         }
     }
 
     @GetMapping("/unread-count")
     @Operation(summary = "Get unread notification count")
     public UnreadCount unreadCount(@AuthenticationPrincipal UserPrincipal user) {
-        long count = notifications.countUnread(user.id());
-        return new UnreadCount(count);
+        return new UnreadCount(notifications.countUnread(user.id()));
     }
 
     @PatchMapping("/{id}/read")
     @Operation(summary = "Mark notification as read")
     public NotificationResponse markRead(@PathVariable Long id,
                                           @AuthenticationPrincipal UserPrincipal user) {
-        Notification notification = notifications.findById(id)
-                .orElseThrow(() -> new com.flowops.service.NotFoundException("Notification not found: " + id));
-        if (!notification.getRecipientId().equals(user.id())) {
-            throw new com.flowops.service.ForbiddenException("Not your notification");
-        }
-        notification.markRead();
-        notifications.save(notification);
-        return NotificationResponse.from(notification);
+        return NotificationResponse.from(notifications.markRead(id, user.id()));
     }
 
     @PatchMapping("/read-all")
     @Operation(summary = "Mark all notifications as read")
     public UnreadCount markAllRead(@AuthenticationPrincipal UserPrincipal user) {
-        List<Notification> unread = notifications.findUnread(user.id());
-        unread.forEach(Notification::markRead);
-        notifications.saveAll(unread);
+        notifications.markAllRead(user.id());
         return new UnreadCount(0);
     }
 

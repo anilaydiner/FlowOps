@@ -1,9 +1,11 @@
 package com.flowops.api;
 
 import com.flowops.api.dto.PageResponse;
-import com.flowops.api.dto.WorkflowFilter;
 import com.flowops.api.dto.WorkflowRequest;
 import com.flowops.api.dto.WorkflowResponse;
+import com.flowops.domain.StepSpec;
+import com.flowops.domain.WorkflowView;
+import com.flowops.domain.query.WorkflowFilter;
 import com.flowops.service.WorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -11,6 +13,7 @@ import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -70,13 +73,16 @@ public class WorkflowController {
     ) {
         WorkflowFilter filter = new WorkflowFilter(code, name);
         PageRequest pageRequest = UserController.buildPageRequest(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(workflowService.list(filter, pageRequest));
+        Page<WorkflowResponse> mapped = workflowService.list(filter, pageRequest)
+                .map(v -> WorkflowResponse.from(v.workflow(), v.steps()));
+        return PageResponse.from(mapped);
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get workflow by ID (with ordered steps)")
     public WorkflowResponse get(@PathVariable Long id) {
-        return workflowService.get(id);
+        WorkflowView view = workflowService.get(id);
+        return WorkflowResponse.from(view.workflow(), view.steps());
     }
 
     @PostMapping
@@ -86,12 +92,31 @@ public class WorkflowController {
             @ApiResponse(responseCode = "409", description = "Code already exists")
     })
     public ResponseEntity<WorkflowResponse> create(@Valid @RequestBody WorkflowRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(workflowService.create(request));
+        WorkflowView view = workflowService.create(
+                request.code(), request.name(), request.description(), request.active(), toSpecs(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(view));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update workflow and its steps (admin only)")
     public WorkflowResponse update(@PathVariable Long id, @Valid @RequestBody WorkflowRequest request) {
-        return workflowService.update(id, request);
+        WorkflowView view = workflowService.update(
+                id, request.name(), request.description(), request.active(), toSpecs(request));
+        return toResponse(view);
+    }
+
+    // ── DTO ⇄ domain mapping (presentation concern, kept in the API layer) ──
+
+    private List<StepSpec> toSpecs(WorkflowRequest request) {
+        return request.steps().stream()
+                .map(d -> new StepSpec(
+                        d.position(), d.code(), d.name(), d.requiredRole(),
+                        d.completionRule(), d.requiredApprovals(), d.condition(),
+                        d.slaMinutes(), d.escalationRole(), d.terminal()))
+                .toList();
+    }
+
+    private WorkflowResponse toResponse(WorkflowView view) {
+        return WorkflowResponse.from(view.workflow(), view.steps());
     }
 }

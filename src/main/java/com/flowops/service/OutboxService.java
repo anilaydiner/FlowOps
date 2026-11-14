@@ -18,7 +18,7 @@ import java.util.Map;
  * (e.g. the business code re-runs within the same or a retried transaction),
  * the write is silently skipped — no duplicate notifications.
  *
- * <p>Usage from business code (e.g. {@code WorkflowEngine}):
+ * <p>Usage from business code (e.g. the workflow use cases in {@code service.workflow}):
  * <pre>{@code
  * outbox.notifyApprover(requestId, approverId, "EXPENSE", "New expense submitted");
  * outbox.notifyRequester(requestId, requesterId, "APPROVED", "Your request was approved");
@@ -44,12 +44,12 @@ public class OutboxService {
      */
     public void notifyFeed(Long requestId, Long recipientId, String type,
                            String title, String body, String correlationId) {
-        String key = String.format("req:%d:%s:%d", requestId, type, recipientId);
+        String key = String.format(OutboxMessage.KEY_FORMAT_NOTIFICATION, requestId, type, recipientId);
         String payload = toJson(Map.of(
-                "requestId", requestId,
-                "type", type,
-                "title", title,
-                "body", body == null ? "" : body
+                OutboxPayload.REQUEST_ID, requestId,
+                OutboxPayload.TYPE, type,
+                OutboxPayload.TITLE, title,
+                OutboxPayload.BODY, body == null ? "" : body
         ));
         enqueue(key, CHANNEL_FEED, recipientId, payload, correlationId);
     }
@@ -68,14 +68,14 @@ public class OutboxService {
      */
     public void notifyEmail(Long requestId, Long recipientId, String type,
                             String subject, String body, String html, String correlationId) {
-        String key = String.format("req:%d:%s:%d", requestId, type, recipientId);
+        String key = String.format(OutboxMessage.KEY_FORMAT_NOTIFICATION, requestId, type, recipientId);
         Map<String, Object> fields = new java.util.LinkedHashMap<>();
-        fields.put("requestId", requestId);
-        fields.put("type", type);
-        fields.put("subject", subject);
-        fields.put("body", body == null ? "" : body);
+        fields.put(OutboxPayload.REQUEST_ID, requestId);
+        fields.put(OutboxPayload.TYPE, type);
+        fields.put(OutboxPayload.SUBJECT, subject);
+        fields.put(OutboxPayload.BODY, body == null ? "" : body);
         if (html != null && !html.isBlank()) {
-            fields.put("html", html);
+            fields.put(OutboxPayload.HTML, html);
         }
         String payload = toJson(fields);
         enqueue(key, CHANNEL_EMAIL, recipientId, payload, correlationId);
@@ -86,12 +86,12 @@ public class OutboxService {
      */
     public void notifySlaBreach(Long requestId, Long recipientId,
                                 String stepCode, String message, String correlationId) {
-        String key = String.format("req:%d:sla:%d", requestId, recipientId);
+        String key = String.format(OutboxMessage.KEY_FORMAT_SLA_BREACH, requestId, recipientId);
         String payload = toJson(Map.of(
-                "requestId", requestId,
-                "type", "SLA_BREACH",
-                "step", stepCode,
-                "body", message
+                OutboxPayload.REQUEST_ID, requestId,
+                OutboxPayload.TYPE, OutboxEvents.SLA_BREACH,
+                OutboxPayload.STEP, stepCode,
+                OutboxPayload.BODY, message
         ));
         enqueue(key, CHANNEL_EMAIL, recipientId, payload, correlationId);
         // Also add to feed

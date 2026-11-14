@@ -1,10 +1,11 @@
 package com.flowops.infra;
 
 import com.flowops.security.SecurityConfig;
-import com.flowops.service.ConflictException;
-import com.flowops.service.ForbiddenException;
-import com.flowops.service.NotFoundException;
-import com.flowops.service.RequestValidationException;
+import com.flowops.domain.exception.ConflictException;
+import com.flowops.domain.exception.ForbiddenException;
+import com.flowops.domain.exception.InvalidStateTransitionException;
+import com.flowops.domain.exception.NotFoundException;
+import com.flowops.domain.exception.RequestValidationException;
 import com.flowops.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -33,6 +34,12 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.CONFLICT, "conflict", ex.getMessage());
     }
 
+    @ExceptionHandler(InvalidStateTransitionException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ProblemDetail handleInvalidStateTransition(InvalidStateTransitionException ex) {
+        return problem(HttpStatus.CONFLICT, "conflict", ex.getMessage());
+    }
+
     @ExceptionHandler(UserService.BadCredentialsException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ProblemDetail handleBadCredentials(UserService.BadCredentialsException ex) {
@@ -57,6 +64,18 @@ public class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ProblemDetail handleOptimisticLock(org.springframework.orm.ObjectOptimisticLockingFailureException ex) {
         return problem(HttpStatus.CONFLICT, "conflict", "Concurrent modification — reload and retry");
+    }
+
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ProblemDetail handleDataIntegrityViolation(org.springframework.dao.DataIntegrityViolationException ex) {
+        return problem(HttpStatus.CONFLICT, "conflict", "Request conflicts with existing data");
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "bad-request", ex.getMessage());
     }
 
     private ProblemDetail problem(HttpStatus status, String name, String detail) {

@@ -1,6 +1,6 @@
 package com.flowops.domain;
 
-import com.flowops.api.dto.PermissionFilter;
+import com.flowops.domain.query.PermissionFilter;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 

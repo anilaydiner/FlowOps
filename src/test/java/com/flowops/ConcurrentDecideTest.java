@@ -4,7 +4,7 @@ import com.flowops.domain.DecisionAction;
 import com.flowops.domain.User;
 import com.flowops.domain.UserRepository;
 import com.flowops.security.UserPrincipal;
-import com.flowops.service.WorkflowEngine;
+import com.flowops.service.workflow.DecideStep;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +43,7 @@ class ConcurrentDecideTest extends AbstractIntegrationTest {
     private int port;
 
     @Autowired
-    private WorkflowEngine engine;
+    private DecideStep decideStep;
 
     @Autowired
     private UserRepository users;
@@ -161,7 +161,7 @@ class ConcurrentDecideTest extends AbstractIntegrationTest {
                 futures.add(pool.submit(() -> {
                     try {
                         barrier.await();
-                        engine.decide(requestId, DecisionAction.APPROVE, "race", ap);
+                        decideStep.execute(requestId, DecisionAction.APPROVE, "race", ap);
                         sawSuccess.set(true);
                     } catch (ObjectOptimisticLockingFailureException e) {
                         sawConflict.set(true);

@@ -167,6 +167,72 @@ class WorkflowApiTest extends AbstractIntegrationTest {
         }
 
         @Test
+        void update_withPositionlessSteps_assignsSequentialPositions() throws Exception {
+            // Setup: a workflow with one explicitly positioned step
+            MvcResult created = mvc.perform(post("/api/v1/workflows")
+                            .header("Authorization", "Bearer " + adminToken())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "code": "WF_NOMATCH",
+                                      "name": "No positions",
+                                      "steps": [
+                                        {"position":1,"code":"SINGLE","name":"Single","requiredRole":"ADMIN"}
+                                      ]
+                                    }
+                                    """))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+            long id = mapper.readTree(created.getResponse().getContentAsString()).get("id").asLong();
+
+            // Regression: steps without position used to default to 0 for
+            // every step → unique-constraint violation → unhandled exception
+            // surfaced as a misleading 401. They must now get sequential
+            // positions (1-based) in list order.
+            mvc.perform(put("/api/v1/workflows/" + id)
+                            .header("Authorization", "Bearer " + adminToken())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "code": "WF_NOMATCH",
+                                      "name": "No positions",
+                                      "steps": [
+                                        {"code":"STAGE_A","name":"Stage A","requiredRole":"ADMIN"},
+                                        {"code":"STAGE_B","name":"Stage B","requiredRole":"ADMIN"}
+                                      ]
+                                    }
+                                    """))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.steps.length()").value(2))
+                    .andExpect(jsonPath("$.steps[0].position").value(1))
+                    .andExpect(jsonPath("$.steps[1].position").value(2));
+
+            // Edge: position-less steps must skip positions taken by
+            // explicitly positioned steps (no constraint collision).
+            mvc.perform(put("/api/v1/workflows/" + id)
+                            .header("Authorization", "Bearer " + adminToken())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {
+                                      "code": "WF_NOMATCH",
+                                      "name": "No positions",
+                                      "steps": [
+                                        {"code":"STAGE_A","name":"Stage A","requiredRole":"ADMIN"},
+                                        {"position":2,"code":"STAGE_B","name":"Stage B","requiredRole":"ADMIN"},
+                                        {"code":"STAGE_C","name":"Stage C","requiredRole":"ADMIN"}
+                                      ]
+                                    }
+                                    """))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.steps.length()").value(3))
+                    // Insertion order A, C, B: A takes the free slot 1, C
+                    // skips the taken slot 2 → 3, B keeps its explicit 2.
+                    .andExpect(jsonPath("$.steps[0].position").value(1))
+                    .andExpect(jsonPath("$.steps[1].position").value(3))
+                    .andExpect(jsonPath("$.steps[2].position").value(2));
+        }
+
+        @Test
         void member_cannotCreateWorkflow_returns403() throws Exception {
             mvc.perform(post("/api/v1/workflows")
                             .header("Authorization", "Bearer " + aliceToken())

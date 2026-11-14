@@ -1,6 +1,6 @@
 package com.flowops.domain;
 
-import com.flowops.api.dto.DepartmentFilter;
+import com.flowops.domain.query.DepartmentFilter;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 

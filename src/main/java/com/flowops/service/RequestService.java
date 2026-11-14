@@ -1,10 +1,16 @@
 package com.flowops.service;
+import com.flowops.domain.exception.RequestValidationException;
+import com.flowops.domain.exception.NotFoundException;
+import com.flowops.domain.exception.ConflictException;
 
-import com.flowops.api.dto.RequestFilter;
+import com.flowops.domain.query.RequestFilter;
+import com.flowops.domain.Clarification;
 import com.flowops.domain.Decision;
 import com.flowops.domain.DecisionAction;
 import com.flowops.domain.DecisionRepository;
+import com.flowops.domain.ExecutionJob;
 import com.flowops.domain.Request;
+import com.flowops.domain.RequestDetail;
 import com.flowops.domain.RequestRepository;
 import com.flowops.domain.RequestStatus;
 import com.flowops.domain.RequestType;
@@ -16,6 +22,13 @@ import com.flowops.domain.StepState;
 import com.flowops.domain.User;
 import com.flowops.domain.UserRepository;
 import com.flowops.security.UserPrincipal;
+import com.flowops.observability.FlowOpsSpans;
+import com.flowops.observability.MetricNames;
+import com.flowops.observability.SpanNames;
+import com.flowops.service.workflow.CloseRequest;
+import com.flowops.service.workflow.DecideStep;
+import com.flowops.service.workflow.SubmitRequest;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.MDC;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -39,7 +52,11 @@ public class RequestService {
     private final RequestTypeRepository requestTypes;
     private final UserRepository users;
     private final PayloadValidator validator;
-    private final WorkflowEngine engine;
+    private final SubmitRequest submitRequest;
+    private final DecideStep decideStep;
+    private final CloseRequest closeRequest;
+    private final FlowOpsSpans spans;
+    private final MeterRegistry metrics;
     private final StepInstanceRepository stepInstances;
     private final DecisionRepository decisions;
     private final com.flowops.domain.ClarificationRepository clarifications;
@@ -49,7 +66,11 @@ public class RequestService {
                           RequestTypeRepository requestTypes,
                           UserRepository users,
                           PayloadValidator validator,
-                          WorkflowEngine engine,
+                          SubmitRequest submitRequest,
+                          DecideStep decideStep,
+                          CloseRequest closeRequest,
+                          FlowOpsSpans spans,
+                          MeterRegistry metrics,
                           StepInstanceRepository stepInstances,
                           DecisionRepository decisions,
                           com.flowops.domain.ClarificationRepository clarifications,
@@ -58,7 +79,11 @@ public class RequestService {
         this.requestTypes = requestTypes;
         this.users = users;
         this.validator = validator;
-        this.engine = engine;
+        this.submitRequest = submitRequest;
+        this.decideStep = decideStep;
+        this.closeRequest = closeRequest;
+        this.spans = spans;
+        this.metrics = metrics;
         this.stepInstances = stepInstances;
         this.decisions = decisions;
         this.clarifications = clarifications;
@@ -66,7 +91,7 @@ public class RequestService {
     }
 
     @Transactional
-    public Request createDraft(String typeCode, Map<String, Object> payload, UserPrincipal caller) {
+    public RequestDetail createDraft(String typeCode, Map<String, Object> payload, UserPrincipal caller) {
         RequestType type = requestTypes.findByCode(typeCode.strip().toUpperCase())
                 .orElseThrow(() -> new NotFoundException("Request type not found: " + typeCode));
         if (!type.isActive()) {
@@ -82,28 +107,27 @@ public class RequestService {
 
         String correlationId = MDC.get(com.flowops.infra.CorrelationId.MDC_KEY);
         Request draft = Request.newDraft(type, requester, payload, correlationId);
-        return ready(requests.save(draft));
+        return RequestDetail.of(ready(requests.save(draft)));
     }
 
     @Transactional(readOnly = true)
-    public Request get(Long id, UserPrincipal caller) {
+    public RequestDetail get(Long id, UserPrincipal caller) {
         Request request = requests.findById(id)
                 .orElseThrow(() -> new NotFoundException("Request not found: " + id));
         checkReadAccess(request, caller);
-        return withDetails(request);
+        return fullDetail(request);
     }
 
     @Transactional(readOnly = true)
-    public Page<Request> list(RequestFilter filter, Pageable pageable, UserPrincipal caller) {
+    public Page<RequestDetail> list(RequestFilter filter, Pageable pageable, UserPrincipal caller) {
         // Non-admins can only ever see their own requests
         Specification<Request> spec = RequestSpecifications.from(filter, caller.id(), caller.isAdmin());
         Page<Request> page = (spec == null) ? requests.findAll(pageable) : requests.findAll(spec, pageable);
-        page.getContent().forEach(this::ready);
-        return page;
+        return page.map(r -> RequestDetail.of(ready(r)));
     }
 
     @Transactional
-    public Request updateDraft(Long id, Map<String, Object> newPayload, UserPrincipal caller) {
+    public RequestDetail updateDraft(Long id, Map<String, Object> newPayload, UserPrincipal caller) {
         Request request = requests.findById(id)
                 .orElseThrow(() -> new NotFoundException("Request not found: " + id));
         if (!isOwnerOrAdmin(request, caller)) {
@@ -118,11 +142,11 @@ public class RequestService {
             throw new RequestValidationException(violations);
         }
         request.replacePayload(newPayload);
-        return ready(requests.save(request));
+        return RequestDetail.of(ready(requests.save(request)));
     }
 
     @Transactional
-    public Request cancel(Long id, UserPrincipal caller) {
+    public RequestDetail cancel(Long id, UserPrincipal caller) {
         Request request = requests.findById(id)
                 .orElseThrow(() -> new NotFoundException("Request not found: " + id));
         if (!isOwnerOrAdmin(request, caller)) {
@@ -133,7 +157,7 @@ public class RequestService {
             throw new ConflictException("Cannot cancel a request in terminal state: " + request.getStatus());
         }
         request.cancel();
-        return ready(requests.save(request));
+        return RequestDetail.of(ready(requests.save(request)));
     }
 
     // ── workflow lifecycle (iteration 4) ───────────────────────────────
@@ -144,30 +168,46 @@ public class RequestService {
      * Owner or admin only; non-owner gets 404 (no existence leak).
      */
     @Transactional
-    public Request submit(Long id, UserPrincipal caller) {
+    public RequestDetail submit(Long id, UserPrincipal caller) {
         requireWriteAccess(id, caller);
-        Request submitted = engine.submit(id, caller);
-        return withDetails(submitted);
+        Request submitted = spans.run(SpanNames.REQUEST_SUBMIT, Map.of(
+                        "request.id", String.valueOf(id),
+                        "user", caller.username()),
+                () -> submitRequest.execute(id, caller));
+        metrics.counter(MetricNames.REQUEST_SUBMITTED).increment();
+        return fullDetail(submitted);
     }
 
     /**
      * Records an APPROVE/REJECT/DELEGATE decision on the current step.
-     * SoD and role eligibility are enforced inside the engine.
+     * SoD and role eligibility are enforced by the {@code DecideStep} use case.
      */
     @Transactional
-    public Request decide(Long id, DecisionAction action, String justification,
+    public RequestDetail decide(Long id, DecisionAction action, String justification,
                           Long delegatedTo, UserPrincipal caller) {
-        Request decided = engine.decide(id, action, justification, caller, delegatedTo);
-        return withDetails(decided);
+        Request decided = spans.run(SpanNames.REQUEST_DECIDE, Map.of(
+                        "request.id", String.valueOf(id),
+                        "user", caller.username(),
+                        "action", String.valueOf(action)),
+                () -> decideStep.execute(id, action, justification, caller, delegatedTo));
+        metrics.counter(MetricNames.REQUEST_DECIDED, "action", action.name()).increment();
+        if (decided.getStatus() == RequestStatus.APPROVED) {
+            metrics.counter(MetricNames.REQUEST_APPROVED).increment();
+        }
+        return fullDetail(decided);
     }
 
     /**
      * Closes an EXECUTED or REJECTED request (terminal).
      */
     @Transactional
-    public Request close(Long id, UserPrincipal caller) {
-        Request closed = engine.close(id, caller);
-        return withDetails(closed);
+    public RequestDetail close(Long id, UserPrincipal caller) {
+        Request closed = spans.run(SpanNames.REQUEST_CLOSE, Map.of(
+                        "request.id", String.valueOf(id),
+                        "user", caller.username()),
+                () -> closeRequest.execute(id, caller));
+        metrics.counter(MetricNames.REQUEST_CLOSED).increment();
+        return fullDetail(closed);
     }
 
     // ── queue (approver inbox) ─────────────────────────────────────────
@@ -178,7 +218,7 @@ public class RequestService {
      * the caller is not the requester (SoD).
      */
     @Transactional(readOnly = true)
-    public Page<Request> queue(Pageable pageable, UserPrincipal caller) {
+    public Page<RequestDetail> queue(Pageable pageable, UserPrincipal caller) {
         Set<String> roles = (caller.roles() != null) ? caller.roles() : Set.of();
         if (roles.isEmpty()) {
             return Page.empty(pageable);
@@ -193,8 +233,7 @@ public class RequestService {
                         root.get("id").in(eligibleIds),
                         cb.equal(root.get("status"), RequestStatus.IN_REVIEW));
         Page<Request> page = requests.findAll(spec, pageable);
-        page.getContent().forEach(this::ready);
-        return page;
+        return page.map(r -> RequestDetail.of(ready(r)));
     }
 
     // ── helpers ────────────────────────────────────────────────────────
@@ -225,27 +264,24 @@ public class RequestService {
 
     /**
      * Detail path: loads step instances + their decisions (and touches the
-     * lazy step/actor associations) while the session is open, so
+     * lazy step/actor associations) while the session is open, and assembles
+     * them into a {@link RequestDetail} read model so
      * {@code RequestResponse.from()} can map them without a session.
      */
-    private Request withDetails(Request r) {
+    private RequestDetail fullDetail(Request r) {
         ready(r);
         List<StepInstance> steps = stepInstances.findByRequestIdOrderById(r.getId());
-        r.setLoadedSteps(steps);
-        if (!steps.isEmpty()) {
-            Map<Long, List<Decision>> byStep = new LinkedHashMap<>();
-            for (StepInstance si : steps) {
-                si.getStep().getCode(); // touch lazy step
-                List<Decision> ds = decisions.findByStepInstanceIdOrderById(si.getId());
-                ds.forEach(d -> d.getActorUsername()); // touch lazy actor
-                byStep.put(si.getId(), ds);
-            }
-            r.setLoadedDecisions(byStep);
+        Map<Long, List<Decision>> byStep = new LinkedHashMap<>();
+        for (StepInstance si : steps) {
+            si.getStep().getCode(); // touch lazy step
+            List<Decision> ds = decisions.findByStepInstanceIdOrderById(si.getId());
+            ds.forEach(d -> d.getActorUsername()); // touch lazy actor
+            byStep.put(si.getId(), ds);
         }
         // Iteration 7: load clarifications + execution jobs
-        r.setLoadedClarifications(clarifications.findByRequestIdOrderByCreatedAtDesc(r.getId()));
-        r.setLoadedJobs(executionJobs.findByRequestIdOrderByCreatedAtAsc(r.getId()));
-        return r;
+        List<Clarification> clari = clarifications.findByRequestIdOrderByCreatedAtDesc(r.getId());
+        List<ExecutionJob> jobs = executionJobs.findByRequestIdOrderByCreatedAtAsc(r.getId());
+        return RequestDetail.full(r, steps, byStep, clari, jobs);
     }
 
     private void checkReadAccess(Request request, UserPrincipal caller) {

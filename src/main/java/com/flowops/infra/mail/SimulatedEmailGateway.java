@@ -1,4 +1,5 @@
-package com.flowops.service;
+package com.flowops.infra.mail;
+import com.flowops.service.EmailGateway;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

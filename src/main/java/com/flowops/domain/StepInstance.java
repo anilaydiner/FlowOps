@@ -1,5 +1,6 @@
 package com.flowops.domain;
 
+import com.flowops.domain.exception.InvalidStateTransitionException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -83,20 +84,37 @@ public class StepInstance {
         this.createdAt = Instant.now();
     }
 
+    /** PENDING → SKIPPED (conditional step does not apply). */
     public void skip(String reason) {
+        requirePending("skip");
         this.state = StepState.SKIPPED;
         this.skipReason = reason;
     }
 
+    /** PENDING → BLOCKED (no eligible approver for the role). */
     public void block(String reason) {
+        requirePending("block");
         this.state = StepState.BLOCKED;
         this.blockedReason = reason;
     }
 
+    /** PENDING → SATISFIED (completion rule met). */
     public void satisfy(Long actorId) {
+        requirePending("satisfy");
         this.state = StepState.SATISFIED;
         this.satisfiedBy = actorId;
         this.satisfiedAt = Instant.now();
+    }
+
+    /** SATISFIED / SKIPPED / BLOCKED are terminal for a step instance. */
+    public boolean isTerminal() {
+        return this.state != StepState.PENDING;
+    }
+
+    private void requirePending(String operation) {
+        if (state != StepState.PENDING) {
+            throw new InvalidStateTransitionException("step instance", state, operation);
+        }
     }
 
     // ── Getters / Setters ──────────────────────────────────────────

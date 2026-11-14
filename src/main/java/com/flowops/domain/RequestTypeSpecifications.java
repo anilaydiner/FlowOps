@@ -1,6 +1,6 @@
 package com.flowops.domain;
 
-import com.flowops.api.dto.RequestTypeFilter;
+import com.flowops.domain.query.RequestTypeFilter;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;

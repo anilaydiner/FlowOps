@@ -1,5 +1,6 @@
 package com.flowops.domain;
 
+import com.flowops.domain.exception.InvalidStateTransitionException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -46,8 +47,23 @@ public class OutboxMessage {
     @Column(name = "retry_count", nullable = false)
     private int retryCount = 0;
 
+    /** Default retry budget before a message is dead-lettered. */
+    public static final int DEFAULT_MAX_RETRIES = 5;
+
+    /** Idempotency-key namespace for all per-request outbox/job messages. */
+    public static final String KEY_PREFIX_REQUEST = "req:";
+
+    /** Key format {@code req:<requestId>:<type>:<recipientId>} (feed + email notifications). */
+    public static final String KEY_FORMAT_NOTIFICATION = "req:%d:%s:%d";
+
+    /** Key format {@code req:<requestId>:sla:<recipientId>} (SLA breach alerts). */
+    public static final String KEY_FORMAT_SLA_BREACH = "req:%d:sla:%d";
+
+    /** Key format {@code req:<requestId>:<action>} (execution jobs). */
+    public static final String KEY_FORMAT_JOB = "req:%d:%s";
+
     @Column(name = "max_retries", nullable = false)
-    private int maxRetries = 5;
+    private int maxRetries = DEFAULT_MAX_RETRIES;
 
     @Column(name = "next_retry_at")
     private Instant nextRetryAt;
@@ -93,24 +109,35 @@ public class OutboxMessage {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getSentAt() { return sentAt; }
 
-    public void setStatus(OutboxStatus status) { this.status = status; }
-    public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
+    /** Test-support setter: force retry eligibility by moving the due time into the past. */
     public void setNextRetryAt(Instant nextRetryAt) { this.nextRetryAt = nextRetryAt; }
-    public void setLastError(String lastError) { this.lastError = lastError; }
-    public void setSentAt(Instant sentAt) { this.sentAt = sentAt; }
+
+    /** Test-support setter: pre-age retry progress (e.g. to exercise the dead-letter path). */
+    public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
 
     // ── Domain behavior ──────────────────────────────────────────────────
+    // State machine: PENDING → SENT
+    //                  └────→ FAILED (retryable) → DEAD_LETTER
+    // Dispatchers may only claim PENDING/FAILED (see OutboxMessageRepository.claimBatch).
 
     public boolean canRetry() {
         return retryCount < maxRetries;
     }
 
+    /** PENDING|FAILED → SENT. */
     public void markSent() {
+        if (status != OutboxStatus.PENDING && status != OutboxStatus.FAILED) {
+            throw new InvalidStateTransitionException("outbox message", status, "send");
+        }
         this.status = OutboxStatus.SENT;
         this.sentAt = Instant.now();
     }
 
+    /** PENDING|FAILED → FAILED, or → DEAD_LETTER when retries are exhausted. */
     public void markFailed(String error, Instant nextRetryAt) {
+        if (status != OutboxStatus.PENDING && status != OutboxStatus.FAILED) {
+            throw new InvalidStateTransitionException("outbox message", status, "fail");
+        }
         this.retryCount++;
         this.lastError = error;
         this.nextRetryAt = nextRetryAt;

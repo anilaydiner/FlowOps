@@ -1,7 +1,7 @@
 package com.flowops.api;
 
 import com.flowops.api.dto.PageResponse;
-import com.flowops.api.dto.UserFilter;
+import com.flowops.domain.query.UserFilter;
 import com.flowops.api.dto.UserRequest;
 import com.flowops.api.dto.UserResponse;
 import com.flowops.security.UserPrincipal;

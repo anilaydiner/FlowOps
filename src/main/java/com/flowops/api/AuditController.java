@@ -1,9 +1,9 @@
 package com.flowops.api;
 
-import com.flowops.api.dto.AuditEvent;
+import com.flowops.domain.AuditEvent;
 import com.flowops.security.UserPrincipal;
 import com.flowops.service.AuditService;
-import com.flowops.service.RequestValidationException;
+import com.flowops.domain.exception.RequestValidationException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

@@ -1,4 +1,5 @@
-package com.flowops.service;
+package com.flowops.infra.worker;
+import com.flowops.service.EmailGateway;
 
 import com.flowops.domain.EmailLogEntry;
 import com.flowops.domain.EmailLogEntryRepository;
@@ -10,6 +11,10 @@ import com.flowops.domain.OutboxStatus;
 import com.flowops.domain.User;
 import com.flowops.domain.UserRepository;
 import com.flowops.observability.FlowOpsSpans;
+import com.flowops.observability.MetricNames;
+import com.flowops.observability.SpanNames;
+import com.flowops.service.OutboxPayload;
+import com.flowops.service.OutboxService;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -48,8 +53,6 @@ import java.util.Map;
 public class OutboxDispatcher {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxDispatcher.class);
-    private static final int BATCH_SIZE = 50;
-    private static final Duration BASE_BACKOFF = Duration.ofSeconds(5);
 
     private final OutboxMessageRepository outbox;
     private final NotificationRepository notifications;
@@ -96,7 +99,7 @@ public class OutboxDispatcher {
     /**
      * Scheduled poller: runs every 2 seconds.
      */
-    @Scheduled(fixedDelay = 2000)
+    @Scheduled(fixedDelay = WorkerDefaults.TICK_DELAY_MS)
     public void scheduledTick() {
         if (running) {
             dispatch();
@@ -109,13 +112,13 @@ public class OutboxDispatcher {
      */
     @Transactional
     public void dispatch() {
-        List<OutboxMessage> batch = outbox.claimBatch(Instant.now(), BATCH_SIZE);
+        List<OutboxMessage> batch = outbox.claimBatch(Instant.now(), WorkerDefaults.BATCH_SIZE);
         if (batch.isEmpty()) {
             return;
         }
         log.info("OUTBOX DISPATCH: claiming {} messages", batch.size());
 
-        Timer.builder("flowops.outbox.dispatch")
+        Timer.builder(MetricNames.OUTBOX_DISPATCH)
                 .description("Time to deliver one outbox batch")
                 .register(metrics)
                 .record(() -> {
@@ -136,24 +139,24 @@ public class OutboxDispatcher {
                 "channel", msg.getChannel(),
                 "request.id", String.valueOf(msg.getRecipientId()));
         try {
-            spans.run("outbox.deliver", attrs, () -> {
+            spans.run(SpanNames.OUTBOX_DELIVER, attrs, () -> {
                 switch (msg.getChannel()) {
-                    case "EMAIL" -> deliverEmail(msg);
-                    case "FEED" -> deliverFeed(msg);
+                    case OutboxService.CHANNEL_EMAIL -> deliverEmail(msg);
+                    case OutboxService.CHANNEL_FEED -> deliverFeed(msg);
                     default -> log.warn("OUTBOX UNKNOWN CHANNEL: {} (key={})", msg.getChannel(), msg.getIdempotencyKey());
                 }
                 msg.markSent();
-                metrics.counter("flowops.outbox.message.sent", "channel", msg.getChannel()).increment();
+                metrics.counter(MetricNames.OUTBOX_MESSAGE_SENT, "channel", msg.getChannel()).increment();
                 log.debug("OUTBOX SENT: key={}", msg.getIdempotencyKey());
                 return null;
             });
         } catch (RuntimeException e) {
-            long backoffSeconds = BASE_BACKOFF.toSeconds() * (1L << msg.getRetryCount());
+            long backoffSeconds = WorkerDefaults.BASE_BACKOFF.toSeconds() * (1L << msg.getRetryCount());
             Instant nextRetry = Instant.now().plus(Duration.ofSeconds(backoffSeconds));
             msg.markFailed(e.getMessage(), nextRetry);
-            metrics.counter("flowops.outbox.message.failed", "channel", msg.getChannel()).increment();
+            metrics.counter(MetricNames.OUTBOX_MESSAGE_FAILED, "channel", msg.getChannel()).increment();
             if (msg.getStatus() == OutboxStatus.DEAD_LETTER) {
-                metrics.counter("flowops.outbox.message.dead_letter", "channel", msg.getChannel()).increment();
+                metrics.counter(MetricNames.OUTBOX_MESSAGE_DEAD_LETTER, "channel", msg.getChannel()).increment();
             }
             log.warn("OUTBOX FAIL (retry={}/{}): key={} error={} nextRetry={}",
                     msg.getRetryCount(), msg.getMaxRetries(),
@@ -175,9 +178,9 @@ public class OutboxDispatcher {
         }
 
         Map<String, Object> payload = parsePayload(msg.getPayload());
-        String subject = String.valueOf(payload.getOrDefault("subject", "FlowOps Notification"));
-        String body = String.valueOf(payload.getOrDefault("body", ""));
-        String html = payload.containsKey("html") ? String.valueOf(payload.get("html")) : null;
+        String subject = String.valueOf(payload.getOrDefault(OutboxPayload.SUBJECT, "FlowOps Notification"));
+        String body = String.valueOf(payload.getOrDefault(OutboxPayload.BODY, ""));
+        String html = payload.containsKey(OutboxPayload.HTML) ? String.valueOf(payload.get(OutboxPayload.HTML)) : null;
 
         if (html != null && !html.isBlank()) {
             emailGateway.sendHtml(to, subject, body, html);
@@ -192,10 +195,10 @@ public class OutboxDispatcher {
         Map<String, Object> payload = parsePayload(msg.getPayload());
         Notification notification = new Notification(
                 msg.getRecipientId(),
-                String.valueOf(payload.getOrDefault("type", "NOTIFY")),
-                String.valueOf(payload.getOrDefault("title", "Notification")),
-                String.valueOf(payload.getOrDefault("body", "")),
-                payload.get("requestId") instanceof Number n ? n.longValue() : null
+                String.valueOf(payload.getOrDefault(OutboxPayload.TYPE, "NOTIFY")),
+                String.valueOf(payload.getOrDefault(OutboxPayload.TITLE, "Notification")),
+                String.valueOf(payload.getOrDefault(OutboxPayload.BODY, "")),
+                payload.get(OutboxPayload.REQUEST_ID) instanceof Number n ? n.longValue() : null
         );
         notifications.save(notification);
     }

@@ -2,6 +2,7 @@ package com.flowops.service;
 
 import com.flowops.domain.ExecutionJob;
 import com.flowops.domain.ExecutionJobRepository;
+import com.flowops.domain.OutboxMessage;
 import com.flowops.domain.Request;
 import com.flowops.domain.RequestType;
 import org.slf4j.Logger;
@@ -17,7 +18,7 @@ import java.util.List;
  * <p>Idempotent: repeated calls for the same (request, action) pair are
  * silently skipped via the {@code idempotency_key} unique constraint.
  *
- * <p>Called from {@code WorkflowEngine.decide()} when the request
+ * <p>Called from the {@code DecideStep} use case when the request
  * transitions to APPROVED.
  */
 @Service
@@ -45,7 +46,7 @@ public class ExecutionService {
 
         String correlationId = request.getCorrelationId();
         for (String action : actions) {
-            String key = String.format("req:%d:%s", request.getId(), action);
+            String key = String.format(OutboxMessage.KEY_FORMAT_JOB, request.getId(), action);
             if (jobs.findByIdempotencyKey(key).isPresent()) {
                 log.debug("EXEC SKIP (idempotent): {}", key);
                 continue;

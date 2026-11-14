@@ -1,10 +1,9 @@
 package com.flowops.api;
 
-import com.flowops.api.dto.DepartmentFilter;
 import com.flowops.api.dto.PageResponse;
 import com.flowops.domain.Department;
-import com.flowops.domain.DepartmentRepository;
-import com.flowops.domain.DepartmentSpecifications;
+import com.flowops.domain.query.DepartmentFilter;
+import com.flowops.service.DepartmentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -13,8 +12,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -30,9 +27,9 @@ public class DepartmentController {
     private static final List<String> ALLOWED_SORT_FIELDS = List.of(
             "id", "code", "name", "createdAt");
 
-    private final DepartmentRepository departments;
+    private final DepartmentService departments;
 
-    public DepartmentController(DepartmentRepository departments) {
+    public DepartmentController(DepartmentService departments) {
         this.departments = departments;
     }
 
@@ -64,7 +61,6 @@ public class DepartmentController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Paged department list")
     })
-    @Transactional(readOnly = true)
     public PageResponse<Department> list(
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String name,
@@ -74,10 +70,7 @@ public class DepartmentController {
     ) {
         DepartmentFilter filter = new DepartmentFilter(code, name);
         PageRequest pageRequest = buildPageRequest(page, size, sort);
-        Specification<Department> spec = DepartmentSpecifications.from(filter);
-        Page<Department> result = (spec == null)
-                ? departments.findAll(pageRequest)
-                : departments.findAll(spec, pageRequest);
+        Page<Department> result = departments.list(filter, pageRequest);
         return PageResponse.from(result);
     }
 

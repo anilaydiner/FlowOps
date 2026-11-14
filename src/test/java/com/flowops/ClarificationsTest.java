@@ -1,8 +1,8 @@
 package com.flowops;
 
 import com.flowops.domain.*;
-import com.flowops.service.OutboxDispatcher;
-import com.flowops.service.SlaScanner;
+import com.flowops.infra.worker.OutboxDispatcher;
+import com.flowops.infra.worker.SlaScanner;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -35,7 +35,7 @@ class ClarificationsTest extends AbstractIntegrationTest {
     @Autowired RequestRepository requestRepo;
     @Autowired OutboxDispatcher dispatcher;
     @Autowired SlaScanner slaScanner;
-    @Autowired com.flowops.service.JobWorker jobWorker;
+    @Autowired com.flowops.infra.worker.JobWorker jobWorker;
     @Autowired UserRepository users;
     @Autowired RoleRepository roles;
     @Autowired DepartmentRepository departments;

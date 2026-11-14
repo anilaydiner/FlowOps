@@ -1,6 +1,8 @@
 package com.flowops.service;
+import com.flowops.authz.PermissionCodes;
+import com.flowops.domain.exception.NotFoundException;
 
-import com.flowops.api.dto.AuditEvent;
+import com.flowops.domain.AuditEvent;
 import com.flowops.domain.Decision;
 import com.flowops.domain.ExecutionJob;
 import com.flowops.domain.OutboxMessage;
@@ -51,7 +53,7 @@ public class AuditService {
     public static final String TYPE_JOB = "JOB";
     public static final String TYPE_SLA = "SLA";
 
-    private static final String AUDIT_PERM = "audit:read:any";
+    private static final String AUDIT_PERM = PermissionCodes.AUDIT_READ_ANY;
 
     private final RequestRepository requests;
     private final StepInstanceRepository stepInstances;
@@ -132,7 +134,7 @@ public class AuditService {
         }
 
         // ── SLA breach escalations (outbox rows for this request) ─────
-        for (OutboxMessage msg : outbox.findByKeyPrefix("req:" + requestId + ":sla")) {
+        for (OutboxMessage msg : outbox.findByKeyPrefix(OutboxMessage.KEY_PREFIX_REQUEST + requestId + ":sla")) {
             events.add(AuditEvent.of(TYPE_SLA, msg.getCreatedAt(), null,
                     "SLA breach escalation to user " + msg.getRecipientId()
                             + " (" + msg.getStatus() + ")",

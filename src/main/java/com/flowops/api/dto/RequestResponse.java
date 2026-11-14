@@ -4,6 +4,7 @@ import com.flowops.domain.Clarification;
 import com.flowops.domain.Decision;
 import com.flowops.domain.ExecutionJob;
 import com.flowops.domain.Request;
+import com.flowops.domain.RequestDetail;
 import com.flowops.domain.StepInstance;
 
 import java.time.Instant;
@@ -27,23 +28,21 @@ public record RequestResponse(
         Instant updatedAt,
         Instant submittedAt
 ) {
-    public static RequestResponse from(Request r) {
+    public static RequestResponse from(RequestDetail detail) {
+        Request r = detail.request();
         com.flowops.domain.Department dept = r.getType().getOwningDepartment();
-        List<StepDto> stepDtos = (r.getLoadedSteps() == null) ? List.of()
-                : r.getLoadedSteps().stream().map(si -> toStepDto(si, r)).toList();
+        List<StepDto> stepDtos = detail.steps().stream().map(si -> toStepDto(si, detail)).toList();
 
-        List<ClarificationDto> clariDtos = (r.getLoadedClarifications() == null) ? List.of()
-                : r.getLoadedClarifications().stream().map(c -> new ClarificationDto(
-                        c.getId(), c.getAskedBy(), c.getQuestion(),
-                        c.getAnswer(), c.getAnsweredBy(), c.getAnsweredAt(), c.getCreatedAt()
-                )).toList();
+        List<ClarificationDto> clariDtos = detail.clarifications().stream().map(c -> new ClarificationDto(
+                c.getId(), c.getAskedBy(), c.getQuestion(),
+                c.getAnswer(), c.getAnsweredBy(), c.getAnsweredAt(), c.getCreatedAt()
+        )).toList();
 
-        List<ExecutionJobDto> jobDtos = (r.getLoadedJobs() == null) ? List.of()
-                : r.getLoadedJobs().stream().map(j -> new ExecutionJobDto(
-                        j.getId(), j.getAction(), j.getStatus().name(),
-                        j.getResult(), j.getLastError(), j.getRetryCount(),
-                        j.getCreatedAt(), j.getCompletedAt()
-                )).toList();
+        List<ExecutionJobDto> jobDtos = detail.jobs().stream().map(j -> new ExecutionJobDto(
+                j.getId(), j.getAction(), j.getStatus().name(),
+                j.getResult(), j.getLastError(), j.getRetryCount(),
+                j.getCreatedAt(), j.getCompletedAt()
+        )).toList();
 
         return new RequestResponse(
                 r.getId(),
@@ -66,10 +65,8 @@ public record RequestResponse(
                 r.getSubmittedAt());
     }
 
-    private static StepDto toStepDto(StepInstance si, Request r) {
-        List<Decision> decisions = (r.getLoadedDecisions() == null)
-                ? List.of()
-                : r.getLoadedDecisions().getOrDefault(si.getId(), List.of());
+    private static StepDto toStepDto(StepInstance si, RequestDetail detail) {
+        List<Decision> decisions = detail.decisionsByStep().getOrDefault(si.getId(), List.of());
         return new StepDto(
                 si.getId(),
                 si.getPosition(),

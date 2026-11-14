@@ -1,6 +1,7 @@
 package com.flowops.service;
+import com.flowops.domain.exception.NotFoundException;
 
-import com.flowops.api.dto.PermissionFilter;
+import com.flowops.domain.query.PermissionFilter;
 import com.flowops.domain.Permission;
 import com.flowops.domain.PermissionRepository;
 import com.flowops.domain.PermissionSpecifications;

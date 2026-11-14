@@ -1,8 +1,8 @@
 package com.flowops;
 
 import com.flowops.domain.*;
-import com.flowops.service.OutboxDispatcher;
-import com.flowops.service.SlaScanner;
+import com.flowops.infra.worker.OutboxDispatcher;
+import com.flowops.infra.worker.SlaScanner;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -132,12 +132,15 @@ class SlaScannerTest extends AbstractIntegrationTest {
             // Run the scanner
             slaScanner.scan();
 
-            // SLA breach notification should be in the outbox
+            // SLA breach notification should be in the outbox for THIS request
+            // (scoped by request id — the table is shared across tests, and each
+            // breach enqueues both an EMAIL and a FEED variant, so get(0) on an
+            // unordered findAll() is nondeterministic)
             List<OutboxMessage> slaMessages = outboxRepo.findAll().stream()
-                    .filter(m -> m.getIdempotencyKey().contains(":sla:"))
+                    .filter(m -> m.getIdempotencyKey().startsWith("req:" + reqId + ":sla:"))
                     .toList();
             assertThat(slaMessages).isNotEmpty();
-            assertThat(slaMessages.get(0).getChannel()).isEqualTo("EMAIL");
+            assertThat(slaMessages).extracting(OutboxMessage::getChannel).contains("EMAIL");
 
             // Request should still be IN_REVIEW (not yet expired — 1min SLA, 3min elapsed < 2min expiry)
             // Wait: expiry is 2× SLA = 2min. 3min > 2min, so it SHOULD be expired.

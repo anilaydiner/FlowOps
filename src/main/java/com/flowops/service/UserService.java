@@ -1,6 +1,8 @@
 package com.flowops.service;
+import com.flowops.domain.exception.NotFoundException;
+import com.flowops.domain.exception.ConflictException;
 
-import com.flowops.api.dto.UserFilter;
+import com.flowops.domain.query.UserFilter;
 import com.flowops.domain.Department;
 import com.flowops.domain.DepartmentRepository;
 import com.flowops.domain.Role;

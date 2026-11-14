@@ -1,4 +1,4 @@
-package com.flowops.api.dto;
+package com.flowops.domain;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -6,6 +6,9 @@ import java.util.Map;
 
 /**
  * One entry in a request's audit timeline (PLAN §8, iteration 8).
+ *
+ * <p>A domain value object representing a timeline entry; consumed by the
+ * application service and mapped straight to the API response.</p>
  *
  * @param type      one of {@code STATUS}, {@code SUBMITTED}, {@code DECISION},
  *                  {@code JOB}, {@code SLA}

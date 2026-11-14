@@ -1,7 +1,9 @@
 package com.flowops.service;
+import com.flowops.domain.exception.NotFoundException;
+import com.flowops.domain.exception.ConflictException;
 
-import com.flowops.api.dto.RoleFilter;
-import com.flowops.api.dto.RoleRequest;
+import com.flowops.domain.query.RoleFilter;
+import com.flowops.domain.RoleSpec;
 import com.flowops.domain.Permission;
 import com.flowops.domain.PermissionRepository;
 import com.flowops.domain.Role;
@@ -47,7 +49,7 @@ public class RoleService {
     }
 
     @Transactional
-    public Role create(RoleRequest request) {
+    public Role create(RoleSpec request) {
         String code = request.code().strip().toUpperCase();
         if (roles.existsByCode(code)) {
             throw new ConflictException("Role already exists: " + code);
@@ -65,7 +67,7 @@ public class RoleService {
     }
 
     @Transactional
-    public Role update(Long id, RoleRequest request) {
+    public Role update(Long id, RoleSpec request) {
         Role role = roles.findById(id)
                 .orElseThrow(() -> new NotFoundException("Role not found: " + id));
         if (request.name() != null && !request.name().isBlank()) {

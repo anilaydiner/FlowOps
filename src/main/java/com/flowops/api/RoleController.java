@@ -1,8 +1,9 @@
 package com.flowops.api;
 
 import com.flowops.api.dto.PageResponse;
-import com.flowops.api.dto.RoleFilter;
+import com.flowops.domain.query.RoleFilter;
 import com.flowops.api.dto.RoleRequest;
+import com.flowops.domain.RoleSpec;
 import com.flowops.api.dto.RoleResponse;
 import com.flowops.service.RoleService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -88,14 +89,14 @@ public class RoleController {
             @ApiResponse(responseCode = "409", description = "Role code already exists")
     })
     public ResponseEntity<RoleResponse> create(@Valid @RequestBody RoleRequest request) {
-        RoleResponse response = RoleResponse.from(roleService.create(request));
+        RoleResponse response = RoleResponse.from(roleService.create(toSpec(request)));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update role (admin only)")
     public RoleResponse update(@PathVariable Long id, @RequestBody RoleRequest request) {
-        return RoleResponse.from(roleService.update(id, request));
+        return RoleResponse.from(roleService.update(id, toSpec(request)));
     }
 
     @DeleteMapping("/{id}")
@@ -108,5 +109,9 @@ public class RoleController {
     })
     public void delete(@PathVariable Long id) {
         roleService.delete(id);
+    }
+
+    private RoleSpec toSpec(RoleRequest r) {
+        return new RoleSpec(r.code(), r.name(), r.description(), r.permissions());
     }
 }

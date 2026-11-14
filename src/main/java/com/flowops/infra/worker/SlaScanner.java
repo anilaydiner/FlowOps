@@ -1,4 +1,5 @@
-package com.flowops.service;
+package com.flowops.infra.worker;
+import com.flowops.service.OutboxService;
 
 import com.flowops.domain.Request;
 import com.flowops.domain.RequestRepository;
@@ -10,6 +11,8 @@ import com.flowops.domain.User;
 import com.flowops.domain.UserRepository;
 import com.flowops.domain.WorkflowStep;
 import com.flowops.observability.FlowOpsSpans;
+import com.flowops.observability.MetricNames;
+import com.flowops.observability.SpanNames;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,8 +44,6 @@ import java.util.Map;
 public class SlaScanner {
 
     private static final Logger log = LoggerFactory.getLogger(SlaScanner.class);
-    /** Expiry is 2× the SLA window. */
-    private static final int EXPIRY_MULTIPLIER = 2;
 
     private final StepInstanceRepository stepInstances;
     private final RequestRepository requests;
@@ -75,7 +76,7 @@ public class SlaScanner {
         return running;
     }
 
-    @Scheduled(fixedDelay = 5000)
+    @Scheduled(fixedDelay = WorkerDefaults.SLA_TICK_DELAY_MS)
     public void scheduledTick() {
         if (running) {
             scan();
@@ -89,7 +90,7 @@ public class SlaScanner {
     @Transactional
     public void scan() {
         io.opentelemetry.api.trace.Span span =
-                spans.start("sla.scan", Map.of("component", "sla-scanner"));
+                spans.start(SpanNames.SLA_SCAN, Map.of("component", "sla-scanner"));
         try {
             doScan(span);
         } catch (RuntimeException e) {
@@ -141,17 +142,17 @@ public class SlaScanner {
                     continue;
                 }
                 outbox.notifySlaBreach(request.getId(), esc.getId(), step.getCode(), message, request.getCorrelationId());
-                metrics.counter("flowops.sla.breach", "step", step.getCode()).increment();
+                metrics.counter(MetricNames.SLA_BREACH, "step", step.getCode()).increment();
                 breaches++;
             }
 
             // ── Expiry: 2× SLA → terminal ───────────────────────────────
             Instant expiryDeadline = si.getCreatedAt()
-                    .plus(Duration.ofMinutes(step.getSlaMinutes() * EXPIRY_MULTIPLIER));
+                    .plus(Duration.ofMinutes(step.getSlaMinutes() * WorkerDefaults.SLA_EXPIRY_MULTIPLIER));
             if (now.isAfter(expiryDeadline)) {
                 request.transitionTo(RequestStatus.EXPIRED);
                 requests.save(request);
-                metrics.counter("flowops.sla.expired", "step", step.getCode()).increment();
+                metrics.counter(MetricNames.SLA_EXPIRED, "step", step.getCode()).increment();
                 expiries++;
                 log.info("REQUEST EXPIRED: id={} step={} sla={}min", request.getId(), step.getCode(), step.getSlaMinutes());
             }

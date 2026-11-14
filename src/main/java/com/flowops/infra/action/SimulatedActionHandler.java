@@ -1,5 +1,7 @@
-package com.flowops.service;
+package com.flowops.infra.action;
+import com.flowops.service.ActionHandler;
 
+import com.flowops.domain.JobActions;
 import com.flowops.domain.Request;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,14 +53,14 @@ public class SimulatedActionHandler implements ActionHandler {
         result.put("timestamp", Instant.now().toString());
 
         switch (action) {
-            case "PROVISIONING" -> {
+            case JobActions.PROVISIONING -> {
                 result.put("provisioned", true);
                 result.put("resource", String.valueOf(request.getPayload().getOrDefault("resource", "default")));
             }
-            case "PURCHASE_TICKET" -> {
+            case JobActions.PURCHASE_TICKET -> {
                 result.put("ticketId", "TCK-" + request.getId());
             }
-            case "ACCOUNTING_EXPORT" -> {
+            case JobActions.ACCOUNTING_EXPORT -> {
                 result.put("exportId", "EXP-" + request.getId());
             }
             default -> {

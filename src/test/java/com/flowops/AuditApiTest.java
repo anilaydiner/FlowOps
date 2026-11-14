@@ -1,10 +1,10 @@
 package com.flowops;
 
-import com.flowops.api.dto.AuditEvent;
+import com.flowops.domain.AuditEvent;
 import com.flowops.domain.*;
-import com.flowops.service.JobWorker;
-import com.flowops.service.OutboxDispatcher;
-import com.flowops.service.SlaScanner;
+import com.flowops.infra.worker.JobWorker;
+import com.flowops.infra.worker.OutboxDispatcher;
+import com.flowops.infra.worker.SlaScanner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
