@@ -1,0 +1,212 @@
+package com.flowops.api;
+
+import com.flowops.api.dto.CreateRequestRequest;
+import com.flowops.api.dto.PageResponse;
+import com.flowops.api.dto.RequestFilter;
+import com.flowops.api.dto.RequestResponse;
+import com.flowops.api.dto.UpdateRequestRequest;
+import com.flowops.security.UserPrincipal;
+import com.flowops.service.RequestService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.Parameters;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.validation.Valid;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/requests")
+public class RequestController {
+
+    private static final List<String> ALLOWED_SORT_FIELDS = List.of(
+            "id", "status", "createdAt", "updatedAt");
+
+    private final RequestService requestService;
+
+    public RequestController(RequestService requestService) {
+        this.requestService = requestService;
+    }
+
+    @PostMapping
+    @Operation(summary = "Create a draft request",
+            description = """
+                    Creates a request in DRAFT state, validated against the type's
+                    required fields and rules. Example payload for `IT_ACCESS`:
+                    `{"resource": "Jira", "duration": "30d"}`
+
+                    Validation failures return 400 with per-field `violations`.
+                    """)
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Draft created"),
+            @ApiResponse(responseCode = "400", description = "Payload failed per-type validation (violations included)"),
+            @ApiResponse(responseCode = "404", description = "Request type not found")
+    })
+    public ResponseEntity<RequestResponse> createDraft(@Valid @RequestBody CreateRequestRequest request,
+                                                       @AuthenticationPrincipal UserPrincipal caller) {
+        RequestResponse body = RequestResponse.from(
+                requestService.createDraft(request.typeCode(), request.payload(), caller));
+        return ResponseEntity.status(HttpStatus.CREATED).body(body);
+    }
+
+    @GetMapping
+    @Operation(summary = "List requests",
+            description = """
+                    Admins see all requests; other users see only their own.
+
+                    **Filters** — all optional, combined with AND:
+                    - `status` — exact match (DRAFT, IN_REVIEW, …)
+                    - `typeCode` — exact type code (e.g. EXPENSE)
+                    - `mine` — true to restrict to the caller's requests (admin only)
+
+                    **Sorting** — repeatable `sort` param, format `field,asc|desc`
+                    **Pagination**: `page` (default 0), `size` (default 20, max 100)
+                    """)
+    @Parameters({
+            @Parameter(name = "status", description = "Exact status (e.g. DRAFT)"),
+            @Parameter(name = "typeCode", description = "Exact request-type code (e.g. EXPENSE)"),
+            @Parameter(name = "mine", description = "Restrict to the caller's requests (admin only)"),
+            @Parameter(name = "sort", description = "Sort field + direction: field,asc|desc. Repeatable for multi-sort."),
+            @Parameter(name = "page", description = "Zero-based page number (default 0)"),
+            @Parameter(name = "size", description = "Page size (default 20, max 100)")
+    })
+    public PageResponse<RequestResponse> list(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String typeCode,
+            @RequestParam(required = false) Boolean mine,
+            @RequestParam(required = false) List<String> sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal caller
+    ) {
+        RequestFilter filter = new RequestFilter(status, typeCode, mine);
+        PageRequest pageRequest = UserController.buildPageRequest(page, size, sort, ALLOWED_SORT_FIELDS);
+        return PageResponse.from(requestService.list(filter, pageRequest, caller).map(RequestResponse::from));
+    }
+
+    @GetMapping("/queue")
+    @Operation(summary = "My pending approvals (approver inbox)",
+            description = """
+                    Returns IN_REVIEW requests where the caller is eligible for the
+                    current (PENDING) step — i.e. the step's required role is in the
+                    caller's roles and the caller is not the requester (SoD).
+
+                    **Sorting** — repeatable `sort` param, format `field,asc|desc`
+                    **Pagination**: `page` (default 0), `size` (default 20, max 100)
+                    """)
+    @Parameters({
+            @Parameter(name = "sort", description = "Sort field + direction: field,asc|desc. Repeatable for multi-sort."),
+            @Parameter(name = "page", description = "Zero-based page number (default 0)"),
+            @Parameter(name = "size", description = "Page size (default 20, max 100)")
+    })
+    public PageResponse<RequestResponse> queue(
+            @RequestParam(required = false) List<String> sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal caller
+    ) {
+        PageRequest pageRequest = UserController.buildPageRequest(page, size, sort, ALLOWED_SORT_FIELDS);
+        return PageResponse.from(requestService.queue(pageRequest, caller).map(RequestResponse::from));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Get request detail",
+            description = "Owner or admin only; 404 for other users (no existence leak).")
+    public RequestResponse get(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
+        return RequestResponse.from(requestService.get(id, caller));
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Edit draft payload (owner only)",
+            description = """
+                    Only DRAFT requests can be edited; re-validates the payload
+                    against the type's rules. Non-draft states return 409.
+                    """)
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Draft updated"),
+            @ApiResponse(responseCode = "400", description = "Payload failed per-type validation"),
+            @ApiResponse(responseCode = "403", description = "Not the owner"),
+            @ApiResponse(responseCode = "409", description = "Request is not in DRAFT state")
+    })
+    public RequestResponse updateDraft(@PathVariable Long id,
+                                       @Valid @RequestBody UpdateRequestRequest request,
+                                       @AuthenticationPrincipal UserPrincipal caller) {
+        return RequestResponse.from(requestService.updateDraft(id, request.payload(), caller));
+    }
+
+    @PostMapping("/{id}/cancel")
+    @Operation(summary = "Cancel request (owner or admin)",
+            description = "Any non-terminal state may be cancelled; terminal states return 409.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Request cancelled"),
+            @ApiResponse(responseCode = "409", description = "Request is in a terminal state")
+    })
+    public RequestResponse cancel(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
+        return RequestResponse.from(requestService.cancel(id, caller));
+    }
+
+    @PostMapping("/{id}/submit")
+    @Operation(summary = "Submit a draft into the workflow (owner or admin)",
+            description = """
+                    DRAFT → IN_REVIEW. The type's default workflow is materialized:
+                    the first step whose condition holds becomes the current
+                    (PENDING or BLOCKED when no eligible approver exists); steps
+                    whose condition does not hold are recorded as SKIPPED.
+                    If every step is skipped the request becomes APPROVED.
+                    Non-draft states return 409.
+                    """)
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Submitted (IN_REVIEW or APPROVED)"),
+            @ApiResponse(responseCode = "404", description = "Request not found (or not the owner)"),
+            @ApiResponse(responseCode = "409", description = "Not in DRAFT, no workflow configured, or workflow inactive")
+    })
+    public RequestResponse submit(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
+        return RequestResponse.from(requestService.submit(id, caller));
+    }
+
+    @PostMapping("/{id}/decisions")
+    @Operation(summary = "Record an APPROVE or REJECT decision on the current step",
+            description = """
+                    Separation of duties is enforced: the requester cannot decide
+                    their own request (403). The caller must hold the step's
+                    required role. A REJECT ends the workflow (REJECTED); an
+                    APPROVE satisfying the step's completion rule advances to the
+                    next applicable step, or APPROVED when none remain.
+                    Concurrent decisions serialize via optimistic locking (409).
+                    """)
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Decision recorded"),
+            @ApiResponse(responseCode = "403", description = "SoD violation or missing required role"),
+            @ApiResponse(responseCode = "404", description = "Request not found"),
+            @ApiResponse(responseCode = "409", description = "Not in review, no active step, or optimistic-lock conflict")
+    })
+    public RequestResponse decide(@PathVariable Long id,
+                                  @Valid @RequestBody com.flowops.api.dto.DecisionRequest body,
+                                  @AuthenticationPrincipal UserPrincipal caller) {
+        return RequestResponse.from(requestService.decide(id, body.action(), body.justification(), body.delegatedTo(), caller));
+    }
+
+    @PostMapping("/{id}/close")
+    @Operation(summary = "Close an EXECUTED or REJECTED request (requester or admin)",
+            description = "Transitions the request to the terminal CLOSED state. Other states return 409.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Request closed"),
+            @ApiResponse(responseCode = "409", description = "Request is not in EXECUTED or REJECTED")
+    })
+    public RequestResponse close(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
+        return RequestResponse.from(requestService.close(id, caller));
+    }
+}

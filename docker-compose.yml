@@ -1,0 +1,41 @@
+# FlowOps local dev — one-command infrastructure
+# Usage: docker compose up -d && FLOWOPS_EMAIL_GATEWAY=smtp ./mvnw spring-boot:run
+#
+# Services:
+#   postgres  → app database (Flyway migrations auto-run on first boot)
+#   mailpit   → SMTP capture + web UI for dev emails
+#
+# Teardown: docker compose down (add -v to also remove data volumes)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: flowops-postgres
+    environment:
+      POSTGRES_DB: flowops
+      POSTGRES_USER: flowops
+      POSTGRES_PASSWORD: flowops
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowops -d flowops"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: flowops-mailpit
+    ports:
+      - "8025:8025"   # web UI
+      - "1025:1025"   # SMTP
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8025/api/v1/configuration"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:

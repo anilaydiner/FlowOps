@@ -1,0 +1,133 @@
+package com.flowops.service;
+
+import com.flowops.api.dto.RequestTypeFilter;
+import com.flowops.api.dto.RequestTypeRequest;
+import com.flowops.domain.Department;
+import com.flowops.domain.DepartmentRepository;
+import com.flowops.domain.RequestType;
+import com.flowops.domain.RequestTypeRepository;
+import com.flowops.domain.RequestTypeSpecifications;
+import com.flowops.domain.WorkflowRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Map;
+
+@Service
+public class RequestTypeService {
+
+    private final RequestTypeRepository requestTypes;
+    private final DepartmentRepository departments;
+    private final WorkflowRepository workflows;
+
+    public RequestTypeService(RequestTypeRepository requestTypes,
+                              DepartmentRepository departments,
+                              WorkflowRepository workflows) {
+        this.requestTypes = requestTypes;
+        this.departments = departments;
+        this.workflows = workflows;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<RequestType> list(RequestTypeFilter filter, Pageable pageable) {
+        Specification<RequestType> spec = RequestTypeSpecifications.from(filter);
+        Page<RequestType> page = (spec == null) ? requestTypes.findAll(pageable) : requestTypes.findAll(spec, pageable);
+        page.getContent().forEach(rt -> {
+            if (rt.getOwningDepartment() != null) {
+                rt.getOwningDepartment().getCode();
+            }
+        });
+        return page;
+    }
+
+    @Transactional(readOnly = true)
+    public RequestType get(Long id) {
+        RequestType rt = requestTypes.findById(id)
+                .orElseThrow(() -> new NotFoundException("Request type not found: " + id));
+        if (rt.getOwningDepartment() != null) {
+            rt.getOwningDepartment().getCode();
+        }
+        return rt;
+    }
+
+    @Transactional
+    public RequestType create(RequestTypeRequest request) {
+        String code = request.code().strip().toUpperCase();
+        if (requestTypes.existsByCode(code)) {
+            throw new ConflictException("Request type already exists: " + code);
+        }
+        RequestType rt = new RequestType(
+                code,
+                request.name().strip(),
+                blankToNull(request.description()),
+                resolveDepartment(request.departmentCode()));
+        if (request.requiredFields() != null) {
+            rt.setRequiredFields(stringMap(request.requiredFields()));
+        }
+        if (request.validationRules() != null) {
+            rt.setValidationRules(request.validationRules());
+        }
+        rt.setDefaultWorkflow(resolveWorkflow(request.workflowCode()));
+        RequestType saved = requestTypes.save(rt);
+        touch(saved);
+        return saved;
+    }
+
+    @Transactional
+    public RequestType update(Long id, RequestTypeRequest request) {
+        RequestType rt = requestTypes.findById(id)
+                .orElseThrow(() -> new NotFoundException("Request type not found: " + id));
+        if (request.name() != null && !request.name().isBlank()) {
+            rt.updateProfile(request.name().strip(), blankToNull(request.description()),
+                    request.departmentCode() != null ? resolveDepartment(request.departmentCode()) : null);
+        }
+        if (request.requiredFields() != null) {
+            rt.setRequiredFields(stringMap(request.requiredFields()));
+        }
+        if (request.validationRules() != null) {
+            rt.setValidationRules(request.validationRules());
+        }
+        if (request.workflowCode() != null && !request.workflowCode().isBlank()) {
+            rt.setDefaultWorkflow(resolveWorkflow(request.workflowCode()));
+        }
+        RequestType saved = requestTypes.save(rt);
+        touch(saved);
+        return saved;
+    }
+
+    private void touch(RequestType rt) {
+        if (rt.getOwningDepartment() != null) {
+            rt.getOwningDepartment().getCode();
+        }
+        if (rt.getDefaultWorkflow() != null) {
+            rt.getDefaultWorkflow().getCode();
+        }
+    }
+
+    private com.flowops.domain.Workflow resolveWorkflow(String code) {
+        if (code == null || code.isBlank()) {
+            return null;
+        }
+        return workflows.findByCode(code.strip().toUpperCase())
+                .orElseThrow(() -> new NotFoundException("Workflow not found: " + code));
+    }
+
+    private Map<String, Object> stringMap(Map<String, String> in) {
+        return in != null ? new java.util.LinkedHashMap<>(in) : new java.util.LinkedHashMap<>();
+    }
+
+    private Department resolveDepartment(String code) {
+        if (code == null || code.isBlank()) {
+            return null;
+        }
+        return departments.findByCode(code.strip().toUpperCase())
+                .orElseThrow(() -> new NotFoundException("Department not found: " + code));
+    }
+
+    private static String blankToNull(String s) {
+        return (s == null || s.isBlank()) ? null : s.strip();
+    }
+}
