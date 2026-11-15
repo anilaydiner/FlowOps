@@ -1,5 +1,6 @@
 package com.flowops.infra.persistence;
 
+import com.flowops.domain.DecisionAction;
 import com.flowops.domain.RequestStatus;
 import com.flowops.domain.StepInstance;
 import com.flowops.domain.StepState;
@@ -58,7 +59,7 @@ public class SpringStepInstanceRepository implements StepInstanceRepository {
     @Override
     public List<Long> findEligibleRequestIds(StepState state, RequestStatus status,
                                              Collection<String> roles, Long userId) {
-        return jpaRepository.findEligibleRequestIds(state, status, roles, userId);
+        return jpaRepository.findEligibleRequestIds(state, status, roles, DecisionAction.DELEGATE, userId);
     }
 
     @Override

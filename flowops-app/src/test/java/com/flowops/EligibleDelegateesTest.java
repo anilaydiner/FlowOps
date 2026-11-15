@@ -297,4 +297,92 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
             assertThat(delegate(admin, id, member.getId())).isEqualTo(403);
         }
     }
+
+    // ── delegation → queue visibility + approval ──────────────────────
+
+    @Nested
+    @DisplayName("DELEGATE makes the request visible and actionable for the delegatee")
+    class DelegationVisibility {
+
+        @Test
+        void delegateeSeesRequestInQueue_canOpenDetail_andCanApprove() throws Exception {
+            User fm = createUser("d8_fm", List.of("FINANCE_MANAGER"), "FINANCE");
+
+            String admin = userToken("admin", "admin123");
+            long id = createAndSubmitAlice("EXPENSE", "{\"amount\":100,\"description\":\"delegated\"}");
+
+            // admin delegates the decision to the FINANCE_MANAGER
+            mvc.perform(post("/api/v1/requests/" + id + "/decisions")
+                            .header("Authorization", "Bearer " + admin)
+                            .contentType("application/json")
+                            .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\",\"delegatedTo\":" + fm.getId() + "}"))
+                    .andExpect(status().is2xxSuccessful())
+                    .andExpect(jsonPath("$.status").value("IN_REVIEW"));
+
+            String fmToken = userToken("d8_fm", PASSWORD);
+
+            // 1) the delegatee sees the request in their queue
+            //    (via the DELEGATE branch — the step's required role is ADMIN)
+            String queue = mvc.perform(get("/api/v1/requests/queue")
+                            .header("Authorization", "Bearer " + fmToken))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            assertThat(queue).as("delegatee queue must contain the delegated request")
+                    .contains("\"id\":" + id + ",");
+
+            // 2) the delegatee can open the request detail
+            mvc.perform(get("/api/v1/requests/" + id)
+                            .header("Authorization", "Bearer " + fmToken))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.id").value(id))
+                    .andExpect(jsonPath("$.status").value("IN_REVIEW"));
+
+            // 3) the delegatee can approve — dept-scoped request:approve passes,
+            //    and as the only step for amount=100 the request becomes APPROVED
+            mvc.perform(post("/api/v1/requests/" + id + "/decisions")
+                            .header("Authorization", "Bearer " + fmToken)
+                            .contentType("application/json")
+                            .content("{\"action\":\"APPROVE\",\"justification\":\"looks fine\"}"))
+                    .andExpect(status().is2xxSuccessful())
+                    .andExpect(jsonPath("$.status").value("APPROVED"));
+        }
+
+        @Test
+        void sameRole_notDelegated_doesNotSeeRequestInQueue() throws Exception {
+            User fmDelegated = createUser("d8_fm_ok", List.of("FINANCE_MANAGER"), "FINANCE");
+            User fmOther = createUser("d8_fm_other", List.of("FINANCE_MANAGER"), "FINANCE");
+
+            String admin = userToken("admin", "admin123");
+            long id = createAndSubmitAlice("EXPENSE", "{\"amount\":100,\"description\":\"delegated\"}");
+
+            mvc.perform(post("/api/v1/requests/" + id + "/decisions")
+                            .header("Authorization", "Bearer " + admin)
+                            .contentType("application/json")
+                            .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\",\"delegatedTo\":" + fmDelegated.getId() + "}"))
+                    .andExpect(status().is2xxSuccessful());
+
+            // Visibility comes from the DELEGATE decision, not from the role:
+            // fmOther has the same role + department but was not delegated to.
+            String queue = mvc.perform(get("/api/v1/requests/queue")
+                            .header("Authorization", "Bearer " + userToken("d8_fm_other", PASSWORD)))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            assertThat(queue).as("non-delegatee queue must NOT contain the request")
+                    .doesNotContain("\"id\":" + id + ",");
+        }
+
+        @Test
+        void requester_neverSeesOwnRequestInQueue() throws Exception {
+            // MEMBER holds request:queue; SoD still keeps own requests out
+            String alice = userToken("alice", "alice123");
+            long id = createAndSubmitAlice("EXPENSE", "{\"amount\":100,\"description\":\"own\"}");
+
+            String queue = mvc.perform(get("/api/v1/requests/queue")
+                            .header("Authorization", "Bearer " + alice))
+                    .andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsString();
+            assertThat(queue).as("requester queue must NOT contain own request")
+                    .doesNotContain("\"id\":" + id + ",");
+        }
+    }
 }

@@ -179,8 +179,9 @@ public class RequestService {
 
     /**
      * Returns IN_REVIEW requests where the caller is eligible for the current
-     * (PENDING) step: the step's required role is in the caller's roles and
-     * the caller is not the requester (SoD).
+     * (PENDING) step: the step's required role is in the caller's roles,
+     * <b>or</b> a decision was delegated to the caller on that step.
+     * The caller is never their own requests (SoD).
      */
     @Transactional(readOnly = true)
     public PageResult<RequestDetail> queue(PageQuery query, CallerIdentity caller) {
