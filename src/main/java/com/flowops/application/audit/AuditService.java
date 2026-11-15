@@ -1,4 +1,4 @@
-package com.flowops.application.service;
+package com.flowops.application.audit;
 
 import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.domain.policy.AuthorizationEvaluator;

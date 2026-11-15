@@ -13,9 +13,6 @@ public final class WorkerDefaults {
 
     private WorkerDefaults() {}
 
-    /** Max rows claimed per worker tick (FOR UPDATE SKIP LOCKED batches). */
-    public static final int BATCH_SIZE = 50;
-
     /** Tick interval for JobWorker and OutboxDispatcher (ms). */
     public static final long TICK_DELAY_MS = 2000L;
 

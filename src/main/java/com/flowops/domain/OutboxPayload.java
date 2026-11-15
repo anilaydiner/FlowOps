@@ -1,21 +1,41 @@
 package com.flowops.domain;
 
 /**
- * JSON payload keys of outbox messages.
+ * Typed payload of an outbox message (PLAN §8).
  *
- * <p>The writer ({@link OutboxService}) and the reader
- * ({@code infra.worker.OutboxDispatcher}) must agree on exactly these keys —
- * they share this class as the single source of truth.
+ * <p>Replaces the former flat key/value JSON contract: the writer
+ * (notification services) and the reader (outbox dispatch) both work
+ * against this value object, and the on-disk JSON shape is owned by the
+ * {@link com.flowops.domain.port.OutboxPayloadCodec OutboxPayloadCodec}
+ * adapter — the domain never touches a JSON string.
+ *
+ * <p>Not every field applies to every channel: FEED messages use
+ * type/title/body, EMAIL messages use type/subject/body (html optional),
+ * SLA-breach messages add step. Inapplicable fields are {@code null};
+ * the canonical constructor normalizes {@code body} (never null) and
+ * {@code html} (null when blank).
  */
-public final class OutboxPayload {
+public record OutboxPayload(Long requestId,
+                            String type,
+                            String title,
+                            String subject,
+                            String body,
+                            String html,
+                            String step) {
 
-    private OutboxPayload() {}
+    public OutboxPayload {
+        body = body != null ? body : "";
+        html = (html != null && !html.isBlank()) ? html : null;
+    }
 
-    public static final String REQUEST_ID = "requestId";
-    public static final String TYPE       = "type";
-    public static final String TITLE      = "title";
-    public static final String BODY       = "body";
-    public static final String SUBJECT    = "subject";
-    public static final String HTML       = "html";
-    public static final String STEP       = "step";
+    /** FEED notification payload. */
+    public static OutboxPayload feed(Long requestId, String type, String title, String body) {
+        return new OutboxPayload(requestId, type, title, null, body, null, null);
+    }
+
+    /** EMAIL notification payload (html optional). */
+    public static OutboxPayload email(Long requestId, String type,
+                                      String subject, String body, String html) {
+        return new OutboxPayload(requestId, type, null, subject, body, html, null);
+    }
 }

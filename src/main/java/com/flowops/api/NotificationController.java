@@ -4,7 +4,7 @@ import com.flowops.api.dto.NotificationResponse;
 import com.flowops.api.dto.PageResponse;
 import com.flowops.domain.Notification;
 import com.flowops.security.UserPrincipal;
-import com.flowops.application.service.NotificationService;
+import com.flowops.application.notification.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;

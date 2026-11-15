@@ -5,7 +5,7 @@ import com.flowops.domain.query.RequestTypeFilter;
 import com.flowops.api.dto.RequestTypeRequest;
 import com.flowops.domain.RequestTypeSpec;
 import com.flowops.api.dto.RequestTypeResponse;
-import com.flowops.application.service.RequestTypeService;
+import com.flowops.application.workflow.RequestTypeService;
 import com.flowops.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

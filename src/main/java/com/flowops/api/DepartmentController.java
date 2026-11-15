@@ -3,7 +3,7 @@ package com.flowops.api;
 import com.flowops.api.dto.PageResponse;
 import com.flowops.domain.Department;
 import com.flowops.domain.query.DepartmentFilter;
-import com.flowops.application.service.DepartmentService;
+import com.flowops.application.org.DepartmentService;
 import com.flowops.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

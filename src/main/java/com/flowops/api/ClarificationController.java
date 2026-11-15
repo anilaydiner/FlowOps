@@ -4,7 +4,7 @@ import com.flowops.api.dto.ClarificationAnswerRequest;
 import com.flowops.api.dto.ClarificationRequest;
 import com.flowops.api.dto.ClarificationResponse;
 import com.flowops.security.UserPrincipal;
-import com.flowops.application.service.ClarificationService;
+import com.flowops.application.request.ClarificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;

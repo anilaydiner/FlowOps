@@ -6,7 +6,7 @@ import com.flowops.domain.query.UserFilter;
 import com.flowops.api.dto.UserRequest;
 import com.flowops.api.dto.UserResponse;
 import com.flowops.security.UserPrincipal;
-import com.flowops.application.service.UserService;
+import com.flowops.application.identity.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;

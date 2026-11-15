@@ -5,7 +5,7 @@ import com.flowops.domain.query.RoleFilter;
 import com.flowops.api.dto.RoleRequest;
 import com.flowops.domain.RoleSpec;
 import com.flowops.api.dto.RoleResponse;
-import com.flowops.application.service.RoleService;
+import com.flowops.application.org.RoleService;
 import com.flowops.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

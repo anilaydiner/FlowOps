@@ -1,4 +1,4 @@
-package com.flowops.application.service;
+package com.flowops.application.execution;
 
 import com.flowops.domain.ExecutionJob;
 import com.flowops.domain.port.ExecutionJobRepository;

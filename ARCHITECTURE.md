@@ -20,18 +20,22 @@ All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
          ▼                                          ▼
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │  application/                                                                   │
+│  ├── request/         RequestService, ClarificationService                      │
+│  ├── identity/        UserService, PasswordResetService                         │
+│  ├── workflow/        WorkflowService, RequestTypeService                       │
+│  ├── notification/    OutboxService, NotificationService, EmailComposer         │
+│  ├── execution/       ExecutionService                                          │
+│  ├── audit/           AuditService                                              │
+│  ├── org/             DepartmentService, RoleService, PermissionService         │
 │  ├── usecase/         One class per workflow action                             │
 │  │    CreateDraft, UpdateDraft, CancelRequest, SubmitRequest,                  │
-│  │    DecideStep, CloseRequest, StepMaterializer,                              │
-│  │    ScanSla (SLA breach/expiry), ProcessExecutionJobs (job retry)            │
-│  ├── service/         Application services (orchestration + read models)        │
-│  │    RequestService, EmailComposer, AuditService, ClarificationService,       │
-│  │    UserService, NotificationService, OutboxService, ExecutionService,       │
-│  │    WorkflowService, RequestTypeService, DepartmentService,                  │
-│  │    RoleService, PermissionService, DomainServiceConfig                      │
+│  │    DecideStep, CloseRequest, StepMaterializer, EligibleDelegatees,          │
+│  │    ScanSla (SLA breach/expiry), ProcessExecutionJobs (job retry),           │
+│  │    DeliverOutbox (outbox channel routing + retry)                           │
 │  ├── port/            Driven-side ports (RequestLifecycleObservability,        │
-│  │                    SlaMetrics, ExecutionJobObservability —                  │
-│  │                    implemented by the observability module)                 │
+│  │                    SlaMetrics, ExecutionJobObservability, OutboxObservability│
+│  │                    — implemented by the observability module) +              │
+│  │                    FlowOpsUrls (config record, replaces @Value)              │
 │  └── model/           Read models (RequestDetail, WorkflowView)                │
 │                                                                        │       │
 │  depends on:  domain only (entities, ports, services, exceptions)      │       │
@@ -43,7 +47,7 @@ All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
 │  ├── (root)         Entities: Request, Workflow, WorkflowStep, StepInstance,    │
 │  │                  Decision, Clarification, User, Role, Permission,            │
 │  │                  Department, RequestType, ExecutionJob, OutboxMessage,       │
-│  │                  Notification, EmailLogEntry                                 │
+│  │                  Notification, EmailLogEntry, OutboxPayload (value object)   │
 │  ├── exception/     BusinessRuleViolation, NotFound, Forbidden, …              │
 │  ├── identity/      CallerIdentity (framework-free identity record)             │
 │  ├── paging/        PageQuery, PageResult (framework-free paging twins)         │
@@ -63,10 +67,13 @@ All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
 │  ├── persistence/     *JpaRepository (Spring Data) + @Repository adapters       │
 │  │                   (SpringWorkflowRepository, SpringStepInstanceRepository,  │
 │  │                   …) + Paging translator + Specifications                    │
+│  │                   + JacksonOutboxPayloadCodec (implements                    │
+│  │                   domain.port.OutboxPayloadCodec — infra owns JSON shape)    │
 │  ├── mail/            SMTP sender (implements domain.mail port)                │
 │  ├── action/          External action adapters (execution jobs)                │
 │  └── worker/          Thin @Scheduled shells (SlaScanner → ScanSla,            │
-│  │                   JobWorker → ProcessExecutionJobs, OutboxDispatcher)       │
+│  │                   JobWorker → ProcessExecutionJobs,                         │
+│  │                   OutboxDispatcher → DeliverOutbox)                         │
 │                                                                        │       │
 │  depends on:  domain (entities + ports) + Spring + infra libraries    │       │
 └──────────────────────────────────────────────────────────────────────────────────┘
@@ -78,10 +85,13 @@ All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
   observability/   CorrelationId, FlowOpsSpans (OTel helper), TracingConfig,
                    SpanNames/MetricNames registries,
                    RequestLifecycleObservabilityAdapter, SlaMetricsAdapter,
-                   ExecutionJobObservabilityAdapter (implement application ports)
+                   ExecutionJobObservabilityAdapter, OutboxObservabilityAdapter
+                   (implement application ports)
                    depends on:  application.port + domain (read-only) + OTel/Micrometer
 
-  config/          OpenApiConfig (Spring Bean wiring for API docs)
+  config/          OpenApiConfig (API docs), DomainServiceConfig (domain-service
+                   beans), FlowOpsUrlsConfig (binds flowops.* URLs into the
+                   FlowOpsUrls record)
 ```
 
 ## Dependency Rules (ArchUnit — 11 rules in `ArchitectureTest`)
@@ -98,7 +108,7 @@ All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
 | 8 | `application` must not depend on `infra` | Application code is framework-agnostic |
 | 9 | `application` must not use Spring `dao`/`orm`/`data`/`web`/`scheduling` | Adapters own framework plumbing; services see ports only |
 | 10 | OpenTelemetry/Micrometer only in `infra` + `observability` | Telemetry never leaks into domain/app/api/security |
-| 11 | `infra.worker` must not depend on `application.service` | Workers are thin shells over use cases |
+| 11 | `infra.worker` may only depend on `application.usecase` + `application.port` (never other application classes) | Workers are thin shells over use cases |
 
 ## Security / Identity Flow
 
@@ -167,7 +177,7 @@ inside the adapter, so application code never sees Spring exception types.
 | `ConditionEvaluator` | `domain.service` | No | Evaluates workflow step conditions (SpEL) |
 | `AuthorizationEvaluator` | `domain.policy` | No | Scoped permissions, SoD, evidence trail |
 
-Wired as beans via `application.service.DomainServiceConfig` (`@Configuration`).
+Wired as beans via `config.DomainServiceConfig` (`@Configuration`).
 
 ## Domain Policy
 
@@ -193,14 +203,32 @@ ports, and span boundaries.
 - `observability.FlowOpsSpans` wraps span start/status/end; `SpanNames` and
   `MetricNames` are the shared name registries.
 - Worker observability also goes through ports: `SlaMetrics`
-  (breach/expiry counters) and `ExecutionJobObservability` (one
+  (breach/expiry counters), `ExecutionJobObservability` (one
   `job.execute` span per job, completed/failed/dead-letter counters,
+  pending gauge) and `OutboxObservability` (dispatch timer, one
+  `outbox.deliver` span per message, sent/failed/dead-letter counters,
   pending gauge) are implemented by adapters in this module, so the
-  `ScanSla` / `ProcessExecutionJobs` use cases stay telemetry-free.
-  `SlaScanner` still opens the `sla.scan` span around each scan;
-  `OutboxDispatcher` opens the `outbox.deliver` spans and records
-  outbox metrics directly (it remains a logic-bearing worker until the
-  Phase 2 typed-payload work).
+  `ScanSla` / `ProcessExecutionJobs` / `DeliverOutbox` use cases stay
+  telemetry-free. `SlaScanner` still opens the `sla.scan` span around
+  each scan.
+
+## Outbox Payload Typing
+
+The outbox payload is a typed domain value object, not hand-rolled JSON:
+
+- `domain.OutboxPayload` — record `(requestId, type, title, subject, body,
+  html, step)` with factories `feed(…)` and `email(…)`. The canonical
+  constructor normalizes `body` (never null) and `html` (null when blank).
+- `domain.port.OutboxPayloadCodec` — encode/decode port.
+- `infra.persistence.JacksonOutboxPayloadCodec` — Jackson 3 adapter; the
+  encoder writes only present (non-null) fields, preserving the historical
+  JSON shape.
+- `application.notification.OutboxService` builds typed payloads and encodes
+  them through the codec; `DeliverOutbox` decodes and routes by channel.
+
+Configuration follows the same pattern: `EmailComposer` takes the
+`application.port.FlowOpsUrls` record (bound by `config.FlowOpsUrlsConfig`)
+instead of `@Value` injection.
 
 ## JPA Annotation Trade-off
 

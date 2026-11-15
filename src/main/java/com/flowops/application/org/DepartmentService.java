@@ -1,4 +1,4 @@
-package com.flowops.application.service;
+package com.flowops.application.org;
 
 import com.flowops.domain.Department;
 import com.flowops.domain.port.DepartmentRepository;

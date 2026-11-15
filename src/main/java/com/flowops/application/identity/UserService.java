@@ -1,5 +1,7 @@
-package com.flowops.application.service;
+package com.flowops.application.identity;
 
+import com.flowops.application.notification.EmailComposer;
+import com.flowops.application.notification.OutboxService;
 import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.ConflictException;

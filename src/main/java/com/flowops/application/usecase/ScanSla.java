@@ -1,7 +1,7 @@
 package com.flowops.application.usecase;
 
 import com.flowops.application.port.SlaMetrics;
-import com.flowops.application.service.OutboxService;
+import com.flowops.application.notification.OutboxService;
 import com.flowops.domain.Request;
 import com.flowops.domain.RequestStatus;
 import com.flowops.domain.StepInstance;

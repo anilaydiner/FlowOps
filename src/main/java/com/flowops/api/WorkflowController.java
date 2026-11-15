@@ -6,7 +6,7 @@ import com.flowops.api.dto.WorkflowResponse;
 import com.flowops.domain.StepSpec;
 import com.flowops.application.model.WorkflowView;
 import com.flowops.domain.query.WorkflowFilter;
-import com.flowops.application.service.WorkflowService;
+import com.flowops.application.workflow.WorkflowService;
 import com.flowops.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

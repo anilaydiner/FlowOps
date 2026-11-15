@@ -3,7 +3,7 @@ package com.flowops.api;
 import com.flowops.api.dto.PageResponse;
 import com.flowops.domain.query.PermissionFilter;
 import com.flowops.api.dto.PermissionResponse;
-import com.flowops.application.service.PermissionService;
+import com.flowops.application.org.PermissionService;
 import com.flowops.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

@@ -1,6 +1,6 @@
 package com.flowops;
 
-import com.flowops.application.service.PasswordResetService;
+import com.flowops.application.identity.PasswordResetService;
 import com.flowops.domain.PasswordResetToken;
 import com.flowops.domain.Role;
 import com.flowops.domain.User;

@@ -1,5 +1,6 @@
 package com.flowops;
 
+import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -12,7 +13,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *
  * <p>Dependency rule enforced here (all arrows point inward):
  * <pre>
- *   domain  ←  application {model, service, usecase}  ←  api
+ *   domain  ←  application {model, &lt;bounded contexts&gt;, usecase}  ←  api
  *     ↑______________________________  (infra adapters implement domain ports)
  * </pre>
  *
@@ -20,7 +21,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
  *   <li>{@code domain} — pure Java: entities, value objects, policy, services,
  *       ports. No Spring, no security, no infra, no api.</li>
  *   <li>{@code application.model} — read models (RequestDetail, WorkflowView).</li>
- *   <li>{@code application.service} — application services orchestrating use cases.</li>
+ *   <li>{@code application.{request,identity,workflow,notification,execution,audit,org}}
+ *       — per-bounded-context application services.</li>
  *   <li>{@code application.usecase} — one class per workflow use case (submit,
  *       decide, close, drafts…).</li>
  *   <li>{@code api} — controllers + DTOs; projects the security principal into
@@ -128,12 +130,20 @@ class ArchitectureTest {
 
     /**
      * Workers are thin infra shells: they orchestrate use cases
-     * ({@code application.usecase}), never application services.
-     * Business logic and policy live in use cases + domain; the worker
-     * keeps only scheduling cadence, test flags, and spans.
+     * ({@code application.usecase}) and may touch {@code application.port} —
+     * never other application classes. Business logic and policy live in
+     * use cases + domain; the worker keeps only scheduling cadence,
+     * test flags, and spans.
      */
     @ArchTest
-    static final ArchRule infra_worker_must_not_depend_on_application_services =
+    static final ArchRule infra_worker_may_only_depend_on_use_cases_and_ports =
             noClasses().that().resideInAPackage("com.flowops.infra.worker..")
-                    .should().dependOnClassesThat().resideInAPackage("com.flowops.application.service..");
+                    .should().dependOnClassesThat(DescribedPredicate.describe(
+                            "application classes other than use cases or ports",
+                            c -> {
+                                String pkg = c.getPackageName();
+                                return pkg.startsWith("com.flowops.application.")
+                                        && !pkg.startsWith("com.flowops.application.usecase")
+                                        && !pkg.startsWith("com.flowops.application.port");
+                            }));
 }

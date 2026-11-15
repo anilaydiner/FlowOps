@@ -1,10 +1,10 @@
-package com.flowops.application.service;
+package com.flowops.application.notification;
 
+import com.flowops.application.port.FlowOpsUrls;
 import com.flowops.domain.Request;
 import com.flowops.domain.RequestType;
 import com.flowops.domain.User;
 import com.flowops.domain.WorkflowStep;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -31,10 +31,9 @@ public class EmailComposer {
     private final String baseUrl;
     private final String feBaseUrl;
 
-    public EmailComposer(@Value("${flowops.base-url:http://localhost:8080}") String baseUrl,
-                         @Value("${flowops.fe-base-url:http://localhost:5173}") String feBaseUrl) {
-        this.baseUrl = baseUrl;
-        this.feBaseUrl = stripTrailingSlash(feBaseUrl);
+    public EmailComposer(FlowOpsUrls urls) {
+        this.baseUrl = urls.apiBaseUrl();
+        this.feBaseUrl = stripTrailingSlash(urls.uiBaseUrl());
     }
 
     private static String stripTrailingSlash(String url) {

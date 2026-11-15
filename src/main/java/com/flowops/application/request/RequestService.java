@@ -1,4 +1,4 @@
-package com.flowops.application.service;
+package com.flowops.application.request;
 
 import com.flowops.application.model.RequestDetail;
 import com.flowops.application.port.RequestLifecycleObservability;

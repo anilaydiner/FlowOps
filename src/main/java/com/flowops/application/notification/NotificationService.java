@@ -1,4 +1,4 @@
-package com.flowops.application.service;
+package com.flowops.application.notification;
 
 import com.flowops.domain.Notification;
 import com.flowops.domain.paging.PageQuery;

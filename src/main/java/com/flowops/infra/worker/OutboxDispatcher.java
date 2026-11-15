@@ -1,83 +1,29 @@
 package com.flowops.infra.worker;
-import com.flowops.domain.port.EmailGateway;
 
-import com.flowops.domain.EmailLogEntry;
-import com.flowops.domain.port.EmailLogEntryRepository;
-import com.flowops.domain.Notification;
-import com.flowops.domain.port.NotificationRepository;
-import com.flowops.domain.OutboxMessage;
-import com.flowops.domain.port.OutboxMessageRepository;
-import com.flowops.domain.OutboxStatus;
-import com.flowops.domain.User;
-import com.flowops.domain.port.UserRepository;
-import com.flowops.observability.FlowOpsSpans;
-import com.flowops.observability.MetricNames;
-import com.flowops.observability.SpanNames;
-import com.flowops.domain.OutboxPayload;
-import io.micrometer.core.instrument.Gauge;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.flowops.application.usecase.DeliverOutbox;
+
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Outbox dispatcher (PLAN §8): polls the outbox table and delivers messages.
  *
- * <p><b>Concurrency-safe</b>: uses {@code FOR UPDATE SKIP LOCKED} so multiple
- * instances can poll concurrently without double-delivering.
+ * <p>Thin scheduling shell: channel routing, retry with exponential backoff
+ * (5s × 2^n, max 5 → DEAD_LETTER), and the pending gauge all live in the
+ * {@link DeliverOutbox} use case and the {@code OutboxObservability}
+ * adapter. The worker only owns the tick cadence and the test
+ * {@code running} flag.
  *
- * <p><b>Retry with exponential backoff</b>:
- * <ul>
- *   <li>Attempt 1 fail → next retry in 5s</li>
- *   <li>Attempt 2 fail → next retry in 10s</li>
- *   <li>Attempt 3 fail → next retry in 20s</li>
- *   <li>... up to max_retries (default 5) → DEAD_LETTER</li>
- * </ul>
- *
- * <p><b>Channels</b>:
- * <ul>
- *   <li>{@code EMAIL} → resolves recipient email, calls {@link EmailGateway#send}, stores in {@code email_log}</li>
- *   <li>{@code FEED} → inserts a {@link Notification} row</li>
- * </ul>
+ * <p><b>Concurrency-safe</b>: the claim uses {@code FOR UPDATE SKIP LOCKED}
+ * so multiple instances can poll concurrently without double-delivering.
  */
 @Component
 public class OutboxDispatcher {
 
-    private static final Logger log = LoggerFactory.getLogger(OutboxDispatcher.class);
+    private final DeliverOutbox dispatch;
 
-    private final OutboxMessageRepository outbox;
-    private final NotificationRepository notifications;
-    private final UserRepository users;
-    private final EmailGateway emailGateway;
-    private final EmailLogEntryRepository emailLog;
-    private final MeterRegistry metrics;
-    private final FlowOpsSpans spans;
-
-    public OutboxDispatcher(OutboxMessageRepository outbox,
-                            NotificationRepository notifications,
-                            UserRepository users,
-                            EmailGateway emailGateway,
-                            EmailLogEntryRepository emailLog,
-                            MeterRegistry metrics,
-                            FlowOpsSpans spans) {
-        this.outbox = outbox;
-        this.notifications = notifications;
-        this.users = users;
-        this.emailGateway = emailGateway;
-        this.emailLog = emailLog;
-        this.metrics = metrics;
-        this.spans = spans;
-        Gauge.builder("flowops.outbox.pending", this,
-                d -> d.outbox.countByStatus(OutboxStatus.PENDING) + d.outbox.countByStatus(OutboxStatus.FAILED))
-                .description("Outbox messages awaiting delivery (PENDING + FAILED)")
-                .register(metrics);
+    public OutboxDispatcher(DeliverOutbox dispatch) {
+        this.dispatch = dispatch;
     }
 
     /**
@@ -105,114 +51,10 @@ public class OutboxDispatcher {
     }
 
     /**
-     * Deliver a batch of due outbox messages.
+     * Deliver a batch of due outbox messages via the use case.
      * Called by the scheduler (when running) or directly by tests.
      */
-    @Transactional
     public void dispatch() {
-        List<OutboxMessage> batch = outbox.claimBatch(Instant.now(), WorkerDefaults.BATCH_SIZE);
-        if (batch.isEmpty()) {
-            return;
-        }
-        log.info("OUTBOX DISPATCH: claiming {} messages", batch.size());
-
-        Timer.builder(MetricNames.OUTBOX_DISPATCH)
-                .description("Time to deliver one outbox batch")
-                .register(metrics)
-                .record(() -> {
-                    for (OutboxMessage msg : batch) {
-                        deliver(msg);
-                    }
-                });
-        outbox.saveAll(batch); // flush all status changes
-    }
-
-    /**
-     * Deliver a single outbox message. Catches exceptions for retry logic.
-     * One {@code outbox.deliver} span per message (iteration 8 tracing).
-     */
-    private void deliver(OutboxMessage msg) {
-        Map<String, String> attrs = Map.of(
-                "outbox.key", msg.getIdempotencyKey(),
-                "channel", msg.getChannel(),
-                "request.id", String.valueOf(msg.getRecipientId()));
-        try {
-            spans.run(SpanNames.OUTBOX_DELIVER, attrs, () -> {
-                switch (msg.getChannel()) {
-                    case OutboxMessage.CHANNEL_EMAIL -> deliverEmail(msg);
-                    case OutboxMessage.CHANNEL_FEED -> deliverFeed(msg);
-                    default -> log.warn("OUTBOX UNKNOWN CHANNEL: {} (key={})", msg.getChannel(), msg.getIdempotencyKey());
-                }
-                msg.markSent();
-                metrics.counter(MetricNames.OUTBOX_MESSAGE_SENT, "channel", msg.getChannel()).increment();
-                log.debug("OUTBOX SENT: key={}", msg.getIdempotencyKey());
-                return null;
-            });
-        } catch (RuntimeException e) {
-            Instant nextRetry = Instant.now().plus(msg.retryBackoff());
-            msg.markFailed(e.getMessage(), nextRetry);
-            metrics.counter(MetricNames.OUTBOX_MESSAGE_FAILED, "channel", msg.getChannel()).increment();
-            if (msg.getStatus() == OutboxStatus.DEAD_LETTER) {
-                metrics.counter(MetricNames.OUTBOX_MESSAGE_DEAD_LETTER, "channel", msg.getChannel()).increment();
-            }
-            log.warn("OUTBOX FAIL (retry={}/{}): key={} error={} nextRetry={}",
-                    msg.getRetryCount(), msg.getMaxRetries(),
-                    msg.getIdempotencyKey(), e.getMessage(), nextRetry);
-        }
-    }
-
-    private void deliverEmail(OutboxMessage msg) {
-        User recipient = users.findById(msg.getRecipientId())
-                .orElseThrow(() -> new IllegalStateException("Recipient not found: " + msg.getRecipientId()));
-
-        String to = recipient.getEmail();
-        if (to == null || to.isBlank()) {
-            // No email on file: the FEED channel (written for the same event)
-            // already covers the user. Retrying would never succeed.
-            log.warn("OUTBOX EMAIL SKIPPED (no email address): key={} recipient={}",
-                    msg.getIdempotencyKey(), msg.getRecipientId());
-            return; // caller marks SENT
-        }
-
-        Map<String, Object> payload = parsePayload(msg.getPayload());
-        String subject = String.valueOf(payload.getOrDefault(OutboxPayload.SUBJECT, "FlowOps Notification"));
-        String body = String.valueOf(payload.getOrDefault(OutboxPayload.BODY, ""));
-        String html = payload.containsKey(OutboxPayload.HTML) ? String.valueOf(payload.get(OutboxPayload.HTML)) : null;
-
-        if (html != null && !html.isBlank()) {
-            emailGateway.sendHtml(to, subject, body, html);
-        } else {
-            emailGateway.send(to, subject, body);
-        }
-        // Audit the delivery (works for both SMTP and simulated gateways)
-        emailLog.save(new EmailLogEntry(to, subject, body, msg.getId()));
-    }
-
-    private void deliverFeed(OutboxMessage msg) {
-        Map<String, Object> payload = parsePayload(msg.getPayload());
-        Notification notification = new Notification(
-                msg.getRecipientId(),
-                String.valueOf(payload.getOrDefault(OutboxPayload.TYPE, "NOTIFY")),
-                String.valueOf(payload.getOrDefault(OutboxPayload.TITLE, "Notification")),
-                String.valueOf(payload.getOrDefault(OutboxPayload.BODY, "")),
-                payload.get(OutboxPayload.REQUEST_ID) instanceof Number n ? n.longValue() : null
-        );
-        notifications.save(notification);
-    }
-
-    /**
-     * Parse JSON payload without external dependencies.
-     * Uses a simple regex-based extractor for the flat key-value maps we write.
-     */
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> parsePayload(String json) {
-        // Use Jackson (available via Spring Boot) — Boot 4.1 uses tools.jackson
-        try {
-            var mapper = new tools.jackson.databind.ObjectMapper();
-            return mapper.readValue(json, Map.class);
-        } catch (Exception e) {
-            log.error("Failed to parse outbox payload: {}", json, e);
-            return Map.of();
-        }
+        dispatch.dispatch();
     }
 }

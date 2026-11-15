@@ -7,7 +7,7 @@ import com.flowops.domain.query.RequestFilter;
 import com.flowops.api.dto.RequestResponse;
 import com.flowops.api.dto.UpdateRequestRequest;
 import com.flowops.security.UserPrincipal;
-import com.flowops.application.service.RequestService;
+import com.flowops.application.request.RequestService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;

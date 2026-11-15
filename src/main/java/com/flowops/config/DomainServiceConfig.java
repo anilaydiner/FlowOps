@@ -1,4 +1,4 @@
-package com.flowops.application.service;
+package com.flowops.config;
 
 import com.flowops.domain.port.UserRepository;
 import com.flowops.domain.policy.AuthorizationEvaluator;

@@ -13,7 +13,7 @@ import com.flowops.infra.persistence.RoleJpaRepository;
 import com.flowops.domain.User;
 import com.flowops.infra.persistence.UserJpaRepository;
 import com.flowops.infra.worker.OutboxDispatcher;
-import com.flowops.application.service.OutboxService;
+import com.flowops.application.notification.OutboxService;
 import com.flowops.infra.mail.SimulatedEmailGateway;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
