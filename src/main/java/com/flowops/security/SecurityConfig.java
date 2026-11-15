@@ -1,6 +1,5 @@
 package com.flowops.security;
 
-import com.flowops.domain.port.UserRepository;
 import com.flowops.observability.CorrelationId;
 import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
@@ -32,7 +31,6 @@ public class SecurityConfig {
     public static final String ERROR_BASE = "urn:flowops:error:";
 
     private final JwtAuthFilter jwtAuthFilter;
-    private final UserRepository users;
 
     /**
      * Boot-managed Jackson mapper: it carries the ProblemDetail mixin that
@@ -41,10 +39,9 @@ public class SecurityConfig {
      */
     private final ObjectMapper objectMapper;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter, ObjectMapper objectMapper, UserRepository users) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter, ObjectMapper objectMapper) {
         this.jwtAuthFilter = jwtAuthFilter;
         this.objectMapper = objectMapper;
-        this.users = users;
     }
 
     @Bean
@@ -57,23 +54,9 @@ public class SecurityConfig {
                         // Swagger UI + OpenAPI docs — public for local/dev use
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                        .requestMatchers("/actuator/**").access(new PermissionAuthorizationManager(users))
-                        // User management — permission-guarded (coarse layer, PLAN §7)
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/users").access(new PermissionAuthorizationManager(users))
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/users/*").access(new PermissionAuthorizationManager(users))
-                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/v1/users/*").access(new PermissionAuthorizationManager(users))
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/users").access(new PermissionAuthorizationManager(users))
-                        // Role management — permission-guarded
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/roles").access(new PermissionAuthorizationManager(users))
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/roles/*").access(new PermissionAuthorizationManager(users))
-                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/v1/roles/*").access(new PermissionAuthorizationManager(users))
-                        // Request types — permission-guarded
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/request-types").access(new PermissionAuthorizationManager(users))
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/request-types/*").access(new PermissionAuthorizationManager(users))
-                        // Workflows — permission-guarded
-                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/workflows").access(new PermissionAuthorizationManager(users))
-                        .requestMatchers(org.springframework.http.HttpMethod.PUT, "/api/v1/workflows/*").access(new PermissionAuthorizationManager(users))
-                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/v1/workflows/*").access(new PermissionAuthorizationManager(users))
+                        .requestMatchers("/actuator/**").authenticated()
+                        // All API endpoints require authentication;
+                        // fine-grained authorization is handled by AuthorizationEvaluator in the service layer.
                         .anyRequest().authenticated())
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(problemEntryPoint(401, "authentication"))

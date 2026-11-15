@@ -7,6 +7,7 @@ import com.flowops.domain.StepSpec;
 import com.flowops.application.model.WorkflowView;
 import com.flowops.domain.query.WorkflowFilter;
 import com.flowops.application.service.WorkflowService;
+import com.flowops.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -17,6 +18,7 @@ import com.flowops.domain.paging.PageQuery;
 import com.flowops.domain.paging.PageResult;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -62,46 +64,53 @@ public class WorkflowController {
     })
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Paged workflow list (with steps)"),
-            @ApiResponse(responseCode = "401", description = "Not authenticated")
+            @ApiResponse(responseCode = "401", description = "Not authenticated"),
+            @ApiResponse(responseCode = "403", description = "Missing permission")
     })
     public PageResponse<WorkflowResponse> list(
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) List<String> sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal caller
     ) {
         WorkflowFilter filter = new WorkflowFilter(code, name);
         PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
-        PageResult<WorkflowResponse> mapped = workflowService.list(filter, pageQuery)
+        PageResult<WorkflowResponse> mapped = workflowService.list(filter, pageQuery, caller.toIdentity())
                 .map(v -> WorkflowResponse.from(v.workflow(), v.steps()));
         return PageResponse.from(mapped);
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get workflow by ID (with ordered steps)")
-    public WorkflowResponse get(@PathVariable Long id) {
-        WorkflowView view = workflowService.get(id);
+    public WorkflowResponse get(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
+        WorkflowView view = workflowService.get(id, caller.toIdentity());
         return WorkflowResponse.from(view.workflow(), view.steps());
     }
 
     @PostMapping
-    @Operation(summary = "Create workflow (admin only)")
+    @Operation(summary = "Create workflow")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Workflow created"),
+            @ApiResponse(responseCode = "403", description = "Missing permission"),
             @ApiResponse(responseCode = "409", description = "Code already exists")
     })
-    public ResponseEntity<WorkflowResponse> create(@Valid @RequestBody WorkflowRequest request) {
+    public ResponseEntity<WorkflowResponse> create(@Valid @RequestBody WorkflowRequest request,
+                                                    @AuthenticationPrincipal UserPrincipal caller) {
         WorkflowView view = workflowService.create(
-                request.code(), request.name(), request.description(), request.active(), toSpecs(request));
+                request.code(), request.name(), request.description(), request.active(), toSpecs(request),
+                caller.toIdentity());
         return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(view));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update workflow and its steps (admin only)")
-    public WorkflowResponse update(@PathVariable Long id, @Valid @RequestBody WorkflowRequest request) {
+    @Operation(summary = "Update workflow and its steps")
+    public WorkflowResponse update(@PathVariable Long id, @Valid @RequestBody WorkflowRequest request,
+                                   @AuthenticationPrincipal UserPrincipal caller) {
         WorkflowView view = workflowService.update(
-                id, request.name(), request.description(), request.active(), toSpecs(request));
+                id, request.name(), request.description(), request.active(), toSpecs(request),
+                caller.toIdentity());
         return toResponse(view);
     }
 

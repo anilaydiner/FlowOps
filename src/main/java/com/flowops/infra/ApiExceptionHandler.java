@@ -49,7 +49,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ForbiddenException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ProblemDetail handleForbidden(ForbiddenException ex) {
-        return problem(HttpStatus.FORBIDDEN, "forbidden", ex.getMessage());
+        ProblemDetail problem = problem(HttpStatus.FORBIDDEN, "forbidden", ex.getMessage());
+        if (ex.getEvidence() != null && !ex.getEvidence().isEmpty()) {
+            problem.setProperty("evidence", ex.getEvidence());
+        }
+        return problem;
     }
 
     @ExceptionHandler(RequestValidationException.class)

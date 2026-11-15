@@ -3,6 +3,8 @@ package com.flowops.application.service;
 import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.ConflictException;
+import com.flowops.domain.policy.AuthorizationEvaluator;
+import com.flowops.domain.policy.PermissionCodes;
 
 import com.flowops.domain.Clarification;
 import com.flowops.domain.port.ClarificationRepository;
@@ -30,16 +32,21 @@ public class ClarificationService {
 
     private final ClarificationRepository clarifications;
     private final RequestRepository requests;
+    private final AuthorizationEvaluator authz;
 
     public ClarificationService(ClarificationRepository clarifications,
-                                RequestRepository requests) {
+                                RequestRepository requests,
+                                AuthorizationEvaluator authz) {
         this.clarifications = clarifications;
         this.requests = requests;
+        this.authz = authz;
     }
 
     @Transactional
     public Clarification ask(Long requestId, String question, CallerIdentity caller) {
-        Request request = loadAndCheckAccess(requestId, caller);
+        Request request = loadRequest(requestId);
+        boolean isOwn = caller.id().equals(request.getRequester().getId());
+        authz.require(caller, isOwn ? PermissionCodes.CLARIFICATIONS_ASK_OWN : PermissionCodes.CLARIFICATIONS_ASK);
         if (request.getStatus().isTerminal()) {
             throw new ConflictException("Cannot add clarifications to a terminal request: " + request.getStatus());
         }
@@ -49,7 +56,9 @@ public class ClarificationService {
 
     @Transactional
     public Clarification answer(Long clarificationId, Long requestId, String answer, CallerIdentity caller) {
-        Request request = loadAndCheckAccess(requestId, caller);
+        Request request = loadRequest(requestId);
+        boolean isOwn = caller.id().equals(request.getRequester().getId());
+        authz.require(caller, isOwn ? PermissionCodes.CLARIFICATIONS_ANSWER_OWN : PermissionCodes.CLARIFICATIONS_ANSWER);
         if (request.getStatus().isTerminal()) {
             throw new ConflictException("Cannot answer clarifications on a terminal request: " + request.getStatus());
         }
@@ -64,18 +73,16 @@ public class ClarificationService {
 
     @Transactional(readOnly = true)
     public List<Clarification> listByRequest(Long requestId, CallerIdentity caller) {
-        Request request = loadAndCheckAccess(requestId, caller);
+        Request request = loadRequest(requestId);
+        boolean isOwn = caller.id().equals(request.getRequester().getId());
+        authz.require(caller, isOwn ? PermissionCodes.CLARIFICATIONS_READ_OWN : PermissionCodes.CLARIFICATIONS_READ);
         return clarifications.findByRequestIdOrderByCreatedAtDesc(request.getId());
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
 
-    private Request loadAndCheckAccess(Long requestId, CallerIdentity caller) {
-        Request request = requests.findById(requestId)
+    private Request loadRequest(Long requestId) {
+        return requests.findById(requestId)
                 .orElseThrow(() -> new NotFoundException("Request not found: " + requestId));
-        if (!caller.isAdmin() && !caller.id().equals(request.getRequester().getId())) {
-            throw new NotFoundException("Request not found: " + requestId);
-        }
-        return request;
     }
 }

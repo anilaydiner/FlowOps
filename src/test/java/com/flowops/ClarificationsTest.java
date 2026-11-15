@@ -170,16 +170,16 @@ class ClarificationsTest extends AbstractIntegrationTest {
             long reqId = createAndSubmit(bobToken, "IT_ACCESS",
                     "{\"resource\":\"Figma\",\"duration\":\"30d\"}");
 
-            // Carol (not owner, not admin) → 404
+            // Carol (not owner, not admin) → 403 (missing clarifications:read)
             mvc.perform(get("/api/v1/requests/" + reqId + "/clarifications")
                             .header("Authorization", "Bearer " + carolToken))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isForbidden());
 
             mvc.perform(post("/api/v1/requests/" + reqId + "/clarifications")
                             .header("Authorization", "Bearer " + carolToken)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"question\":\"Hi?\"}"))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isForbidden());
         }
 
         @Test

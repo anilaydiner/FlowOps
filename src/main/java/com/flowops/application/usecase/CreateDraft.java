@@ -10,6 +10,8 @@ import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.domain.port.RequestRepository;
 import com.flowops.domain.port.RequestTypeRepository;
 import com.flowops.domain.port.UserRepository;
+import com.flowops.domain.policy.AuthorizationEvaluator;
+import com.flowops.domain.policy.PermissionCodes;
 import com.flowops.domain.service.PayloadValidator;
 import com.flowops.observability.CorrelationId;
 import org.slf4j.MDC;
@@ -32,19 +34,23 @@ public class CreateDraft {
     private final UserRepository users;
     private final RequestRepository requests;
     private final PayloadValidator validator;
+    private final AuthorizationEvaluator authz;
 
     public CreateDraft(RequestTypeRepository requestTypes,
                        UserRepository users,
                        RequestRepository requests,
-                       PayloadValidator validator) {
+                       PayloadValidator validator,
+                       AuthorizationEvaluator authz) {
         this.requestTypes = requestTypes;
         this.users = users;
         this.requests = requests;
         this.validator = validator;
+        this.authz = authz;
     }
 
     @Transactional
     public Request execute(String typeCode, Map<String, Object> payload, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.REQUEST_CREATE);
         RequestType type = requestTypes.findByCode(typeCode.strip().toUpperCase())
                 .orElseThrow(() -> new NotFoundException("Request type not found: " + typeCode));
         if (!type.isActive()) {

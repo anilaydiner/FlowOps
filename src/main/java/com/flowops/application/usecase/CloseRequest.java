@@ -17,8 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Use case: close an EXECUTED or REJECTED request (terminal CLOSED state).
  *
- * <p>Allowed for the requester (SELF scope, SoD does not apply) or an admin
- * (global scope, no per-permission check).</p>
+ * <p>Requires {@code request:close:own} for the requester (SELF scope, SoD
+ * skipped) or {@code request:close} for others (global scope).</p>
  */
 @Service
 public class CloseRequest {
@@ -39,18 +39,9 @@ public class CloseRequest {
                     + request.getStatus() + ")");
         }
 
-        // Close: requester (SELF scope, skip SoD) or admin (global scope)
-        if (!caller.isAdmin()) {
-            if (!caller.id().equals(request.getRequester().getId())) {
-                throw new ForbiddenException("Only the requester or an admin can close this request");
-            }
-            // Requester closing own request: SELF-scoped permission, SoD doesn't apply
-            TargetContext target = TargetContext.from(request, null);
-            AuthorizationDecision d = authz.authorize(caller, PermissionCodes.REQUEST_CLOSE_OWN, target, true);
-            if (!d.allowed()) {
-                throw new ForbiddenException("Not authorized to close: " + d.evidence());
-            }
-        }
+        boolean isOwn = caller.id().equals(request.getRequester().getId());
+        TargetContext target = TargetContext.from(request, null);
+        authz.require(caller, isOwn ? PermissionCodes.REQUEST_CLOSE_OWN : PermissionCodes.REQUEST_CLOSE, target, isOwn);
 
         request.transitionTo(RequestStatus.CLOSED);
         return requests.save(request);

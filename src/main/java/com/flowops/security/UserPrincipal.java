@@ -26,10 +26,6 @@ public record UserPrincipal(Long id, String username, Set<String> roles) {
         throw new IllegalStateException("No authenticated principal in context");
     }
 
-    public boolean isAdmin() {
-        return roles != null && roles.contains("ADMIN");
-    }
-
     public boolean hasRole(String roleCode) {
         return roles != null && roles.contains(roleCode);
     }

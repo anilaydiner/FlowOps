@@ -6,6 +6,7 @@ import com.flowops.api.dto.RoleRequest;
 import com.flowops.domain.RoleSpec;
 import com.flowops.api.dto.RoleResponse;
 import com.flowops.application.service.RoleService;
+import com.flowops.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -15,6 +16,7 @@ import jakarta.validation.Valid;
 import com.flowops.domain.paging.PageQuery;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -62,53 +64,59 @@ public class RoleController {
     })
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Paged role list"),
-            @ApiResponse(responseCode = "401", description = "Not authenticated")
+            @ApiResponse(responseCode = "401", description = "Not authenticated"),
+            @ApiResponse(responseCode = "403", description = "Missing permission")
     })
     public PageResponse<RoleResponse> list(
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) List<String> sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal caller
     ) {
         RoleFilter filter = new RoleFilter(code, name);
         PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(roleService.list(filter, pageQuery).map(RoleResponse::from));
+        return PageResponse.from(roleService.list(filter, pageQuery, caller.toIdentity()).map(RoleResponse::from));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get role by ID")
-    public RoleResponse get(@PathVariable Long id) {
-        return RoleResponse.from(roleService.get(id));
+    public RoleResponse get(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
+        return RoleResponse.from(roleService.get(id, caller.toIdentity()));
     }
 
     @PostMapping
-    @Operation(summary = "Create role (admin only)")
+    @Operation(summary = "Create role")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Role created"),
+            @ApiResponse(responseCode = "403", description = "Missing permission"),
             @ApiResponse(responseCode = "409", description = "Role code already exists")
     })
-    public ResponseEntity<RoleResponse> create(@Valid @RequestBody RoleRequest request) {
-        RoleResponse response = RoleResponse.from(roleService.create(toSpec(request)));
+    public ResponseEntity<RoleResponse> create(@Valid @RequestBody RoleRequest request,
+                                               @AuthenticationPrincipal UserPrincipal caller) {
+        RoleResponse response = RoleResponse.from(roleService.create(toSpec(request), caller.toIdentity()));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update role (admin only)")
-    public RoleResponse update(@PathVariable Long id, @RequestBody RoleRequest request) {
-        return RoleResponse.from(roleService.update(id, toSpec(request)));
+    @Operation(summary = "Update role")
+    public RoleResponse update(@PathVariable Long id, @RequestBody RoleRequest request,
+                               @AuthenticationPrincipal UserPrincipal caller) {
+        return RoleResponse.from(roleService.update(id, toSpec(request), caller.toIdentity()));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete role (admin only)",
+    @Operation(summary = "Delete role",
             description = "Built-in roles (ADMIN, MEMBER) cannot be deleted.")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Role deleted"),
+            @ApiResponse(responseCode = "403", description = "Missing permission"),
             @ApiResponse(responseCode = "409", description = "Cannot delete built-in role")
     })
-    public void delete(@PathVariable Long id) {
-        roleService.delete(id);
+    public void delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
+        roleService.delete(id, caller.toIdentity());
     }
 
     private RoleSpec toSpec(RoleRequest r) {

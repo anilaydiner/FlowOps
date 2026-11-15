@@ -86,11 +86,12 @@ public class UserController {
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) List<String> sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal caller
     ) {
         UserFilter filter = new UserFilter(username, displayName, email, departmentCode, roleCode, active);
         PageQuery pageQuery = buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(userService.list(filter, pageQuery).map(UserResponse::from));
+        return PageResponse.from(userService.list(filter, pageQuery, caller.toIdentity()).map(UserResponse::from));
     }
 
     /**
@@ -135,26 +136,30 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<UserResponse> create(@Valid @RequestBody UserRequest request) {
+    public ResponseEntity<UserResponse> create(@Valid @RequestBody UserRequest request,
+                                               @AuthenticationPrincipal UserPrincipal caller) {
         var user = userService.create(
                 request.username(),
                 request.displayName(),
                 request.email(),
                 request.departmentCode(),
                 request.roles(),
-                request.password());
+                request.password(),
+                caller.toIdentity());
         return ResponseEntity.status(HttpStatus.CREATED).body(UserResponse.from(user));
     }
 
     @PutMapping("/{id}")
-    public UserResponse update(@PathVariable Long id, @RequestBody UserRequest request) {
+    public UserResponse update(@PathVariable Long id, @RequestBody UserRequest request,
+                               @AuthenticationPrincipal UserPrincipal caller) {
         var user = userService.update(
                 id,
                 request.displayName(),
                 request.email(),
                 request.departmentCode(),
                 request.roles(),
-                request.password());
+                request.password(),
+                caller.toIdentity());
         return UserResponse.from(user);
     }
 

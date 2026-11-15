@@ -61,6 +61,34 @@ public class AuthorizationEvaluator {
     }
 
     /**
+     * Authorize or throw. Convenience wrapper around {@link #authorize} that
+     * throws {@link com.flowops.domain.exception.ForbiddenException} with the
+     * evidence trail when the decision is denied.
+     *
+     * @param caller         the authenticated user
+     * @param permissionCode the required permission code
+     * @throws com.flowops.domain.exception.ForbiddenException if denied
+     */
+    public void require(CallerIdentity caller, String permissionCode) {
+        require(caller, permissionCode, null, false);
+    }
+
+    /** Authorize with a target context (scope + SoD checks apply). */
+    public void require(CallerIdentity caller, String permissionCode, TargetContext target) {
+        require(caller, permissionCode, target, false);
+    }
+
+    /** Authorize with target + optional SoD bypass. */
+    public void require(CallerIdentity caller, String permissionCode,
+                        TargetContext target, boolean skipSod) {
+        AuthorizationDecision d = authorize(caller, permissionCode, target, skipSod);
+        if (!d.allowed()) {
+            throw new com.flowops.domain.exception.ForbiddenException(
+                    "Missing permission: " + permissionCode, d.evidence());
+        }
+    }
+
+    /**
      * Authorize an action on a target, with optional SoD bypass.
      *
      * @param skipSod when true, the separation-of-duties check is skipped
@@ -86,8 +114,8 @@ public class AuthorizationEvaluator {
             evidence.add("SoD: overridden by request:override:sod");
         }
 
-        // 2 ── Find a matching permission (any scope variant)
-        Permission match = findMatchingPermission(user, permissionCode);
+        // 2 ── Find a matching permission (scoped variants only when target present)
+        Permission match = findMatchingPermission(user, permissionCode, target);
         if (match == null) {
             evidence.add("permission=" + permissionCode + " not granted to any role");
             return AuthorizationDecision.deny(evidence);
@@ -110,6 +138,16 @@ public class AuthorizationEvaluator {
     }
 
     /**
+     * Check if the caller holds the given permission code (no scope or SoD checks).
+     * Useful for determining access level — e.g. "can list all" vs "own only".
+     */
+    public boolean hasPermission(CallerIdentity caller, String permissionCode) {
+        User user = users.findById(caller.id())
+                .orElseThrow(() -> new IllegalStateException("Caller not found: " + caller.id()));
+        return hasPermission(user, permissionCode);
+    }
+
+    /**
      * Check only the SoD rule (used by the engine before the full authorize).
      */
     public boolean sodAllows(CallerIdentity caller, Long requesterId) {
@@ -123,20 +161,24 @@ public class AuthorizationEvaluator {
 
     /**
      * Find the best-matching permission for the given code.
-     * Prefers the most specific scope (global > scoped) — actually,
-     * we want any permission that covers the action. If the user has
-     * both a global and a scoped permission, the global one wins
-     * (no scope constraint to fail).
+     *
+     * <p>When a {@code target} is provided, scoped variants (e.g.
+     * {@code request:approve:dept}) are considered alongside the base code.
+     * When {@code target} is null (non-request resources such as users, roles),
+     * only an <b>exact</b> code match is accepted — this prevents
+     * {@code users:read:self} from satisfying a check for {@code users:read}.
+     *
+     * <p>Among candidates, the global (no-scope) permission wins.
      */
-    private Permission findMatchingPermission(User user, String permissionCode) {
-        // Collect all permissions whose code equals the base code OR is a scoped variant
-        // (e.g. base "request:approve" matches "request:approve:dept", "request:approve:threshold")
+    private Permission findMatchingPermission(User user, String permissionCode, TargetContext target) {
         List<Permission> all = new ArrayList<>();
         for (Role role : user.getRoles()) {
             if (role.getPermissions() == null) continue;
             for (Permission p : role.getPermissions()) {
                 String code = p.getCode();
-                if (code.equals(permissionCode) || code.startsWith(permissionCode + ":")) {
+                if (code.equals(permissionCode)) {
+                    all.add(p);
+                } else if (target != null && code.startsWith(permissionCode + ":")) {
                     all.add(p);
                 }
             }

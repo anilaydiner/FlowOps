@@ -106,10 +106,6 @@ public class User {
         return roles != null && roles.stream().anyMatch(r -> r.getCode().equals(roleCode));
     }
 
-    public boolean isAdmin() {
-        return hasRole("ADMIN");
-    }
-
     /** Convenience: role codes as a sorted list. */
     public Set<String> roleCodes() {
         if (roles == null) return Set.of();

@@ -31,7 +31,8 @@ public class NotificationController {
                     "Supports filtering by read status and pagination.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Paged notification list"),
-            @ApiResponse(responseCode = "401", description = "Not authenticated")
+            @ApiResponse(responseCode = "401", description = "Not authenticated"),
+            @ApiResponse(responseCode = "403", description = "Missing permission")
     })
     public PageResponse<NotificationResponse> list(
             @Parameter(description = "When true, return only unread notifications")
@@ -44,7 +45,7 @@ public class NotificationController {
         PageQuery pageQuery = new PageQuery(page, safeSize, List.of(new PageQuery.Order("createdAt", true)));
         if (Boolean.TRUE.equals(unread)) {
             // Fetch all unread, then manually page (small dataset expected)
-            List<Notification> allUnread = notifications.findUnread(user.id());
+            List<Notification> allUnread = notifications.findUnread(user.id(), user.toIdentity());
             int from = Math.min(page * safeSize, allUnread.size());
             int to = Math.min(from + safeSize, allUnread.size());
             List<Notification> slice = allUnread.subList(from, to);
@@ -56,27 +57,27 @@ public class NotificationController {
                     page == 0, page >= totalPages - 1
             );
         } else {
-            return PageResponse.from(notifications.list(user.id(), pageQuery).map(NotificationResponse::from));
+            return PageResponse.from(notifications.list(user.id(), pageQuery, user.toIdentity()).map(NotificationResponse::from));
         }
     }
 
     @GetMapping("/unread-count")
     @Operation(summary = "Get unread notification count")
     public UnreadCount unreadCount(@AuthenticationPrincipal UserPrincipal user) {
-        return new UnreadCount(notifications.countUnread(user.id()));
+        return new UnreadCount(notifications.countUnread(user.id(), user.toIdentity()));
     }
 
     @PatchMapping("/{id}/read")
     @Operation(summary = "Mark notification as read")
     public NotificationResponse markRead(@PathVariable Long id,
                                           @AuthenticationPrincipal UserPrincipal user) {
-        return NotificationResponse.from(notifications.markRead(id, user.id()));
+        return NotificationResponse.from(notifications.markRead(id, user.id(), user.toIdentity()));
     }
 
     @PatchMapping("/read-all")
     @Operation(summary = "Mark all notifications as read")
     public UnreadCount markAllRead(@AuthenticationPrincipal UserPrincipal user) {
-        notifications.markAllRead(user.id());
+        notifications.markAllRead(user.id(), user.toIdentity());
         return new UnreadCount(0);
     }
 

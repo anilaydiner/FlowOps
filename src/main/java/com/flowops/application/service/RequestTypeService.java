@@ -1,6 +1,9 @@
 package com.flowops.application.service;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.ConflictException;
+import com.flowops.domain.identity.CallerIdentity;
+import com.flowops.domain.policy.AuthorizationEvaluator;
+import com.flowops.domain.policy.PermissionCodes;
 
 import com.flowops.domain.paging.PageQuery;
 import com.flowops.domain.paging.PageResult;
@@ -22,17 +25,21 @@ public class RequestTypeService {
     private final RequestTypeRepository requestTypes;
     private final DepartmentRepository departments;
     private final WorkflowRepository workflows;
+    private final AuthorizationEvaluator authz;
 
     public RequestTypeService(RequestTypeRepository requestTypes,
                               DepartmentRepository departments,
-                              WorkflowRepository workflows) {
+                              WorkflowRepository workflows,
+                              AuthorizationEvaluator authz) {
         this.requestTypes = requestTypes;
         this.departments = departments;
         this.workflows = workflows;
+        this.authz = authz;
     }
 
     @Transactional(readOnly = true)
-    public PageResult<RequestType> list(RequestTypeFilter filter, PageQuery query) {
+    public PageResult<RequestType> list(RequestTypeFilter filter, PageQuery query, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.REQUEST_TYPES_LIST);
         PageResult<RequestType> page = requestTypes.findAll(filter, query);
         page.content().forEach(rt -> {
             if (rt.getOwningDepartment() != null) {
@@ -43,7 +50,8 @@ public class RequestTypeService {
     }
 
     @Transactional(readOnly = true)
-    public RequestType get(Long id) {
+    public RequestType get(Long id, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.REQUEST_TYPES_READ);
         RequestType rt = requestTypes.findById(id)
                 .orElseThrow(() -> new NotFoundException("Request type not found: " + id));
         if (rt.getOwningDepartment() != null) {
@@ -53,7 +61,8 @@ public class RequestTypeService {
     }
 
     @Transactional
-    public RequestType create(RequestTypeSpec request) {
+    public RequestType create(RequestTypeSpec request, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.REQUEST_TYPES_CREATE);
         String code = request.code().strip().toUpperCase();
         if (requestTypes.existsByCode(code)) {
             throw new ConflictException("Request type already exists: " + code);
@@ -76,7 +85,8 @@ public class RequestTypeService {
     }
 
     @Transactional
-    public RequestType update(Long id, RequestTypeSpec request) {
+    public RequestType update(Long id, RequestTypeSpec request, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.REQUEST_TYPES_UPDATE);
         RequestType rt = requestTypes.findById(id)
                 .orElseThrow(() -> new NotFoundException("Request type not found: " + id));
         if (request.name() != null && !request.name().isBlank()) {

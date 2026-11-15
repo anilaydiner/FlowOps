@@ -3,6 +3,8 @@ package com.flowops.application.service;
 import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.ConflictException;
+import com.flowops.domain.policy.AuthorizationEvaluator;
+import com.flowops.domain.policy.PermissionCodes;
 
 import com.flowops.domain.query.UserFilter;
 import com.flowops.domain.Department;
@@ -31,19 +33,22 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final EmailComposer emailComposer;
     private final OutboxService outbox;
+    private final AuthorizationEvaluator authz;
 
     public UserService(UserRepository users,
                        DepartmentRepository departments,
                        RoleRepository roles,
                        PasswordEncoder passwordEncoder,
                        EmailComposer emailComposer,
-                       OutboxService outbox) {
+                       OutboxService outbox,
+                       AuthorizationEvaluator authz) {
         this.users = users;
         this.departments = departments;
         this.roles = roles;
         this.passwordEncoder = passwordEncoder;
         this.emailComposer = emailComposer;
         this.outbox = outbox;
+        this.authz = authz;
     }
 
     @Transactional(readOnly = true)
@@ -61,7 +66,9 @@ public class UserService {
 
     @Transactional
     public User create(String username, String displayName, String email,
-                       String departmentCode, List<String> roleCodes, String password) {
+                       String departmentCode, List<String> roleCodes, String password,
+                       CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.USERS_CREATE);
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("username is required");
         }
@@ -88,9 +95,8 @@ public class UserService {
     public User get(Long id, CallerIdentity caller) {
         User user = users.findByIdWithDepartment(id)
                 .orElseThrow(() -> new NotFoundException("User not found: " + id));
-        if (!caller.isAdmin() && !caller.id().equals(user.getId())) {
-            throw new NotFoundException("User not found: " + id);
-        }
+        boolean isSelf = caller.id().equals(user.getId());
+        authz.require(caller, isSelf ? PermissionCodes.USERS_READ_SELF : PermissionCodes.USERS_READ);
         return user;
     }
 
@@ -98,7 +104,8 @@ public class UserService {
      * Paged, filtered, sortable user listing.
      */
     @Transactional(readOnly = true)
-    public PageResult<User> list(UserFilter filter, PageQuery query) {
+    public PageResult<User> list(UserFilter filter, PageQuery query, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.USERS_LIST);
         PageResult<User> page = users.findAll(filter, query);
         page.content().forEach(u -> {
             if (u.getDepartment() != null) {
@@ -110,7 +117,9 @@ public class UserService {
 
     @Transactional
     public User update(Long id, String displayName, String email,
-                       String departmentCode, List<String> roleCodes, String newPassword) {
+                       String departmentCode, List<String> roleCodes, String newPassword,
+                       CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.USERS_UPDATE);
         User user = users.findByIdWithDepartment(id)
                 .orElseThrow(() -> new NotFoundException("User not found: " + id));
         if (displayName != null) {
@@ -127,6 +136,7 @@ public class UserService {
 
     @Transactional
     public void delete(Long id, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.USERS_DELETE);
         if (id.equals(caller.id())) {
             throw new ConflictException("Cannot delete your own account");
         }

@@ -1,6 +1,9 @@
 package com.flowops.application.service;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.ConflictException;
+import com.flowops.domain.identity.CallerIdentity;
+import com.flowops.domain.policy.AuthorizationEvaluator;
+import com.flowops.domain.policy.PermissionCodes;
 
 import com.flowops.domain.paging.PageQuery;
 import com.flowops.domain.paging.PageResult;
@@ -25,20 +28,24 @@ public class WorkflowService {
 
     private final WorkflowRepository workflows;
     private final WorkflowStepRepository steps;
+    private final AuthorizationEvaluator authz;
 
-    public WorkflowService(WorkflowRepository workflows, WorkflowStepRepository steps) {
+    public WorkflowService(WorkflowRepository workflows, WorkflowStepRepository steps, AuthorizationEvaluator authz) {
         this.workflows = workflows;
         this.steps = steps;
+        this.authz = authz;
     }
 
     @Transactional(readOnly = true)
-    public PageResult<WorkflowView> list(WorkflowFilter filter, PageQuery query) {
+    public PageResult<WorkflowView> list(WorkflowFilter filter, PageQuery query, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.WORKFLOWS_LIST);
         PageResult<Workflow> page = workflows.findAll(filter, query);
         return page.map(w -> new WorkflowView(w, steps.findByWorkflowIdOrderById(w.getId())));
     }
 
     @Transactional(readOnly = true)
-    public WorkflowView get(Long id) {
+    public WorkflowView get(Long id, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.WORKFLOWS_READ);
         Workflow workflow = workflows.findById(id)
                 .orElseThrow(() -> new NotFoundException("Workflow not found: " + id));
         return new WorkflowView(workflow, steps.findByWorkflowIdOrderById(id));
@@ -46,7 +53,8 @@ public class WorkflowService {
 
     @Transactional
     public WorkflowView create(String code, String name, String description,
-                               Boolean active, List<StepSpec> stepSpecs) {
+                               Boolean active, List<StepSpec> stepSpecs, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.WORKFLOWS_CREATE);
         code = code.strip().toUpperCase();
         if (workflows.existsByCode(code)) {
             throw new ConflictException("Workflow already exists: " + code);
@@ -62,7 +70,8 @@ public class WorkflowService {
 
     @Transactional
     public WorkflowView update(Long id, String name, String description,
-                               Boolean active, List<StepSpec> stepSpecs) {
+                               Boolean active, List<StepSpec> stepSpecs, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.WORKFLOWS_UPDATE);
         Workflow workflow = workflows.findById(id)
                 .orElseThrow(() -> new NotFoundException("Workflow not found: " + id));
         workflow.updateProfile(name.strip(), blankToNull(description));

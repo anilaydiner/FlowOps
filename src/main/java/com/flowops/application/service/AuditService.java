@@ -1,6 +1,7 @@
 package com.flowops.application.service;
 
 import com.flowops.domain.identity.CallerIdentity;
+import com.flowops.domain.policy.AuthorizationEvaluator;
 import com.flowops.domain.policy.PermissionCodes;
 import com.flowops.domain.exception.NotFoundException;
 
@@ -55,36 +56,36 @@ public class AuditService {
     public static final String TYPE_JOB = "JOB";
     public static final String TYPE_SLA = "SLA";
 
-    private static final String AUDIT_PERM = PermissionCodes.AUDIT_READ_ANY;
-
     private final RequestRepository requests;
     private final StepInstanceRepository stepInstances;
     private final DecisionRepository decisions;
     private final ExecutionJobRepository executionJobs;
     private final OutboxMessageRepository outbox;
-    private final com.flowops.domain.port.RoleRepository roles;
+    private final AuthorizationEvaluator authz;
 
     public AuditService(RequestRepository requests,
                         StepInstanceRepository stepInstances,
                         DecisionRepository decisions,
                         ExecutionJobRepository executionJobs,
                         OutboxMessageRepository outbox,
-                        com.flowops.domain.port.RoleRepository roles) {
+                        AuthorizationEvaluator authz) {
         this.requests = requests;
         this.stepInstances = stepInstances;
         this.decisions = decisions;
         this.executionJobs = executionJobs;
         this.outbox = outbox;
-        this.roles = roles;
+        this.authz = authz;
     }
 
     @Transactional(readOnly = true)
     public List<AuditEvent> timeline(Long requestId, Instant from, Instant to, String type, CallerIdentity caller) {
         Request request = requests.findById(requestId)
                 .orElseThrow(() -> new NotFoundException("Request not found: " + requestId));
-        if (!isOwnerOrAuditor(request, caller)) {
-            // 404 for non-owners without audit:read:any — no existence leak
-            throw new NotFoundException("Request not found: " + requestId);
+        boolean isOwn = caller.id().equals(request.getRequester().getId());
+        if (isOwn) {
+            authz.require(caller, PermissionCodes.AUDIT_READ);
+        } else {
+            authz.require(caller, PermissionCodes.AUDIT_READ_ANY);
         }
 
         List<AuditEvent> events = new ArrayList<>();
@@ -174,12 +175,5 @@ public class AuditService {
     private static boolean isValidType(String t) {
         return t.equals(TYPE_STATUS) || t.equals(TYPE_SUBMITTED) || t.equals(TYPE_DECISION)
                 || t.equals(TYPE_JOB) || t.equals(TYPE_SLA);
-    }
-
-    private boolean isOwnerOrAuditor(Request request, CallerIdentity caller) {
-        if (caller.id().equals(request.getRequester().getId())) return true;
-        if (caller.isAdmin()) return true;
-        // Permission-catalog check: any of the caller's roles carries audit:read:any
-        return roles.anyRoleHasPermission(caller.roles(), AUDIT_PERM);
     }
 }

@@ -230,11 +230,11 @@ class AuditApiTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void nonOwnerGets404() throws Exception {
+    void nonOwnerGets403() throws Exception {
         long reqId = createAndSubmit(hankToken, "IT_ACCESS", "{\"resource\":\"Zoom\",\"duration\":\"7d\"}");
         mvc.perform(get("/api/v1/requests/" + reqId + "/audit")
                         .header("Authorization", "Bearer " + ivyToken))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isForbidden());
 
         // admin can read anyone's audit trail
         mvc.perform(get("/api/v1/requests/" + reqId + "/audit")
@@ -324,7 +324,7 @@ class AuditApiTest extends AbstractIntegrationTest {
 
             mvc.perform(get("/api/v1/requests/" + reqId + "/audit")
                             .header("Authorization", "Bearer " + ivyToken))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isForbidden());
         }
 
         @Test

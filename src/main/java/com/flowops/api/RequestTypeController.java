@@ -6,6 +6,7 @@ import com.flowops.api.dto.RequestTypeRequest;
 import com.flowops.domain.RequestTypeSpec;
 import com.flowops.api.dto.RequestTypeResponse;
 import com.flowops.application.service.RequestTypeService;
+import com.flowops.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -15,6 +16,7 @@ import jakarta.validation.Valid;
 import com.flowops.domain.paging.PageQuery;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -64,7 +66,8 @@ public class RequestTypeController {
     })
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Paged request-type list"),
-            @ApiResponse(responseCode = "401", description = "Not authenticated")
+            @ApiResponse(responseCode = "401", description = "Not authenticated"),
+            @ApiResponse(responseCode = "403", description = "Missing permission")
     })
     public PageResponse<RequestTypeResponse> list(
             @RequestParam(required = false) String code,
@@ -73,34 +76,38 @@ public class RequestTypeController {
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) List<String> sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal caller
     ) {
         RequestTypeFilter filter = new RequestTypeFilter(code, name, departmentCode, active);
         PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(requestTypeService.list(filter, pageQuery).map(RequestTypeResponse::from));
+        return PageResponse.from(requestTypeService.list(filter, pageQuery, caller.toIdentity()).map(RequestTypeResponse::from));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get request type by ID")
-    public RequestTypeResponse get(@PathVariable Long id) {
-        return RequestTypeResponse.from(requestTypeService.get(id));
+    public RequestTypeResponse get(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
+        return RequestTypeResponse.from(requestTypeService.get(id, caller.toIdentity()));
     }
 
     @PostMapping
-    @Operation(summary = "Create request type (admin only)")
+    @Operation(summary = "Create request type")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Request type created"),
+            @ApiResponse(responseCode = "403", description = "Missing permission"),
             @ApiResponse(responseCode = "409", description = "Code already exists")
     })
-    public ResponseEntity<RequestTypeResponse> create(@Valid @RequestBody RequestTypeRequest request) {
+    public ResponseEntity<RequestTypeResponse> create(@Valid @RequestBody RequestTypeRequest request,
+                                                       @AuthenticationPrincipal UserPrincipal caller) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(RequestTypeResponse.from(requestTypeService.create(toSpec(request))));
+                .body(RequestTypeResponse.from(requestTypeService.create(toSpec(request), caller.toIdentity())));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update request type (admin only)")
-    public RequestTypeResponse update(@PathVariable Long id, @RequestBody RequestTypeRequest request) {
-        return RequestTypeResponse.from(requestTypeService.update(id, toSpec(request)));
+    @Operation(summary = "Update request type")
+    public RequestTypeResponse update(@PathVariable Long id, @RequestBody RequestTypeRequest request,
+                                      @AuthenticationPrincipal UserPrincipal caller) {
+        return RequestTypeResponse.from(requestTypeService.update(id, toSpec(request), caller.toIdentity()));
     }
 
     private RequestTypeSpec toSpec(RequestTypeRequest r) {

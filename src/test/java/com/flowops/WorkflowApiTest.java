@@ -239,7 +239,7 @@ class WorkflowApiTest extends AbstractIntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
                                     {"code":"WF_HACK","name":"Hacker","steps":[
-                                       {"code":"S","name":"S","requiredRole":"ADMIN"}]}
+                                       {"code":"STEP1","name":"Step One","requiredRole":"ADMIN"}]}
                                     """))
                     .andExpect(status().isForbidden());
         }
@@ -281,12 +281,12 @@ class WorkflowApiTest extends AbstractIntegrationTest {
         }
 
         @Test
-        void submit_nonOwner_returns404() throws Exception {
+        void submit_nonOwner_returns403() throws Exception {
             long id = createDraft(aliceToken(), "EXPENSE", "{\"amount\":10,\"description\":\"x\"}");
             String carol = createUser("carol4", "carolpass123", "MEMBER");
             mvc.perform(post("/api/v1/requests/" + id + "/submit")
                             .header("Authorization", "Bearer " + carol))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isForbidden());
         }
     }
 

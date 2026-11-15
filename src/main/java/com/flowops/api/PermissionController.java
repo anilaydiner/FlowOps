@@ -4,12 +4,14 @@ import com.flowops.api.dto.PageResponse;
 import com.flowops.domain.query.PermissionFilter;
 import com.flowops.api.dto.PermissionResponse;
 import com.flowops.application.service.PermissionService;
+import com.flowops.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import com.flowops.domain.paging.PageQuery;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -52,23 +54,25 @@ public class PermissionController {
     })
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Paged permission list"),
-            @ApiResponse(responseCode = "401", description = "Not authenticated")
+            @ApiResponse(responseCode = "401", description = "Not authenticated"),
+            @ApiResponse(responseCode = "403", description = "Missing permission")
     })
     public PageResponse<PermissionResponse> list(
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) List<String> sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal caller
     ) {
         PermissionFilter filter = new PermissionFilter(code, name);
         PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(permissionService.list(filter, pageQuery).map(PermissionResponse::from));
+        return PageResponse.from(permissionService.list(filter, pageQuery, caller.toIdentity()).map(PermissionResponse::from));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get permission by ID")
-    public PermissionResponse get(@PathVariable Long id) {
-        return PermissionResponse.from(permissionService.get(id));
+    public PermissionResponse get(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
+        return PermissionResponse.from(permissionService.get(id, caller.toIdentity()));
     }
 }

@@ -12,6 +12,9 @@ import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.application.service.EmailComposer;
 import com.flowops.domain.OutboxEvents;
 import com.flowops.application.service.OutboxService;
+import com.flowops.domain.policy.AuthorizationEvaluator;
+import com.flowops.domain.policy.PermissionCodes;
+import com.flowops.domain.policy.TargetContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,8 +24,9 @@ import java.time.Instant;
  * Use case: submit a DRAFT request into its default workflow.
  *
  * <p>DRAFT → IN_REVIEW with the first applicable step materialized (or APPROVED
- * when every step is skipped). On success, the submitter is notified via the
- * transactional outbox (FEED + EMAIL).</p>
+ * when every step is skipped). Requires {@code request:submit:own} for the
+ * requester or {@code request:submit} for others. On success, the submitter
+ * is notified via the transactional outbox (FEED + EMAIL).</p>
  */
 @Service
 public class SubmitRequest {
@@ -31,20 +35,26 @@ public class SubmitRequest {
     private final StepMaterializer materializer;
     private final OutboxService outbox;
     private final EmailComposer emailComposer;
+    private final AuthorizationEvaluator authz;
 
     public SubmitRequest(RequestRepository requests,
                          StepMaterializer materializer,
                          OutboxService outbox,
-                         EmailComposer emailComposer) {
+                         EmailComposer emailComposer,
+                         AuthorizationEvaluator authz) {
         this.requests = requests;
         this.materializer = materializer;
         this.outbox = outbox;
         this.emailComposer = emailComposer;
+        this.authz = authz;
     }
 
     @Transactional
     public Request execute(Long requestId, CallerIdentity caller) {
         Request request = load(requestId);
+        boolean isOwn = caller.id().equals(request.getRequester().getId());
+        TargetContext target = TargetContext.from(request, null);
+        authz.require(caller, isOwn ? PermissionCodes.REQUEST_SUBMIT_OWN : PermissionCodes.REQUEST_SUBMIT, target, isOwn);
         if (!request.isDraft()) {
             throw new ConflictException("Only DRAFT requests can be submitted (current: " + request.getStatus() + ")");
         }

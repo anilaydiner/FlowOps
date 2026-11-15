@@ -1,6 +1,9 @@
 package com.flowops.application.service;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.ConflictException;
+import com.flowops.domain.identity.CallerIdentity;
+import com.flowops.domain.policy.AuthorizationEvaluator;
+import com.flowops.domain.policy.PermissionCodes;
 
 import com.flowops.domain.query.RoleFilter;
 import com.flowops.domain.RoleSpec;
@@ -22,14 +25,17 @@ public class RoleService {
 
     private final RoleRepository roles;
     private final PermissionRepository permissions;
+    private final AuthorizationEvaluator authz;
 
-    public RoleService(RoleRepository roles, PermissionRepository permissions) {
+    public RoleService(RoleRepository roles, PermissionRepository permissions, AuthorizationEvaluator authz) {
         this.roles = roles;
         this.permissions = permissions;
+        this.authz = authz;
     }
 
     @Transactional(readOnly = true)
-    public PageResult<Role> list(RoleFilter filter, PageQuery query) {
+    public PageResult<Role> list(RoleFilter filter, PageQuery query, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.ROLES_LIST);
         PageResult<Role> page = roles.findAll(filter, query);
         // Trigger lazy-load of permissions while the tx is still open
         page.content().forEach(r -> r.getPermissions().size());
@@ -37,7 +43,8 @@ public class RoleService {
     }
 
     @Transactional(readOnly = true)
-    public Role get(Long id) {
+    public Role get(Long id, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.ROLES_READ);
         Role role = roles.findById(id)
                 .orElseThrow(() -> new NotFoundException("Role not found: " + id));
         // Trigger lazy-load of permissions while the tx is still open
@@ -46,7 +53,8 @@ public class RoleService {
     }
 
     @Transactional
-    public Role create(RoleSpec request) {
+    public Role create(RoleSpec request, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.ROLES_CREATE);
         String code = request.code().strip().toUpperCase();
         if (roles.existsByCode(code)) {
             throw new ConflictException("Role already exists: " + code);
@@ -64,7 +72,8 @@ public class RoleService {
     }
 
     @Transactional
-    public Role update(Long id, RoleSpec request) {
+    public Role update(Long id, RoleSpec request, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.ROLES_UPDATE);
         Role role = roles.findById(id)
                 .orElseThrow(() -> new NotFoundException("Role not found: " + id));
         if (request.name() != null && !request.name().isBlank()) {
@@ -81,7 +90,8 @@ public class RoleService {
     }
 
     @Transactional
-    public void delete(Long id) {
+    public void delete(Long id, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.ROLES_DELETE);
         Role role = roles.findById(id)
                 .orElseThrow(() -> new NotFoundException("Role not found: " + id));
         // Prevent deletion of built-in roles that users depend on

@@ -4,6 +4,7 @@ import com.flowops.api.dto.PageResponse;
 import com.flowops.domain.Department;
 import com.flowops.domain.query.DepartmentFilter;
 import com.flowops.application.service.DepartmentService;
+import com.flowops.security.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import com.flowops.domain.paging.PageQuery;
 import com.flowops.domain.paging.PageResult;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,18 +59,20 @@ public class DepartmentController {
             @Parameter(name = "size", description = "Page size (default 20, max 100)")
     })
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Paged department list")
+            @ApiResponse(responseCode = "200", description = "Paged department list"),
+            @ApiResponse(responseCode = "403", description = "Missing permission")
     })
     public PageResponse<Department> list(
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) List<String> sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal caller
     ) {
         DepartmentFilter filter = new DepartmentFilter(code, name);
         PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
-        PageResult<Department> result = departments.list(filter, pageQuery);
+        PageResult<Department> result = departments.list(filter, pageQuery, caller.toIdentity());
         return PageResponse.from(result);
     }
 }

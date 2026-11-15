@@ -24,6 +24,9 @@ import com.flowops.domain.port.DecisionRepository;
 import com.flowops.domain.port.ExecutionJobRepository;
 import com.flowops.domain.port.RequestRepository;
 import com.flowops.domain.port.StepInstanceRepository;
+import com.flowops.domain.policy.AuthorizationEvaluator;
+import com.flowops.domain.policy.PermissionCodes;
+import com.flowops.domain.policy.TargetContext;
 import com.flowops.domain.query.RequestFilter;
 import com.flowops.observability.FlowOpsSpans;
 import com.flowops.observability.MetricNames;
@@ -57,6 +60,7 @@ public class RequestService {
     private final DecisionRepository decisions;
     private final ClarificationRepository clarifications;
     private final ExecutionJobRepository executionJobs;
+    private final AuthorizationEvaluator authz;
 
     public RequestService(RequestRepository requests,
                           CreateDraft createDraft,
@@ -70,7 +74,8 @@ public class RequestService {
                           StepInstanceRepository stepInstances,
                           DecisionRepository decisions,
                           ClarificationRepository clarifications,
-                          ExecutionJobRepository executionJobs) {
+                          ExecutionJobRepository executionJobs,
+                          AuthorizationEvaluator authz) {
         this.requests = requests;
         this.createDraft = createDraft;
         this.updateDraft = updateDraft;
@@ -84,6 +89,7 @@ public class RequestService {
         this.decisions = decisions;
         this.clarifications = clarifications;
         this.executionJobs = executionJobs;
+        this.authz = authz;
     }
 
     @Transactional
@@ -95,14 +101,16 @@ public class RequestService {
     public RequestDetail get(Long id, CallerIdentity caller) {
         Request request = requests.findById(id)
                 .orElseThrow(() -> new NotFoundException("Request not found: " + id));
-        checkReadAccess(request, caller);
+        boolean isOwn = caller.id().equals(request.getRequester().getId());
+        TargetContext target = TargetContext.from(request, null);
+        authz.require(caller, isOwn ? PermissionCodes.REQUEST_READ_OWN : PermissionCodes.REQUEST_READ, target, isOwn);
         return fullDetail(request);
     }
 
     @Transactional(readOnly = true)
     public PageResult<RequestDetail> list(RequestFilter filter, PageQuery query, CallerIdentity caller) {
-        // Non-admins can only ever see their own requests
-        PageResult<Request> page = requests.findAll(filter, query, caller.id(), caller.isAdmin());
+        boolean canSeeAll = authz.hasPermission(caller, PermissionCodes.REQUEST_LIST);
+        PageResult<Request> page = requests.findAll(filter, query, canSeeAll ? null : caller.id(), canSeeAll);
         return page.map(r -> RequestDetail.of(ready(r)));
     }
 
@@ -121,11 +129,10 @@ public class RequestService {
     /**
      * Submits a draft into the workflow: DRAFT → IN_REVIEW with the first
      * applicable step materialized (or APPROVED when every step is skipped).
-     * Owner or admin only; non-owner gets 404 (no existence leak).
+     * Requires {@code request:submit:own} or {@code request:submit}.
      */
     @Transactional
     public RequestDetail submit(Long id, CallerIdentity caller) {
-        requireWriteAccess(id, caller);
         Request submitted = spans.run(SpanNames.REQUEST_SUBMIT, Map.of(
                         "request.id", String.valueOf(id),
                         "user", caller.username()),
@@ -155,6 +162,7 @@ public class RequestService {
 
     /**
      * Closes an EXECUTED or REJECTED request (terminal).
+     * Requires {@code request:close:own} or {@code request:close}.
      */
     @Transactional
     public RequestDetail close(Long id, CallerIdentity caller) {
@@ -175,6 +183,7 @@ public class RequestService {
      */
     @Transactional(readOnly = true)
     public PageResult<RequestDetail> queue(PageQuery query, CallerIdentity caller) {
+        authz.require(caller, PermissionCodes.REQUEST_QUEUE);
         Set<String> roles = (caller.roles() != null) ? caller.roles() : Set.of();
         if (roles.isEmpty()) {
             return PageResult.empty(query.page(), query.size());
@@ -189,15 +198,6 @@ public class RequestService {
     }
 
     // ── helpers ────────────────────────────────────────────────────────
-
-    private Request requireWriteAccess(Long id, CallerIdentity caller) {
-        Request request = requests.findById(id)
-                .orElseThrow(() -> new NotFoundException("Request not found: " + id));
-        if (!isOwnerOrAdmin(request, caller)) {
-            throw new NotFoundException("Request not found: " + id);
-        }
-        return request;
-    }
 
     /**
      * Initializes lazy associations (requester, owning department) while the
@@ -234,16 +234,5 @@ public class RequestService {
         List<Clarification> clari = clarifications.findByRequestIdOrderByCreatedAtDesc(r.getId());
         List<ExecutionJob> jobs = executionJobs.findByRequestIdOrderByCreatedAtAsc(r.getId());
         return RequestDetail.full(r, steps, byStep, clari, jobs);
-    }
-
-    private void checkReadAccess(Request request, CallerIdentity caller) {
-        if (!isOwnerOrAdmin(request, caller)) {
-            // Do not leak existence of other users' requests
-            throw new NotFoundException("Request not found: " + request.getId());
-        }
-    }
-
-    private boolean isOwnerOrAdmin(Request request, CallerIdentity caller) {
-        return caller.isAdmin() || caller.id().equals(request.getRequester().getId());
     }
 }

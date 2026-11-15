@@ -323,7 +323,7 @@ class RequestsApiTest extends AbstractIntegrationTest {
         }
 
         @Test
-        void nonOwner_cannotSeeOrEdit_returns404() throws Exception {
+        void nonOwner_cannotSeeOrEdit_returns403() throws Exception {
             // alice creates
             MvcResult created = mvc.perform(post("/api/v1/requests")
                             .header("Authorization", "Bearer " + aliceToken())
@@ -347,19 +347,19 @@ class RequestsApiTest extends AbstractIntegrationTest {
                     .andExpect(status().isCreated());
             String bob = token("bob2", "bobpass123");
 
-            // bob reads alice's request → 404 (no existence leak)
+            // bob reads alice's request → 403 (missing request:read permission)
             mvc.perform(get("/api/v1/requests/" + id)
                             .header("Authorization", "Bearer " + bob))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isForbidden());
 
-            // bob edits alice's request → 404 (no existence leak)
+            // bob edits alice's request → 403 (missing request:update permission)
             mvc.perform(put("/api/v1/requests/" + id)
                             .header("Authorization", "Bearer " + bob)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("""
                                     {"payload": {"amount": 999, "description": "Hacked"}}
                                     """))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isForbidden());
         }
 
         @Test

@@ -309,10 +309,10 @@ class UsersApiTest extends AbstractIntegrationTest {
         }
 
         @Test
-        void member_cannotSeeOtherUser_returns404() throws Exception {
+        void member_cannotSeeOtherUser_returns403() throws Exception {
             mvc.perform(get("/api/v1/users/1")
                             .header("Authorization", "Bearer " + aliceToken()))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isForbidden());
         }
 
         @Test
@@ -559,7 +559,7 @@ class UsersApiTest extends AbstractIntegrationTest {
             mvc.perform(get("/api/v1/permissions?code=users:")
                             .header("Authorization", "Bearer " + aliceToken()))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.totalElements").value(3))
+                    .andExpect(jsonPath("$.totalElements").value(8))
                     .andExpect(jsonPath("$.content[0].code").isString())
                     .andExpect(jsonPath("$.content[0].code").value(org.hamcrest.Matchers.startsWith("users")));
         }

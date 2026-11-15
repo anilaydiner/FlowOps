@@ -27,10 +27,6 @@ public record CallerIdentity(Long id, String username, Set<String> roles) {
         this(id, username, Set.of());
     }
 
-    public boolean isAdmin() {
-        return roles.contains("ADMIN");
-    }
-
     public boolean hasRole(String roleCode) {
         return roles.contains(roleCode);
     }
