@@ -23,7 +23,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -150,8 +149,7 @@ public class OutboxDispatcher {
                 return null;
             });
         } catch (RuntimeException e) {
-            long backoffSeconds = WorkerDefaults.BASE_BACKOFF.toSeconds() * (1L << msg.getRetryCount());
-            Instant nextRetry = Instant.now().plus(Duration.ofSeconds(backoffSeconds));
+            Instant nextRetry = Instant.now().plus(msg.retryBackoff());
             msg.markFailed(e.getMessage(), nextRetry);
             metrics.counter(MetricNames.OUTBOX_MESSAGE_FAILED, "channel", msg.getChannel()).increment();
             if (msg.getStatus() == OutboxStatus.DEAD_LETTER) {

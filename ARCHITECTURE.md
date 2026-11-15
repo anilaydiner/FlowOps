@@ -22,13 +22,15 @@ All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
 │  application/                                                                   │
 │  ├── usecase/         One class per workflow action                             │
 │  │    CreateDraft, UpdateDraft, CancelRequest, SubmitRequest,                  │
-│  │    DecideStep, CloseRequest, StepMaterializer                               │
+│  │    DecideStep, CloseRequest, StepMaterializer,                              │
+│  │    ScanSla (SLA breach/expiry), ProcessExecutionJobs (job retry)            │
 │  ├── service/         Application services (orchestration + read models)        │
 │  │    RequestService, EmailComposer, AuditService, ClarificationService,       │
 │  │    UserService, NotificationService, OutboxService, ExecutionService,       │
 │  │    WorkflowService, RequestTypeService, DepartmentService,                  │
 │  │    RoleService, PermissionService, DomainServiceConfig                      │
-│  ├── port/            Driven-side ports (RequestLifecycleObservability —       │
+│  ├── port/            Driven-side ports (RequestLifecycleObservability,        │
+│  │                    SlaMetrics, ExecutionJobObservability —                  │
 │  │                    implemented by the observability module)                 │
 │  └── model/           Read models (RequestDetail, WorkflowView)                │
 │                                                                        │       │
@@ -63,7 +65,8 @@ All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
 │  │                   …) + Paging translator + Specifications                    │
 │  ├── mail/            SMTP sender (implements domain.mail port)                │
 │  ├── action/          External action adapters (execution jobs)                │
-│  └── worker/          Scheduled workers (SlaScanner, OutboxDispatcher, …)      │
+│  └── worker/          Thin @Scheduled shells (SlaScanner → ScanSla,            │
+│  │                   JobWorker → ProcessExecutionJobs, OutboxDispatcher)       │
 │                                                                        │       │
 │  depends on:  domain (entities + ports) + Spring + infra libraries    │       │
 └──────────────────────────────────────────────────────────────────────────────────┘
@@ -74,8 +77,8 @@ All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
 
   observability/   CorrelationId, FlowOpsSpans (OTel helper), TracingConfig,
                    SpanNames/MetricNames registries,
-                   RequestLifecycleObservabilityAdapter (implements the
-                   application port)
+                   RequestLifecycleObservabilityAdapter, SlaMetricsAdapter,
+                   ExecutionJobObservabilityAdapter (implement application ports)
                    depends on:  application.port + domain (read-only) + OTel/Micrometer
 
   config/          OpenApiConfig (Spring Bean wiring for API docs)
@@ -95,7 +98,7 @@ All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
 | 8 | `application` must not depend on `infra` | Application code is framework-agnostic |
 | 9 | `application` must not use Spring `dao`/`orm`/`data`/`web`/`scheduling` | Adapters own framework plumbing; services see ports only |
 | 10 | OpenTelemetry/Micrometer only in `infra` + `observability` | Telemetry never leaks into domain/app/api/security |
-| 11 | `infra.worker` must not depend on `application.service` | Workers are thin shells over use cases (one known legacy exclusion) |
+| 11 | `infra.worker` must not depend on `application.service` | Workers are thin shells over use cases |
 
 ## Security / Identity Flow
 
@@ -166,6 +169,20 @@ inside the adapter, so application code never sees Spring exception types.
 
 Wired as beans via `application.service.DomainServiceConfig` (`@Configuration`).
 
+## Domain Policy
+
+Business policy lives on the aggregates, not in workers or services:
+
+- **SLA windows** — `StepInstance.isSlaBreached(now)` / `isExpired(now)`
+  (breach at `createdAt + slaMinutes`, expiry at `× EXPIRY_MULTIPLIER (2)`),
+  plus `escalationRole()` (escalation role with required-role fallback).
+- **Retry backoff** — `ExecutionJob.retryBackoff()` and
+  `OutboxMessage.retryBackoff()` (base 5s × 2^retryCount), used by the
+  `ProcessExecutionJobs` use case and the `OutboxDispatcher`.
+
+Workers keep only infra concerns: tick cadence, batch claiming through
+ports, and span boundaries.
+
 ## Observability
 
 - Lifecycle spans + counters (PLAN §8) are emitted by
@@ -175,8 +192,15 @@ Wired as beans via `application.service.DomainServiceConfig` (`@Configuration`).
   the application layer.
 - `observability.FlowOpsSpans` wraps span start/status/end; `SpanNames` and
   `MetricNames` are the shared name registries.
-- Workers (`infra/worker`) open their own spans (`job.execute`,
-  `outbox.deliver`, `sla.scan`) and record the job/outbox/SLA metrics.
+- Worker observability also goes through ports: `SlaMetrics`
+  (breach/expiry counters) and `ExecutionJobObservability` (one
+  `job.execute` span per job, completed/failed/dead-letter counters,
+  pending gauge) are implemented by adapters in this module, so the
+  `ScanSla` / `ProcessExecutionJobs` use cases stay telemetry-free.
+  `SlaScanner` still opens the `sla.scan` span around each scan;
+  `OutboxDispatcher` opens the `outbox.deliver` spans and records
+  outbox metrics directly (it remains a logic-bearing worker until the
+  Phase 2 typed-payload work).
 
 ## JPA Annotation Trade-off
 

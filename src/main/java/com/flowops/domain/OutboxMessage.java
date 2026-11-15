@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+import java.time.Duration;
 import java.time.Instant;
 
 /**
@@ -139,6 +140,14 @@ public class OutboxMessage {
 
     public boolean canRetry() {
         return retryCount < maxRetries;
+    }
+
+    /** Base retry backoff; actual delay = BASE_RETRY_DELAY × 2^retryCount. */
+    public static final Duration BASE_RETRY_DELAY = Duration.ofSeconds(5);
+
+    /** Exponential backoff for the next retry attempt (5s, 10s, 20s, …). */
+    public Duration retryBackoff() {
+        return BASE_RETRY_DELAY.multipliedBy(1L << retryCount);
     }
 
     /** PENDING|FAILED → SENT. */

@@ -12,6 +12,9 @@ import java.util.Optional;
  */
 public interface ExecutionJobRepository {
 
+    /** Default number of rows claimed per worker tick. */
+    int DEFAULT_BATCH_SIZE = 50;
+
     ExecutionJob save(ExecutionJob job);
 
     /**

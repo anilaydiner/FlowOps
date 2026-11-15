@@ -127,13 +127,13 @@ class ArchitectureTest {
                             "io.micrometer..", "io.opentelemetry..");
 
     /**
-     * Workers are thin infra shells: they orchestrate use cases, not
-     * application services. ({@code SlaScanner → OutboxService} is a known
-     * legacy violation, removed when the SLA scan becomes a use case.)
+     * Workers are thin infra shells: they orchestrate use cases
+     * ({@code application.usecase}), never application services.
+     * Business logic and policy live in use cases + domain; the worker
+     * keeps only scheduling cadence, test flags, and spans.
      */
     @ArchTest
     static final ArchRule infra_worker_must_not_depend_on_application_services =
             noClasses().that().resideInAPackage("com.flowops.infra.worker..")
-                    .and().haveNameNotMatching("com\\.flowops\\.infra\\.worker\\.SlaScanner(\\..*)?")
                     .should().dependOnClassesThat().resideInAPackage("com.flowops.application.service..");
 }

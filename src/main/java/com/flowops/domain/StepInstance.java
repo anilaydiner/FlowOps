@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -109,6 +110,41 @@ public class StepInstance {
     /** SATISFIED / SKIPPED / BLOCKED are terminal for a step instance. */
     public boolean isTerminal() {
         return this.state != StepState.PENDING;
+    }
+
+    // ── SLA policy (PLAN §8, iteration 7) ──────────────────────────────
+
+    /** Step expiry = slaMinutes × this multiplier. */
+    public static final int EXPIRY_MULTIPLIER = 2;
+
+    /** True when the step declares an SLA window. */
+    public boolean hasSla() {
+        return step.getSlaMinutes() != null;
+    }
+
+    /** The moment the SLA window ends (breach point). */
+    public Instant slaDeadline() {
+        return createdAt.plus(Duration.ofMinutes(step.getSlaMinutes()));
+    }
+
+    /** The moment the request expires (2× SLA) if the step stays pending. */
+    public Instant expiryDeadline() {
+        return createdAt.plus(Duration.ofMinutes((long) step.getSlaMinutes() * EXPIRY_MULTIPLIER));
+    }
+
+    /** True when the SLA window has been passed. */
+    public boolean isSlaBreached(Instant now) {
+        return hasSla() && !now.isBefore(slaDeadline());
+    }
+
+    /** True when the expiry point has been passed. */
+    public boolean isExpired(Instant now) {
+        return hasSla() && now.isAfter(expiryDeadline());
+    }
+
+    /** The role escalated on breach (falls back to the step's required role). */
+    public String escalationRole() {
+        return step.getEscalationRole() != null ? step.getEscalationRole() : step.getRequiredRole();
     }
 
     private void requirePending(String operation) {
