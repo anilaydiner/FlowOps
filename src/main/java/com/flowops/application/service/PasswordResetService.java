@@ -2,6 +2,7 @@ package com.flowops.application.service;
 
 import com.flowops.domain.PasswordResetToken;
 import com.flowops.domain.User;
+import com.flowops.domain.exception.RequestValidationException;
 import com.flowops.domain.port.PasswordResetTokenRepository;
 import com.flowops.domain.port.UserRepository;
 import com.flowops.observability.CorrelationId;
@@ -20,6 +21,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.Map;
 
 /**
  * Forgot-password / password-reset use cases (PLAN §9).
@@ -117,21 +119,21 @@ public class PasswordResetService {
      * Validate a reset token and set the account's new password.
      *
      * <p>All failure modes (unknown token, expired, already used) raise the same
-     * {@link IllegalArgumentException} so the client cannot distinguish them.
+     * {@link RequestValidationException} so the client cannot distinguish them.
      */
     @Transactional
     public void resetPassword(String rawToken, String newPassword) {
         if (rawToken == null || rawToken.isBlank()) {
-            throw new IllegalArgumentException("Reset token is required");
+            throw new RequestValidationException(Map.of("token", "Reset token is required"));
         }
         if (newPassword == null || newPassword.length() < MIN_PASSWORD_LENGTH) {
-            throw new IllegalArgumentException(
-                    "Password must be at least " + MIN_PASSWORD_LENGTH + " characters");
+            throw new RequestValidationException(Map.of("password",
+                    "Password must be at least " + MIN_PASSWORD_LENGTH + " characters"));
         }
 
         PasswordResetToken token = tokens.findByTokenHash(sha256Hex(rawToken))
                 .filter(t -> t.isUsable(Instant.now()))
-                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired reset link"));
+                .orElseThrow(() -> new RequestValidationException(Map.of("token", "Invalid or expired reset link")));
 
         User user = users.findById(token.getUserId())
                 .orElseThrow(() -> new IllegalStateException("User not found: " + token.getUserId()));

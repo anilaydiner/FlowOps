@@ -98,4 +98,42 @@ class ArchitectureTest {
     static final ArchRule application_must_not_depend_on_infra =
             noClasses().that().resideInAPackage("com.flowops.application..")
                     .should().dependOnClassesThat().resideInAPackage("com.flowops.infra..");
+
+    /**
+     * Application code must not reach into Spring persistence, web, or
+     * scheduling APIs — those are owned by infra adapters. (Spring exception
+     * types that used to leak into services are now caught behind repository
+     * ports, e.g. {@code saveIfAbsent}.)
+     */
+    @ArchTest
+    static final ArchRule application_must_not_use_spring_dao_orm_data_web_scheduling =
+            noClasses().that().resideInAPackage("com.flowops.application..")
+                    .should().dependOnClassesThat().resideInAnyPackage(
+                            "org.springframework.dao..",
+                            "org.springframework.orm..",
+                            "org.springframework.data..",
+                            "org.springframework.web..",
+                            "org.springframework.scheduling..");
+
+    /**
+     * Telemetry (OpenTelemetry, Micrometer) lives in the observability module
+     * and the infra adapters that consume it — never in domain, application,
+     * api, or security code.
+     */
+    @ArchTest
+    static final ArchRule telemetry_is_confined_to_observability_and_infra =
+            noClasses().that().resideOutsideOfPackages("com.flowops.infra..", "com.flowops.observability..")
+                    .should().dependOnClassesThat().resideInAnyPackage(
+                            "io.micrometer..", "io.opentelemetry..");
+
+    /**
+     * Workers are thin infra shells: they orchestrate use cases, not
+     * application services. ({@code SlaScanner → OutboxService} is a known
+     * legacy violation, removed when the SLA scan becomes a use case.)
+     */
+    @ArchTest
+    static final ArchRule infra_worker_must_not_depend_on_application_services =
+            noClasses().that().resideInAPackage("com.flowops.infra.worker..")
+                    .and().haveNameNotMatching("com\\.flowops\\.infra\\.worker\\.SlaScanner(\\..*)?")
+                    .should().dependOnClassesThat().resideInAPackage("com.flowops.application.service..");
 }

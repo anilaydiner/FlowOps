@@ -1,6 +1,7 @@
 package com.flowops.application.service;
 
 import com.flowops.application.model.RequestDetail;
+import com.flowops.application.port.RequestLifecycleObservability;
 import com.flowops.application.usecase.CancelRequest;
 import com.flowops.application.usecase.CloseRequest;
 import com.flowops.application.usecase.CreateDraft;
@@ -30,10 +31,6 @@ import com.flowops.domain.policy.AuthorizationEvaluator;
 import com.flowops.domain.policy.PermissionCodes;
 import com.flowops.domain.policy.TargetContext;
 import com.flowops.domain.query.RequestFilter;
-import com.flowops.observability.FlowOpsSpans;
-import com.flowops.observability.MetricNames;
-import com.flowops.observability.SpanNames;
-import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +42,11 @@ import java.util.Set;
 /**
  * Request lifecycle: draft create/edit/cancel (iteration 3) plus
  * submit/decide/close through the workflow engine (iteration 4).
+ *
+ * <p>Lifecycle observability (spans + counters, PLAN §8) goes through the
+ * framework-free {@link RequestLifecycleObservability} port; the adapter in
+ * {@code com.flowops.observability} emits the actual OpenTelemetry /
+ * Micrometer signals.
  */
 @Service
 public class RequestService {
@@ -57,8 +59,7 @@ public class RequestService {
     private final DecideStep decideStep;
     private final EligibleDelegatees eligibleDelegatees;
     private final CloseRequest closeRequest;
-    private final FlowOpsSpans spans;
-    private final MeterRegistry metrics;
+    private final RequestLifecycleObservability lifecycleObservability;
     private final StepInstanceRepository stepInstances;
     private final DecisionRepository decisions;
     private final ClarificationRepository clarifications;
@@ -73,8 +74,7 @@ public class RequestService {
                           DecideStep decideStep,
                           EligibleDelegatees eligibleDelegatees,
                           CloseRequest closeRequest,
-                          FlowOpsSpans spans,
-                          MeterRegistry metrics,
+                          RequestLifecycleObservability lifecycleObservability,
                           StepInstanceRepository stepInstances,
                           DecisionRepository decisions,
                           ClarificationRepository clarifications,
@@ -88,8 +88,7 @@ public class RequestService {
         this.decideStep = decideStep;
         this.eligibleDelegatees = eligibleDelegatees;
         this.closeRequest = closeRequest;
-        this.spans = spans;
-        this.metrics = metrics;
+        this.lifecycleObservability = lifecycleObservability;
         this.stepInstances = stepInstances;
         this.decisions = decisions;
         this.clarifications = clarifications;
@@ -138,11 +137,8 @@ public class RequestService {
      */
     @Transactional
     public RequestDetail submit(Long id, CallerIdentity caller) {
-        Request submitted = spans.run(SpanNames.REQUEST_SUBMIT, Map.of(
-                        "request.id", String.valueOf(id),
-                        "user", caller.username()),
+        Request submitted = lifecycleObservability.submit(id, caller.username(),
                 () -> submitRequest.execute(id, caller));
-        metrics.counter(MetricNames.REQUEST_SUBMITTED).increment();
         return fullDetail(submitted);
     }
 
@@ -153,15 +149,8 @@ public class RequestService {
     @Transactional
     public RequestDetail decide(Long id, DecisionAction action, String justification,
                           Long delegatedTo, CallerIdentity caller) {
-        Request decided = spans.run(SpanNames.REQUEST_DECIDE, Map.of(
-                        "request.id", String.valueOf(id),
-                        "user", caller.username(),
-                        "action", String.valueOf(action)),
+        Request decided = lifecycleObservability.decide(id, caller.username(), action,
                 () -> decideStep.execute(id, action, justification, caller, delegatedTo));
-        metrics.counter(MetricNames.REQUEST_DECIDED, "action", action.name()).increment();
-        if (decided.getStatus() == RequestStatus.APPROVED) {
-            metrics.counter(MetricNames.REQUEST_APPROVED).increment();
-        }
         return fullDetail(decided);
     }
 
@@ -181,11 +170,8 @@ public class RequestService {
      */
     @Transactional
     public RequestDetail close(Long id, CallerIdentity caller) {
-        Request closed = spans.run(SpanNames.REQUEST_CLOSE, Map.of(
-                        "request.id", String.valueOf(id),
-                        "user", caller.username()),
+        Request closed = lifecycleObservability.close(id, caller.username(),
                 () -> closeRequest.execute(id, caller));
-        metrics.counter(MetricNames.REQUEST_CLOSED).increment();
         return fullDetail(closed);
     }
 

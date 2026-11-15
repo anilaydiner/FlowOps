@@ -7,7 +7,6 @@ import com.flowops.domain.Request;
 import com.flowops.domain.RequestType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -47,16 +46,10 @@ public class ExecutionService {
         String correlationId = request.getCorrelationId();
         for (String action : actions) {
             String key = String.format(OutboxMessage.KEY_FORMAT_JOB, request.getId(), action);
-            if (jobs.findByIdempotencyKey(key).isPresent()) {
-                log.debug("EXEC SKIP (idempotent): {}", key);
-                continue;
-            }
-            try {
-                jobs.save(new ExecutionJob(key, request.getId(), action, correlationId));
-                log.info("EXEC ENQUEUED: key={} action={}", key, action);
-            } catch (DataIntegrityViolationException e) {
-                log.debug("EXEC SKIP (concurrent duplicate): {}", key);
-            }
+            jobs.saveIfAbsent(new ExecutionJob(key, request.getId(), action, correlationId))
+                    .ifPresentOrElse(
+                            saved -> log.info("EXEC ENQUEUED: key={} action={}", key, action),
+                            () -> log.debug("EXEC SKIP (duplicate): {}", key));
         }
     }
 }

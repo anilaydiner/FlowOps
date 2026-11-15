@@ -1,6 +1,7 @@
 package com.flowops.application.service;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.ConflictException;
+import com.flowops.domain.exception.RequestValidationException;
 import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.domain.policy.AuthorizationEvaluator;
 import com.flowops.domain.policy.PermissionCodes;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -113,7 +115,8 @@ public class WorkflowService {
             if (rule == CompletionRule.ANY_OF) {
                 approvals = 1;
             } else if (approvals < 1) {
-                throw new IllegalArgumentException("requiredApprovals must be >= 1 for rule " + rule);
+                throw new RequestValidationException(Map.of("requiredApprovals",
+                        "requiredApprovals must be >= 1 for rule " + rule));
             }
             step.configure(rule, approvals, def.condition(), def.slaMinutes(), def.escalationRole(),
                     Boolean.TRUE.equals(def.terminal()));

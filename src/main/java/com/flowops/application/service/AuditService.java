@@ -4,6 +4,7 @@ import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.domain.policy.AuthorizationEvaluator;
 import com.flowops.domain.policy.PermissionCodes;
 import com.flowops.domain.exception.NotFoundException;
+import com.flowops.domain.exception.RequestValidationException;
 
 import com.flowops.domain.AuditEvent;
 import com.flowops.domain.Decision;
@@ -161,8 +162,9 @@ public class AuditService {
         // ── filters ───────────────────────────────────────────────────
         String typeFilter = type == null ? null : type.strip().toUpperCase();
         if (typeFilter != null && !isValidType(typeFilter)) {
-            throw new IllegalArgumentException("Unknown audit event type: " + typeFilter
-                    + " (expected one of STATUS, SUBMITTED, DECISION, JOB, SLA)");
+            throw new RequestValidationException(Map.of("type",
+                    "Unknown audit event type: " + typeFilter
+                            + " (expected one of STATUS, SUBMITTED, DECISION, JOB, SLA)"));
         }
         return events.stream()
                 .filter(e -> typeFilter == null || e.type().equals(typeFilter))

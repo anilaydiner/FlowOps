@@ -3,6 +3,7 @@ package com.flowops.infra.persistence;
 import com.flowops.domain.ExecutionJob;
 import com.flowops.domain.JobStatus;
 import com.flowops.domain.port.ExecutionJobRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -21,6 +22,19 @@ public class SpringExecutionJobRepository implements ExecutionJobRepository {
     @Override
     public ExecutionJob save(ExecutionJob job) {
         return jpaRepository.save(job);
+    }
+
+    @Override
+    public Optional<ExecutionJob> saveIfAbsent(ExecutionJob job) {
+        if (jpaRepository.findByIdempotencyKey(job.getIdempotencyKey()).isPresent()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(jpaRepository.save(job));
+        } catch (DataIntegrityViolationException e) {
+            // Concurrent insert of the same idempotency key — safe to skip.
+            return Optional.empty();
+        }
     }
 
     @Override

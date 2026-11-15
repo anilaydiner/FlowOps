@@ -6,10 +6,7 @@ import com.flowops.domain.port.OutboxMessageRepository;
 import com.flowops.domain.OutboxPayload;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Map;
 
@@ -31,9 +28,6 @@ public class OutboxService {
 
     private static final Logger log = LoggerFactory.getLogger(OutboxService.class);
 
-    public static final String CHANNEL_EMAIL = "EMAIL";
-    public static final String CHANNEL_FEED = "FEED";
-
     private final OutboxMessageRepository outbox;
 
     public OutboxService(OutboxMessageRepository outbox) {
@@ -53,7 +47,7 @@ public class OutboxService {
                 OutboxPayload.TITLE, title,
                 OutboxPayload.BODY, body == null ? "" : body
         ));
-        enqueue(key, CHANNEL_FEED, recipientId, payload, correlationId);
+        enqueue(key, OutboxMessage.CHANNEL_FEED, recipientId, payload, correlationId);
     }
 
     /**
@@ -80,7 +74,7 @@ public class OutboxService {
             fields.put(OutboxPayload.HTML, html);
         }
         String payload = toJson(fields);
-        enqueue(key, CHANNEL_EMAIL, recipientId, payload, correlationId);
+        enqueue(key, OutboxMessage.CHANNEL_EMAIL, recipientId, payload, correlationId);
     }
 
     /**
@@ -97,7 +91,7 @@ public class OutboxService {
                 OutboxPayload.TITLE, title,
                 OutboxPayload.BODY, body == null ? "" : body
         ));
-        enqueue(key, CHANNEL_FEED, recipientId, payload, correlationId);
+        enqueue(key, OutboxMessage.CHANNEL_FEED, recipientId, payload, correlationId);
     }
 
     /**
@@ -114,7 +108,7 @@ public class OutboxService {
         if (html != null && !html.isBlank()) {
             fields.put(OutboxPayload.HTML, html);
         }
-        enqueue(key, CHANNEL_EMAIL, recipientId, toJson(fields), correlationId);
+        enqueue(key, OutboxMessage.CHANNEL_EMAIL, recipientId, toJson(fields), correlationId);
     }
 
     /**
@@ -131,7 +125,7 @@ public class OutboxService {
         if (html != null && !html.isBlank()) {
             fields.put(OutboxPayload.HTML, html);
         }
-        enqueue(key, CHANNEL_EMAIL, userId, toJson(fields), correlationId);
+        enqueue(key, OutboxMessage.CHANNEL_EMAIL, userId, toJson(fields), correlationId);
     }
 
     /**
@@ -152,7 +146,7 @@ public class OutboxService {
         if (html != null && !html.isBlank()) {
             fields.put(OutboxPayload.HTML, html);
         }
-        enqueue(key, CHANNEL_EMAIL, userId, toJson(fields), correlationId);
+        enqueue(key, OutboxMessage.CHANNEL_EMAIL, userId, toJson(fields), correlationId);
     }
 
     /**
@@ -167,32 +161,21 @@ public class OutboxService {
                 OutboxPayload.STEP, stepCode,
                 OutboxPayload.BODY, message
         ));
-        enqueue(key, CHANNEL_EMAIL, recipientId, payload, correlationId);
+        enqueue(key, OutboxMessage.CHANNEL_EMAIL, recipientId, payload, correlationId);
         // Also add to feed
-        enqueue(key + ":feed", CHANNEL_FEED, recipientId, payload, correlationId);
+        enqueue(key + ":feed", OutboxMessage.CHANNEL_FEED, recipientId, payload, correlationId);
     }
 
     // ── internal ─────────────────────────────────────────────────────────
 
     private void enqueue(String idempotencyKey, String channel, Long recipientId,
                          String payload, String correlationId) {
-        // Idempotency check: skip if already enqueued
-        if (outbox.findByIdempotencyKey(idempotencyKey).isPresent()) {
-            log.debug("OUTBOX SKIP (idempotent): {}", idempotencyKey);
-            return;
-        }
-
         OutboxMessage msg = new OutboxMessage(idempotencyKey, channel, recipientId,
                 payload, correlationId);
-
-        try {
-            outbox.save(msg);
-            log.info("OUTBOX ENQUEUED: key={} channel={} recipient={}",
-                    idempotencyKey, channel, recipientId);
-        } catch (DataIntegrityViolationException e) {
-            // Concurrent insert with same key — safe to ignore
-            log.debug("OUTBOX SKIP (concurrent duplicate): {}", idempotencyKey);
-        }
+        outbox.saveIfAbsent(msg).ifPresentOrElse(
+                saved -> log.info("OUTBOX ENQUEUED: key={} channel={} recipient={}",
+                        idempotencyKey, channel, recipientId),
+                () -> log.debug("OUTBOX SKIP (duplicate): {}", idempotencyKey));
     }
 
     /**

@@ -1,12 +1,11 @@
-package com.flowops.infra;
+package com.flowops.api.web;
 
-import com.flowops.security.SecurityConfig;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.ForbiddenException;
+import com.flowops.domain.exception.InvalidCredentialsException;
 import com.flowops.domain.exception.InvalidStateTransitionException;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.RequestValidationException;
-import com.flowops.application.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -40,9 +39,9 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.CONFLICT, "conflict", ex.getMessage());
     }
 
-    @ExceptionHandler(UserService.BadCredentialsException.class)
+    @ExceptionHandler(InvalidCredentialsException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
-    public ProblemDetail handleBadCredentials(UserService.BadCredentialsException ex) {
+    public ProblemDetail handleBadCredentials(InvalidCredentialsException ex) {
         return problem(HttpStatus.UNAUTHORIZED, "bad-credentials", "Invalid username or password");
     }
 
@@ -76,15 +75,9 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.CONFLICT, "conflict", "Request conflicts with existing data");
     }
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
-        return problem(HttpStatus.BAD_REQUEST, "bad-request", ex.getMessage());
-    }
-
     private ProblemDetail problem(HttpStatus status, String name, String detail) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
-        problem.setType(URI.create(SecurityConfig.ERROR_BASE + name));
+        problem.setType(ApiErrors.type(name));
         return problem;
     }
 }

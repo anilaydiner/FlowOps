@@ -1,4 +1,4 @@
-package com.flowops.infra;
+package com.flowops.api.web;
 
 import com.flowops.observability.CorrelationId;
 

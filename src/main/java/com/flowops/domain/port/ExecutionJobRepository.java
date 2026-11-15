@@ -14,6 +14,13 @@ public interface ExecutionJobRepository {
 
     ExecutionJob save(ExecutionJob job);
 
+    /**
+     * Save unless a job with the same idempotency key already exists.
+     * Returns the saved job, or empty when the write was skipped
+     * (idempotent duplicate, including concurrent inserts).
+     */
+    Optional<ExecutionJob> saveIfAbsent(ExecutionJob job);
+
     List<ExecutionJob> saveAll(List<ExecutionJob> jobs);
 
     Optional<ExecutionJob> findByIdempotencyKey(String idempotencyKey);

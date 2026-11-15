@@ -3,6 +3,7 @@ package com.flowops.application.service;
 import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.ConflictException;
+import com.flowops.domain.exception.InvalidCredentialsException;
 import com.flowops.domain.policy.AuthorizationEvaluator;
 import com.flowops.domain.policy.PermissionCodes;
 
@@ -54,12 +55,12 @@ public class UserService {
     @Transactional(readOnly = true)
     public User authenticate(String username, String password) {
         User user = users.findByUsername(username)
-                .orElseThrow(() -> new BadCredentialsException("Invalid username or password"));
+                .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password"));
         if (!user.isActive()) {
-            throw new BadCredentialsException("User account is disabled");
+            throw new InvalidCredentialsException("User account is disabled");
         }
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            throw new BadCredentialsException("Invalid username or password");
+            throw new InvalidCredentialsException("Invalid username or password");
         }
         return user;
     }
@@ -179,10 +180,4 @@ public class UserService {
         return (s == null || s.isBlank()) ? null : s.strip();
     }
 
-    /** Internal signal for bad credentials; mapped to 401 (not 500). */
-    public static class BadCredentialsException extends RuntimeException {
-        public BadCredentialsException(String message) {
-            super(message);
-        }
-    }
 }

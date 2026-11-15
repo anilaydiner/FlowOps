@@ -1,5 +1,6 @@
 package com.flowops.security;
 
+import com.flowops.api.web.ApiErrors;
 import com.flowops.observability.CorrelationId;
 import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
@@ -18,7 +19,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 
 import java.io.IOException;
-import java.net.URI;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,8 +27,6 @@ import jakarta.servlet.http.HttpServletResponse;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-
-    public static final String ERROR_BASE = "urn:flowops:error:";
 
     private final JwtAuthFilter jwtAuthFilter;
 
@@ -81,7 +79,7 @@ public class SecurityConfig {
 
     private void writeProblem(HttpServletResponse response, int status, String name, String detail) throws IOException {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(status), detail);
-        problem.setType(URI.create(ERROR_BASE + name));
+        problem.setType(ApiErrors.type(name));
         String correlationId = MDC.get(CorrelationId.MDC_KEY);
         if (correlationId != null) {
             problem.setProperty("correlationId", correlationId);

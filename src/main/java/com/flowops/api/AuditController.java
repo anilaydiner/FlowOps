@@ -3,7 +3,6 @@ package com.flowops.api;
 import com.flowops.domain.AuditEvent;
 import com.flowops.security.UserPrincipal;
 import com.flowops.application.service.AuditService;
-import com.flowops.domain.exception.RequestValidationException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -17,7 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Audit timeline API (PLAN §8, iteration 8).
@@ -60,10 +58,6 @@ public class AuditController {
             @Parameter(description = "Inclusive upper bound (ISO-8601)") @RequestParam(required = false) Instant to,
             @Parameter(description = "Event type filter") @RequestParam(required = false) String type,
             @AuthenticationPrincipal UserPrincipal caller) {
-        try {
-            return auditService.timeline(id, from, to, type, caller.toIdentity());
-        } catch (IllegalArgumentException e) {
-            throw new RequestValidationException(Map.of("type", e.getMessage()));
-        }
+        return auditService.timeline(id, from, to, type, caller.toIdentity());
     }
 }

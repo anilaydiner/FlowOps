@@ -73,6 +73,12 @@ public class OutboxMessage {
     /** Key format {@code user:<userId>:welcome} (new-user welcome email). */
     public static final String KEY_FORMAT_USER_WELCOME = "user:%d:welcome";
 
+    /** Delivery channel: SMTP email (the dispatcher resolves the recipient's address at delivery time). */
+    public static final String CHANNEL_EMAIL = "EMAIL";
+
+    /** Delivery channel: in-app feed notification. */
+    public static final String CHANNEL_FEED = "FEED";
+
     @Column(name = "max_retries", nullable = false)
     private int maxRetries = DEFAULT_MAX_RETRIES;
 

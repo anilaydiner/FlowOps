@@ -3,6 +3,7 @@ package com.flowops.infra.persistence;
 import com.flowops.domain.OutboxMessage;
 import com.flowops.domain.OutboxStatus;
 import com.flowops.domain.port.OutboxMessageRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
@@ -21,6 +22,19 @@ public class SpringOutboxMessageRepository implements OutboxMessageRepository {
     @Override
     public OutboxMessage save(OutboxMessage message) {
         return jpaRepository.save(message);
+    }
+
+    @Override
+    public Optional<OutboxMessage> saveIfAbsent(OutboxMessage message) {
+        if (jpaRepository.findByIdempotencyKey(message.getIdempotencyKey()).isPresent()) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(jpaRepository.save(message));
+        } catch (DataIntegrityViolationException e) {
+            // Concurrent insert of the same idempotency key — safe to skip.
+            return Optional.empty();
+        }
     }
 
     @Override

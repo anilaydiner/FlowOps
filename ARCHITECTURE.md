@@ -1,7 +1,7 @@
 # FlowOps — Architecture
 
 Clean Architecture (single-module variant) with DDD rich domain model.
-All dependency rules are **enforced by `ArchitectureTest`** (8 ArchUnit rules).
+All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
 
 ## Layer Dependency Diagram
 
@@ -9,7 +9,10 @@ All dependency rules are **enforced by `ArchitectureTest`** (8 ArchUnit rules).
 ┌─────────────────────────────────────────────────────────────────────────────────┐
 │  api/                                                                          │
 │  ├── *Controller.java    REST endpoints, DTO mapping, auth projection           │
-│  └── dto/                Request/Response DTOs (20 records, mapping-only)       │
+│  ├── dto/                Request/Response DTOs (20 records, mapping-only)       │
+│  └── web/                HTTP edge: RFC 7807 exception handlers, ProblemDetails │
+│                          advice, CorrelationIdFilter, ApiErrors (owner of the   │
+│                          urn:flowops:error:* namespace)                         │
 │                                                                        │       │
 │  depends on:  domain (DTO mapping) + application (service calls)          │       │
 └──────────────────────────────────────────────────────────────────────────────────┘
@@ -25,6 +28,8 @@ All dependency rules are **enforced by `ArchitectureTest`** (8 ArchUnit rules).
 │  │    UserService, NotificationService, OutboxService, ExecutionService,       │
 │  │    WorkflowService, RequestTypeService, DepartmentService,                  │
 │  │    RoleService, PermissionService, DomainServiceConfig                      │
+│  ├── port/            Driven-side ports (RequestLifecycleObservability —       │
+│  │                    implemented by the observability module)                 │
 │  └── model/           Read models (RequestDetail, WorkflowView)                │
 │                                                                        │       │
 │  depends on:  domain only (entities, ports, services, exceptions)      │       │
@@ -64,16 +69,19 @@ All dependency rules are **enforced by `ArchitectureTest`** (8 ArchUnit rules).
 └──────────────────────────────────────────────────────────────────────────────────┘
 
   security/        JWT filter, UserPrincipal (projects to CallerIdentity)
-                   depends on: domain.identity only
-                   forbidden:   application, api
+                   depends on: domain.identity + api.web.ApiErrors (error URIs)
+                   forbidden:   application
 
-  observability/   CorrelationId, structured logging helpers
-                   depends on:  JDK only
+  observability/   CorrelationId, FlowOpsSpans (OTel helper), TracingConfig,
+                   SpanNames/MetricNames registries,
+                   RequestLifecycleObservabilityAdapter (implements the
+                   application port)
+                   depends on:  application.port + domain (read-only) + OTel/Micrometer
 
   config/          OpenApiConfig (Spring Bean wiring for API docs)
 ```
 
-## Dependency Rules (ArchUnit — 8 rules in `ArchitectureTest`)
+## Dependency Rules (ArchUnit — 11 rules in `ArchitectureTest`)
 
 | # | Rule | Rationale |
 |---|------|-----------|
@@ -85,6 +93,9 @@ All dependency rules are **enforced by `ArchitectureTest`** (8 ArchUnit rules).
 | 6 | `application` must not depend on `api` | Services don't know about HTTP |
 | 7 | `application` + `domain` must not depend on `security` | Identity is projected at the API edge |
 | 8 | `application` must not depend on `infra` | Application code is framework-agnostic |
+| 9 | `application` must not use Spring `dao`/`orm`/`data`/`web`/`scheduling` | Adapters own framework plumbing; services see ports only |
+| 10 | OpenTelemetry/Micrometer only in `infra` + `observability` | Telemetry never leaks into domain/app/api/security |
+| 11 | `infra.worker` must not depend on `application.service` | Workers are thin shells over use cases (one known legacy exclusion) |
 
 ## Security / Identity Flow
 
@@ -108,6 +119,17 @@ application/usecase/*  +  domain.policy.AuthorizationEvaluator
 `UserPrincipal` is a Spring Security type that only ever appears in `security/` and `api/`.
 Everything inward of the API edge sees only `CallerIdentity`.
 
+## Web Edge & Error Contract
+
+- `api/web/ApiErrors` owns the RFC 7807 `type` namespace (`urn:flowops:error:*`);
+  the MVC exception handlers, the `ProblemDetails` advice, and the security
+  filter chain (401/403) all derive their `type` URIs from it.
+- Authentication failures surface as the domain exception
+  `domain.exception.InvalidCredentialsException`; `api/web/ApiExceptionHandler`
+  maps it to `401` — the application layer never names an HTTP status.
+- Validation failures throw `domain.exception.RequestValidationException`
+  (field → violation map) and are rendered as RFC 7807 `400` with `violations`.
+
 ## Paging
 
 Domain ports use framework-free `PageQuery` / `PageResult` (in `domain.paging`).
@@ -130,6 +152,10 @@ infra/persistence/RequestJpaRepository.java      ← Spring Data JPA repository
 
 12 ports, 12 Spring Data repositories, 12 `@Repository` adapters.
 
+Idempotent writes go through port methods like `saveIfAbsent(…)` — the
+duplicate-key handling (Spring `DataIntegrityViolationException`) is caught
+inside the adapter, so application code never sees Spring exception types.
+
 ## Domain Services
 
 | Service | Location | Spring? | Purpose |
@@ -139,6 +165,18 @@ infra/persistence/RequestJpaRepository.java      ← Spring Data JPA repository
 | `AuthorizationEvaluator` | `domain.policy` | No | Scoped permissions, SoD, evidence trail |
 
 Wired as beans via `application.service.DomainServiceConfig` (`@Configuration`).
+
+## Observability
+
+- Lifecycle spans + counters (PLAN §8) are emitted by
+  `observability.RequestLifecycleObservabilityAdapter`, which implements the
+  framework-free `application.port.RequestLifecycleObservability` port that
+  `RequestService` calls — no `io.opentelemetry` / `io.micrometer` types in
+  the application layer.
+- `observability.FlowOpsSpans` wraps span start/status/end; `SpanNames` and
+  `MetricNames` are the shared name registries.
+- Workers (`infra/worker`) open their own spans (`job.execute`,
+  `outbox.deliver`, `sla.scan`) and record the job/outbox/SLA metrics.
 
 ## JPA Annotation Trade-off
 
@@ -153,7 +191,7 @@ is available without touching ports, use-cases, or API code — see
 
 ## Testing
 
-- **ArchitectureTest** — 8 ArchUnit rules (above)
+- **ArchitectureTest** — 11 ArchUnit rules (above)
 - **Unit tests** — domain logic, use cases, services
 - **Integration tests** — `@SpringBootTest` + Testcontainers PostgreSQL
 - **ConcurrentDecideTest** — SoD + optimistic locking under concurrent access

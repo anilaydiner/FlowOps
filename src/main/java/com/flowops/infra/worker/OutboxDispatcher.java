@@ -14,7 +14,6 @@ import com.flowops.observability.FlowOpsSpans;
 import com.flowops.observability.MetricNames;
 import com.flowops.observability.SpanNames;
 import com.flowops.domain.OutboxPayload;
-import com.flowops.application.service.OutboxService;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -141,8 +140,8 @@ public class OutboxDispatcher {
         try {
             spans.run(SpanNames.OUTBOX_DELIVER, attrs, () -> {
                 switch (msg.getChannel()) {
-                    case OutboxService.CHANNEL_EMAIL -> deliverEmail(msg);
-                    case OutboxService.CHANNEL_FEED -> deliverFeed(msg);
+                    case OutboxMessage.CHANNEL_EMAIL -> deliverEmail(msg);
+                    case OutboxMessage.CHANNEL_FEED -> deliverFeed(msg);
                     default -> log.warn("OUTBOX UNKNOWN CHANNEL: {} (key={})", msg.getChannel(), msg.getIdempotencyKey());
                 }
                 msg.markSent();

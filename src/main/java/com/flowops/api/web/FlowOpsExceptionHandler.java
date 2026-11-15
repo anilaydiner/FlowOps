@@ -1,8 +1,7 @@
-package com.flowops.infra;
+package com.flowops.api.web;
 
 import com.flowops.observability.CorrelationId;
 
-import com.flowops.security.SecurityConfig;
 import org.slf4j.MDC;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.Ordered;
@@ -40,7 +39,7 @@ import java.util.Map;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class FlowOpsExceptionHandler extends ResponseEntityExceptionHandler {
 
-    private static final URI VALIDATION = URI.create(SecurityConfig.ERROR_BASE + "validation");
+    private static final URI VALIDATION = ApiErrors.type("validation");
 
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
