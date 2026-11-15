@@ -12,6 +12,8 @@ package com.flowops.domain;
  *   <li>{@link #NOTIFY_DELEGATE} / {@link #DELEGATED} — step delegated to another approver</li>
  *   <li>{@link #NOTIFY_REJECT} / {@link #REJECTED} — request rejected</li>
  *   <li>{@link #NOTIFY_APPROVE} / {@link #APPROVED} — request approved</li>
+ *   <li>{@link #NOTIFY_APPROVER_REQUEST} / {@link #APPROVER_REQUEST} — a new request
+ *       (or workflow step) awaits the user's approval</li>
  *   <li>{@link #SLA_BREACH} — SLA threshold exceeded for a pending step</li>
  * </ul>
  */
@@ -31,7 +33,12 @@ public final class OutboxEvents {
     public static final String APPROVED        = "APPROVED";
     public static final String NOTIFY_APPROVE  = "NOTIFY_APPROVE";
 
+    public static final String APPROVER_REQUEST         = "APPROVER_REQUEST";
+    public static final String NOTIFY_APPROVER_REQUEST  = "NOTIFY_APPROVER_REQUEST";
+
     public static final String SLA_BREACH      = "SLA_BREACH";
 
     public static final String WELCOME         = "WELCOME";
+
+    public static final String PASSWORD_RESET  = "PASSWORD_RESET";
 }

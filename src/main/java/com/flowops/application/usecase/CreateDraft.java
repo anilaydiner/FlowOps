@@ -12,6 +12,7 @@ import com.flowops.domain.port.RequestTypeRepository;
 import com.flowops.domain.port.UserRepository;
 import com.flowops.domain.policy.AuthorizationEvaluator;
 import com.flowops.domain.policy.PermissionCodes;
+import com.flowops.domain.policy.TargetContext;
 import com.flowops.domain.service.PayloadValidator;
 import com.flowops.observability.CorrelationId;
 import org.slf4j.MDC;
@@ -50,12 +51,23 @@ public class CreateDraft {
 
     @Transactional
     public Request execute(String typeCode, Map<String, Object> payload, CallerIdentity caller) {
-        authz.require(caller, PermissionCodes.REQUEST_CREATE);
-        RequestType type = requestTypes.findByCode(typeCode.strip().toUpperCase())
+        // 1 ── Resolve the request type first (needed for scope-aware authz)
+        String resolvedCode = typeCode.strip().toUpperCase();
+        RequestType type = requestTypes.findByCode(resolvedCode)
                 .orElseThrow(() -> new NotFoundException("Request type not found: " + typeCode));
         if (!type.isActive()) {
             throw new ConflictException("Request type is inactive: " + type.getCode());
         }
+
+        // 2 ── Scoped authorization: the target carries the type code so that
+        //    REQUEST_TYPE-scoped permissions are evaluated against the specific
+        //    type being requested (e.g. "can create EXPENSE but not IT_ACCESS").
+        String deptCode = type.getOwningDepartment() != null
+                ? type.getOwningDepartment().getCode() : null;
+        TargetContext target = new TargetContext(null, resolvedCode, deptCode, null, null);
+        authz.require(caller, PermissionCodes.REQUEST_CREATE, target);
+
+        // 3 ── Load requester, validate payload, persist
         User requester = users.findById(caller.id())
                 .orElseThrow(() -> new IllegalStateException("Caller not found: " + caller.id()));
 

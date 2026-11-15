@@ -1,6 +1,7 @@
 package com.flowops.api;
 
 import com.flowops.api.dto.CreateRequestRequest;
+import com.flowops.api.dto.EligibleDelegateeResponse;
 import com.flowops.api.dto.PageResponse;
 import com.flowops.domain.query.RequestFilter;
 import com.flowops.api.dto.RequestResponse;
@@ -197,6 +198,28 @@ public class RequestController {
                                   @Valid @RequestBody com.flowops.api.dto.DecisionRequest body,
                                   @AuthenticationPrincipal UserPrincipal caller) {
         return RequestResponse.from(requestService.decide(id, body.action(), body.justification(), body.delegatedTo(), caller.toIdentity()));
+    }
+
+    @GetMapping("/{id}/eligible-delegatees")
+    @Operation(summary = "List users eligible to receive a delegation of this decision",
+            description = """
+                    Only the current approver may call this (403 otherwise). Returns active
+                    users who would pass the same approval gate — i.e. who can actually act on
+                    this request. The caller and the requester are excluded. Scoped permissions
+                    (type / department / threshold) are honoured, so a user whose scope does not
+                    match this request is not listed.
+                    """)
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Eligible delegatees (possibly empty)"),
+            @ApiResponse(responseCode = "403", description = "Caller is not the current approver"),
+            @ApiResponse(responseCode = "404", description = "Request not found"),
+            @ApiResponse(responseCode = "409", description = "Request is not in review or has no active step")
+    })
+    public List<EligibleDelegateeResponse> eligibleDelegatees(
+            @PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
+        return requestService.eligibleDelegatees(id, caller.toIdentity()).stream()
+                .map(EligibleDelegateeResponse::from)
+                .toList();
     }
 
     @PostMapping("/{id}/close")

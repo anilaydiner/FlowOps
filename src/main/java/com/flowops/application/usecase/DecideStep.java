@@ -8,7 +8,9 @@ import com.flowops.domain.Decision;
 import com.flowops.domain.DecisionAction;
 import com.flowops.domain.port.DecisionRepository;
 import com.flowops.domain.Request;
+import com.flowops.domain.User;
 import com.flowops.domain.port.RequestRepository;
+import com.flowops.domain.port.UserRepository;
 import com.flowops.domain.RequestStatus;
 import com.flowops.domain.StepInstance;
 import com.flowops.domain.port.StepInstanceRepository;
@@ -54,6 +56,8 @@ public class DecideStep {
     private final OutboxService outbox;
     private final ExecutionService executionService;
     private final EmailComposer emailComposer;
+    private final UserRepository users;
+    private final ApproverNotifier approverNotifier;
 
     public DecideStep(RequestRepository requests,
                       StepInstanceRepository stepInstances,
@@ -62,7 +66,9 @@ public class DecideStep {
                       AuthorizationEvaluator authz,
                       OutboxService outbox,
                       ExecutionService executionService,
-                      EmailComposer emailComposer) {
+                      EmailComposer emailComposer,
+                      UserRepository users,
+                      ApproverNotifier approverNotifier) {
         this.requests = requests;
         this.stepInstances = stepInstances;
         this.decisions = decisions;
@@ -71,6 +77,8 @@ public class DecideStep {
         this.outbox = outbox;
         this.executionService = executionService;
         this.emailComposer = emailComposer;
+        this.users = users;
+        this.approverNotifier = approverNotifier;
     }
 
     @Transactional
@@ -108,6 +116,25 @@ public class DecideStep {
         if (!decision.allowed()) {
             log.info("AUTHZ DENY: {} on request {} — {}", caller.username(), requestId, decision.evidence());
             throw new ForbiddenException("Not authorized: " + decision.evidence());
+        }
+
+        // ── DELEGATE: the delegatee must be able to approve this request too ──
+        if (action == DecisionAction.DELEGATE && delegatedTo != null) {
+            if (delegatedTo.equals(caller.id())) {
+                throw new ConflictException("Cannot delegate a decision to yourself");
+            }
+            User delegatee = users.findById(delegatedTo)
+                    .orElseThrow(() -> new NotFoundException("Delegatee not found: " + delegatedTo));
+            if (!delegatee.isActive()) {
+                throw new ConflictException("Delegatee is not active: " + delegatedTo);
+            }
+            AuthorizationDecision delegateeDecision = authz.evaluate(delegatee, permCode, target);
+            if (!delegateeDecision.allowed()) {
+                log.info("DELEGATE DENY: delegatee {} not eligible on request {} — {}",
+                        delegatedTo, requestId, delegateeDecision.evidence());
+                throw new ForbiddenException(
+                        "Delegatee is not eligible to approve this request: " + delegateeDecision.evidence());
+            }
         }
 
         // Build evidence map for the decision record
@@ -168,6 +195,12 @@ public class DecideStep {
             current.satisfy(caller.id());
             stepInstances.save(current);
             materializer.materializeNext(request, step.getWorkflow(), current.getPosition());
+
+            // ── Phase 8: a new step is awaiting approval → notify its eligible approvers ──
+            // (exclude the actor — they just acted on this request)
+            if (request.getStatus() == RequestStatus.IN_REVIEW) {
+                approverNotifier.notifyEligibleApprovers(request, caller.id());
+            }
         }
         Request saved = requests.save(request);
         requests.flush(); // surface optimistic-lock conflicts before outbox writes

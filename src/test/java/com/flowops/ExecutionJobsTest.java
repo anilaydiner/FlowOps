@@ -64,11 +64,13 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
                     departments.findByCode("FINANCE").orElse(null), memberRoles, encoder.encode("it7_bob123"));
             users.save(bob);
         }
-        // delegatee (FINANCE_MANAGER) — for DELEGATE tests
+        // delegatee (dept-scoped approver in IT) — for DELEGATE tests on IT_ACCESS requests.
+        // Phase 7: DELEGATE now validates the delegatee against the same approval gate,
+        // so the delegatee must be eligible for the IT department.
         if (users.findByUsername("it7_delegatee").isEmpty()) {
             Set<Role> fmRoles = Set.of(roles.findByCode("FINANCE_MANAGER").orElseThrow());
             User d = User.newUser("it7_delegatee", "It7 Delegatee", "it7_delegatee@example.com",
-                    departments.findByCode("FINANCE").orElse(null), fmRoles, encoder.encode("pass123456"));
+                    departments.findByCode("IT").orElse(null), fmRoles, encoder.encode("pass123456"));
             users.save(d);
         }
 

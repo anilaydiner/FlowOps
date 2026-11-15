@@ -56,6 +56,14 @@ public class OutboxMessage {
     /** Key format {@code req:<requestId>:<type>:<recipientId>} (feed + email notifications). */
     public static final String KEY_FORMAT_NOTIFICATION = "req:%d:%s:%d";
 
+    /**
+     * Step-scoped notification: (requestId, type, stepInstanceId, recipientId).
+     * The step instance id makes the key per-step, so an approver eligible at
+     * several workflow steps of the same request is notified once per step
+     * while a retried dispatch of the same step stays idempotent.
+     */
+    public static final String KEY_FORMAT_STEP_NOTIFICATION = "req:%d:%s:%d:%d";
+
     /** Key format {@code req:<requestId>:sla:<recipientId>} (SLA breach alerts). */
     public static final String KEY_FORMAT_SLA_BREACH = "req:%d:sla:%d";
 

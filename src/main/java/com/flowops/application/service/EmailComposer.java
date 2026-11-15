@@ -3,9 +3,13 @@ package com.flowops.application.service;
 import com.flowops.domain.Request;
 import com.flowops.domain.RequestType;
 import com.flowops.domain.User;
+import com.flowops.domain.WorkflowStep;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 /**
@@ -25,9 +29,16 @@ import java.util.Map;
 public class EmailComposer {
 
     private final String baseUrl;
+    private final String feBaseUrl;
 
-    public EmailComposer(@Value("${flowops.base-url:http://localhost:8080}") String baseUrl) {
+    public EmailComposer(@Value("${flowops.base-url:http://localhost:8080}") String baseUrl,
+                         @Value("${flowops.fe-base-url:http://localhost:5173}") String feBaseUrl) {
         this.baseUrl = baseUrl;
+        this.feBaseUrl = stripTrailingSlash(feBaseUrl);
+    }
+
+    private static String stripTrailingSlash(String url) {
+        return url != null && url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 
     /**
@@ -261,6 +272,52 @@ public class EmailComposer {
         return new ComposedEmail(subject, text, html);
     }
 
+    public ComposedEmail approverRequested(Request request, WorkflowStep step) {
+        String typeCode = request.getType().getCode();
+        String subject = "Request #" + request.getId() + " awaits your approval — " + typeCode;
+        String stepCode = step != null ? step.getCode() : null;
+        String link = feBaseUrl + "/requests/" + request.getId();
+
+        String text = """
+                Hello,
+
+                A new request is waiting for your approval.
+
+                  Request:      #%d — %s
+                  Submitted by: %s
+                  %s
+                Please review it when ready:
+                %s
+
+                — FlowOps
+                """.formatted(
+                request.getId(),
+                describeRequest(request),
+                displayName(request),
+                stepCode != null ? "Step:           " + stepCode + System.lineSeparator() : "",
+                link
+        );
+
+        String html = """
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width:560px; margin:0 auto; padding:24px;">
+                  <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:16px; margin-bottom:16px;">
+                    <h2 style="margin:0; font-size:18px; color:#1e40af;">&#9203; Your Approval Is Needed</h2>
+                  </div>
+                  <p style="margin:0 0 16px 0; color:#555;">Hello, a new request from <strong>%s</strong> is waiting for your approval.</p>
+                  %s
+                  <p style="margin:16px 0 0 0; font-size:14px; color:#555;">Please review it when ready.</p>
+                  <a href="%s" style="display:inline-block; margin-top:16px; padding:10px 24px; background:#2563eb; color:#fff; text-decoration:none; border-radius:6px; font-size:14px;">Review request</a>
+                  <p style="margin-top:24px; font-size:12px; color:#999;">— FlowOps Request &amp; Approval</p>
+                </div>
+                """.formatted(
+                escapeHtml(displayName(request)),
+                requestDetailTable(request, "IN_REVIEW", "#e0e7ff", "#3730a3"),
+                link
+        );
+
+        return new ComposedEmail(subject, text, html);
+    }
+
     public ComposedEmail welcome(User user, String initialPassword) {
         String name = (user.getDisplayName() != null && !user.getDisplayName().isBlank())
                 ? user.getDisplayName() : user.getUsername();
@@ -307,6 +364,55 @@ public class EmailComposer {
                 link);
 
         return new ComposedEmail("Your FlowOps account is ready — sign-in details", text, html);
+    }
+
+    /**
+     * Compose a "reset your password" email. The {@code resetUrl} is the full
+     * link to the front-end reset form (host + path + {@code ?token=...}),
+     * built by the caller so this composer stays free of FE-host config.
+     *
+     * @param user       the account owner (for greeting)
+     * @param resetUrl   full reset link to embed in the email
+     * @param expiresAt  when the link stops working (shown to the user)
+     */
+    public ComposedEmail passwordReset(User user, String resetUrl, Instant expiresAt) {
+        String name = (user.getDisplayName() != null && !user.getDisplayName().isBlank())
+                ? user.getDisplayName() : user.getUsername();
+        String expiry = DateTimeFormatter.ISO_INSTANT
+                .withZone(ZoneId.of("UTC"))
+                .format(expiresAt)
+                .replace("T", " ").replace("Z", " UTC");
+
+        String text = """
+                Hi %s,
+
+                We received a request to reset the password for your FlowOps account.
+
+                Open the secure link below to choose a new password:
+
+                %s
+
+                This link expires at %s. If you did not request a reset, you
+                can safely ignore this email — your password will not change.
+
+                — FlowOps Request & Approval
+                """.formatted(name, resetUrl, expiry);
+
+        String html = """
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width:560px; margin:0 auto; padding:24px;">
+                  <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:16px; margin-bottom:16px;">
+                    <h2 style="margin:0; font-size:18px; color:#1e40af;">&#128274; Reset your password</h2>
+                  </div>
+                  <p style="margin:0 0 16px 0; color:#555;">Hi %s, we received a request to reset the password for your FlowOps account.</p>
+                  <p style="margin:0 0 16px 0; color:#555;">Open the secure link below to choose a new password:</p>
+                  <a href="%s" style="display:inline-block; margin:0 0 16px 0; padding:12px 28px; background:#2563eb; color:#fff; text-decoration:none; border-radius:6px; font-size:14px;">Reset password</a>
+                  <p style="margin:16px 0 0 0; font-size:13px; color:#6b7280;">This link expires at <strong>%s</strong>.</p>
+                  <p style="margin:16px 0 0 0; font-size:13px; color:#6b7280;">If you did not request a reset, ignore this email — your password will not change.</p>
+                  <p style="margin-top:24px; font-size:12px; color:#999;">— FlowOps Request &amp; Approval</p>
+                </div>
+                """.formatted(escapeHtml(name), escapeHtml(resetUrl), escapeHtml(expiry));
+
+        return new ComposedEmail("Reset your FlowOps password", text, html);
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────

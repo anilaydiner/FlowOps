@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -98,41 +99,76 @@ public class AuthorizationEvaluator {
                                            String permissionCode,
                                            TargetContext target,
                                            boolean skipSod) {
-        List<String> evidence = new ArrayList<>();
         User user = users.findById(caller.id())
                 .orElseThrow(() -> new IllegalStateException("Caller not found: " + caller.id()));
+        return evaluate(user, permissionCode, target, skipSod);
+    }
+
+    /**
+     * Evaluate whether a specific user may perform an action on a target.
+     *
+     * <p>Same semantics as {@link #authorize} but operates on a {@link User}
+     * aggregate directly (no re-fetch) — used for <b>eligibility probes</b>
+     * such as listing who a decision may be delegated to: the delegatee must
+     * pass exactly the gate they will face when acting.
+     */
+    public AuthorizationDecision evaluate(User user, String permissionCode, TargetContext target) {
+        return evaluate(user, permissionCode, target, false);
+    }
+
+    /** Core evaluation with optional SoD bypass. */
+    public AuthorizationDecision evaluate(User user,
+                                          String permissionCode,
+                                          TargetContext target,
+                                          boolean skipSod) {
+        if (user == null) {
+            throw new IllegalArgumentException("user is required");
+        }
+        List<String> evidence = new ArrayList<>();
 
         // 1 ── SoD check (default deny; overridable by request:override:sod)
         if (!skipSod && target != null && target.requesterId() != null
-                && target.requesterId().equals(caller.id())) {
+                && target.requesterId().equals(user.getId())) {
             if (!hasPermission(user, PERM_OVERRIDE_SOD)) {
                 evidence.add("SoD: requester cannot act on own request");
                 evidence.add("override: not granted");
-                log.debug("SoD deny for {} on request {}", caller.username(), target);
+                log.debug("SoD deny for {} on request {}", user.getUsername(), target);
                 return AuthorizationDecision.deny(evidence);
             }
             evidence.add("SoD: overridden by request:override:sod");
         }
 
-        // 2 ── Find a matching permission (scoped variants only when target present)
-        Permission match = findMatchingPermission(user, permissionCode, target);
-        if (match == null) {
+        // 2 ── Find all matching permissions (scoped variants only when target present)
+        List<Permission> candidates = findMatchingPermissions(user, permissionCode, target);
+        if (candidates.isEmpty()) {
             evidence.add("permission=" + permissionCode + " not granted to any role");
             return AuthorizationDecision.deny(evidence);
         }
 
-        evidence.add("permission=" + match.getCode());
-        evidence.add("scope=" + match.scopeLabel());
-        evidence.add("role=" + grantingRole(user, match));
-
-        // 3 ── Scope check
-        if (match.getScopeType() != null && target != null) {
-            boolean scopeOk = checkScope(user, match, target, evidence);
-            if (!scopeOk) {
-                return AuthorizationDecision.deny(evidence);
+        // 3 ── Try each candidate; the first one that passes the scope check wins
+        Permission winner = null;
+        for (Permission p : candidates) {
+            List<String> subEvidence = new ArrayList<>();
+            boolean scopeOk = (p.getScopeType() == null || target == null)
+                    || checkScope(user, p, target, subEvidence);
+            if (scopeOk) {
+                winner = p;
+                evidence.addAll(subEvidence);
+                break;
             }
+            // Log the failed attempt for the evidence trail
+            evidence.addAll(subEvidence);
+            evidence.add("candidate_denied: permission=" + p.getCode() + " scope=" + p.scopeLabel());
         }
 
+        if (winner == null) {
+            evidence.add("result=DENIED (no candidate passed scope check)");
+            return AuthorizationDecision.deny(evidence);
+        }
+
+        evidence.add("permission=" + winner.getCode());
+        evidence.add("scope=" + winner.scopeLabel());
+        evidence.add("role=" + grantingRole(user, winner));
         evidence.add("result=ALLOWED");
         return AuthorizationDecision.allow(evidence);
     }
@@ -160,7 +196,7 @@ public class AuthorizationEvaluator {
     // ── helpers ────────────────────────────────────────────────────────
 
     /**
-     * Find the best-matching permission for the given code.
+     * Find all matching permissions for the given code.
      *
      * <p>When a {@code target} is provided, scoped variants (e.g.
      * {@code request:approve:dept}) are considered alongside the base code.
@@ -168,9 +204,10 @@ public class AuthorizationEvaluator {
      * only an <b>exact</b> code match is accepted — this prevents
      * {@code users:read:self} from satisfying a check for {@code users:read}.
      *
-     * <p>Among candidates, the global (no-scope) permission wins.
+     * <p>Global (no-scope) permissions are sorted first — they're the most
+     * permissive and most likely to pass without a scope check.
      */
-    private Permission findMatchingPermission(User user, String permissionCode, TargetContext target) {
+    private List<Permission> findMatchingPermissions(User user, String permissionCode, TargetContext target) {
         List<Permission> all = new ArrayList<>();
         for (Role role : user.getRoles()) {
             if (role.getPermissions() == null) continue;
@@ -183,13 +220,9 @@ public class AuthorizationEvaluator {
                 }
             }
         }
-        if (all.isEmpty()) return null;
-
-        // Prefer global (no scope) — it's the most permissive
-        return all.stream()
-                .filter(Permission::isGlobal)
-                .findFirst()
-                .orElse(all.get(0));
+        // Global (no scope) first, then scoped variants
+        all.sort(Comparator.comparing(Permission::isGlobal, Comparator.reverseOrder()));
+        return all;
     }
 
     private boolean checkScope(User user, Permission perm, TargetContext target,

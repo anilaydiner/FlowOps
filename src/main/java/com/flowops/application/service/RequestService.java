@@ -5,9 +5,11 @@ import com.flowops.application.usecase.CancelRequest;
 import com.flowops.application.usecase.CloseRequest;
 import com.flowops.application.usecase.CreateDraft;
 import com.flowops.application.usecase.DecideStep;
+import com.flowops.application.usecase.EligibleDelegatees;
 import com.flowops.application.usecase.SubmitRequest;
 import com.flowops.application.usecase.UpdateDraft;
 import com.flowops.domain.Decision;
+import com.flowops.domain.User;
 import com.flowops.domain.DecisionAction;
 import com.flowops.domain.Clarification;
 import com.flowops.domain.ExecutionJob;
@@ -53,6 +55,7 @@ public class RequestService {
     private final CancelRequest cancelRequest;
     private final SubmitRequest submitRequest;
     private final DecideStep decideStep;
+    private final EligibleDelegatees eligibleDelegatees;
     private final CloseRequest closeRequest;
     private final FlowOpsSpans spans;
     private final MeterRegistry metrics;
@@ -68,6 +71,7 @@ public class RequestService {
                           CancelRequest cancelRequest,
                           SubmitRequest submitRequest,
                           DecideStep decideStep,
+                          EligibleDelegatees eligibleDelegatees,
                           CloseRequest closeRequest,
                           FlowOpsSpans spans,
                           MeterRegistry metrics,
@@ -82,6 +86,7 @@ public class RequestService {
         this.cancelRequest = cancelRequest;
         this.submitRequest = submitRequest;
         this.decideStep = decideStep;
+        this.eligibleDelegatees = eligibleDelegatees;
         this.closeRequest = closeRequest;
         this.spans = spans;
         this.metrics = metrics;
@@ -158,6 +163,16 @@ public class RequestService {
             metrics.counter(MetricNames.REQUEST_APPROVED).increment();
         }
         return fullDetail(decided);
+    }
+
+    /**
+     * Lists the users the caller (current approver) may delegate this
+     * request's decision to. Only users who would pass the same approval
+     * gate are returned; the caller and the requester are excluded.
+     */
+    @Transactional(readOnly = true)
+    public List<User> eligibleDelegatees(Long id, CallerIdentity caller) {
+        return eligibleDelegatees.list(id, caller);
     }
 
     /**

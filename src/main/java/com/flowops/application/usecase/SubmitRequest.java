@@ -36,17 +36,20 @@ public class SubmitRequest {
     private final OutboxService outbox;
     private final EmailComposer emailComposer;
     private final AuthorizationEvaluator authz;
+    private final ApproverNotifier approverNotifier;
 
     public SubmitRequest(RequestRepository requests,
                          StepMaterializer materializer,
                          OutboxService outbox,
                          EmailComposer emailComposer,
-                         AuthorizationEvaluator authz) {
+                         AuthorizationEvaluator authz,
+                         ApproverNotifier approverNotifier) {
         this.requests = requests;
         this.materializer = materializer;
         this.outbox = outbox;
         this.emailComposer = emailComposer;
         this.authz = authz;
+        this.approverNotifier = approverNotifier;
     }
 
     @Transactional
@@ -81,6 +84,11 @@ public class SubmitRequest {
                 submitEmail.subject(), submitEmail.text(), null);
         outbox.notifyEmail(requestId, requesterId, OutboxEvents.SUBMITTED,
                 submitEmail.subject(), submitEmail.text(), submitEmail.html(), null);
+
+        // ── Phase 8: notify every eligible approver of the new request ─────
+        if (request.getStatus() == RequestStatus.IN_REVIEW) {
+            approverNotifier.notifyEligibleApprovers(request, null);
+        }
 
         return saved;
     }

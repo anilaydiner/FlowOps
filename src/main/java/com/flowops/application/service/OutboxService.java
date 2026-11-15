@@ -84,6 +84,40 @@ public class OutboxService {
     }
 
     /**
+     * Enqueue a FEED notification scoped to a workflow step.
+     * Key = (request, type, stepInstance, recipient): the same approver may be
+     * notified once per step, while re-delivery of one step stays idempotent.
+     */
+    public void notifyStepFeed(Long requestId, Long stepInstanceId, Long recipientId,
+                               String type, String title, String body, String correlationId) {
+        String key = String.format(OutboxMessage.KEY_FORMAT_STEP_NOTIFICATION, requestId, type, stepInstanceId, recipientId);
+        String payload = toJson(Map.of(
+                OutboxPayload.REQUEST_ID, requestId,
+                OutboxPayload.TYPE, type,
+                OutboxPayload.TITLE, title,
+                OutboxPayload.BODY, body == null ? "" : body
+        ));
+        enqueue(key, CHANNEL_FEED, recipientId, payload, correlationId);
+    }
+
+    /**
+     * Enqueue an EMAIL notification scoped to a workflow step (see {@link #notifyStepFeed}).
+     */
+    public void notifyStepEmail(Long requestId, Long stepInstanceId, Long recipientId,
+                                String type, String subject, String body, String html, String correlationId) {
+        String key = String.format(OutboxMessage.KEY_FORMAT_STEP_NOTIFICATION, requestId, type, stepInstanceId, recipientId);
+        Map<String, Object> fields = new java.util.LinkedHashMap<>();
+        fields.put(OutboxPayload.REQUEST_ID, requestId);
+        fields.put(OutboxPayload.TYPE, type);
+        fields.put(OutboxPayload.SUBJECT, subject);
+        fields.put(OutboxPayload.BODY, body == null ? "" : body);
+        if (html != null && !html.isBlank()) {
+            fields.put(OutboxPayload.HTML, html);
+        }
+        enqueue(key, CHANNEL_EMAIL, recipientId, toJson(fields), correlationId);
+    }
+
+    /**
      * Enqueue a welcome email for a newly created user.
      * Idempotent per user: one welcome per account, ever.
      */
@@ -92,6 +126,27 @@ public class OutboxService {
         String key = String.format(OutboxMessage.KEY_FORMAT_USER_WELCOME, userId);
         Map<String, Object> fields = new java.util.LinkedHashMap<>();
         fields.put(OutboxPayload.TYPE, OutboxEvents.WELCOME);
+        fields.put(OutboxPayload.SUBJECT, subject);
+        fields.put(OutboxPayload.BODY, body == null ? "" : body);
+        if (html != null && !html.isBlank()) {
+            fields.put(OutboxPayload.HTML, html);
+        }
+        enqueue(key, CHANNEL_EMAIL, userId, toJson(fields), correlationId);
+    }
+
+    /**
+     * Enqueue a password-reset email for the given user.
+     *
+     * <p>Idempotent per token: the key embeds the token hash, so re-delivering
+     * the same reset (e.g. after a dispatcher retry) does not duplicate, while
+     * two distinct reset requests each produce their own message.
+     */
+    public void passwordResetEmail(Long userId, String tokenHash,
+                                   String subject, String body,
+                                   String html, String correlationId) {
+        String key = String.format("user:%d:reset:%s", userId, tokenHash);
+        Map<String, Object> fields = new java.util.LinkedHashMap<>();
+        fields.put(OutboxPayload.TYPE, OutboxEvents.PASSWORD_RESET);
         fields.put(OutboxPayload.SUBJECT, subject);
         fields.put(OutboxPayload.BODY, body == null ? "" : body);
         if (html != null && !html.isBlank()) {
