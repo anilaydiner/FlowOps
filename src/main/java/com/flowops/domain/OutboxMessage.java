@@ -62,6 +62,9 @@ public class OutboxMessage {
     /** Key format {@code req:<requestId>:<action>} (execution jobs). */
     public static final String KEY_FORMAT_JOB = "req:%d:%s";
 
+    /** Key format {@code user:<userId>:welcome} (new-user welcome email). */
+    public static final String KEY_FORMAT_USER_WELCOME = "user:%d:welcome";
+
     @Column(name = "max_retries", nullable = false)
     private int maxRetries = DEFAULT_MAX_RETRIES;
 

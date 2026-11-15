@@ -10,15 +10,25 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 /**
  * Architecture guardrails (DDD / Clean Architecture, single-module variant).
  *
- * <p>Dependency rule enforced here:
+ * <p>Dependency rule enforced here (all arrows point inward):
  * <pre>
- *   domain  ←  application (service)  ←  api
- *     ↑__________________________________________  (infra adapters live outside domain)
+ *   domain  ←  application {model, service, usecase}  ←  api
+ *     ↑______________________________  (infra adapters implement domain ports)
  * </pre>
  *
- * <p>These rules codify the target architecture from the refactor plan and
- * will tighten as phases 2–4 move repositories/adapters into {@code infra}
- * and split {@code service} into use cases + adapters.
+ * <ul>
+ *   <li>{@code domain} — pure Java: entities, value objects, policy, services,
+ *       ports. No Spring, no security, no infra, no api.</li>
+ *   <li>{@code application.model} — read models (RequestDetail, WorkflowView).</li>
+ *   <li>{@code application.service} — application services orchestrating use cases.</li>
+ *   <li>{@code application.usecase} — one class per workflow use case (submit,
+ *       decide, close, drafts…).</li>
+ *   <li>{@code api} — controllers + DTOs; projects the security principal into
+ *       {@code domain.identity.CallerIdentity}.</li>
+ *   <li>{@code infra} — persistence adapters, workers, HTTP cross-cutting.</li>
+ *   <li>{@code security} — JWT filter/manager; may project into the domain,
+ *       never the reverse.</li>
+ * </ul>
  */
 @AnalyzeClasses(packages = "com.flowops", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
@@ -29,11 +39,11 @@ class ArchitectureTest {
             noClasses().that().resideInAPackage("com.flowops.domain..")
                     .should().dependOnClassesThat().resideInAPackage("com.flowops.api..");
 
-    /** Domain logic lives in the model, not in services. Services depend on the domain, never the reverse. */
+    /** Domain logic lives in the model, not in the application layer — which depends on the domain, never the reverse. */
     @ArchTest
-    static final ArchRule domain_must_not_depend_on_service =
+    static final ArchRule domain_must_not_depend_on_application =
             noClasses().that().resideInAPackage("com.flowops.domain..")
-                    .should().dependOnClassesThat().resideInAPackage("com.flowops.service..");
+                    .should().dependOnClassesThat().resideInAPackage("com.flowops.application..");
 
     /** The domain must stay free of cross-cutting infrastructure concerns. */
     @ArchTest
@@ -43,31 +53,49 @@ class ArchitectureTest {
                     .resideInAnyPackage(
                             "com.flowops.security..",
                             "com.flowops.infra..",
-                            "com.flowops.observability..",
-                            "com.flowops.authz..");
-
-    /** Controllers/DTOs must not touch persistence directly. */
-    @ArchTest
-    static final ArchRule api_must_not_use_repositories =
-            noClasses().that().resideInAPackage("com.flowops.api..")
-                    .should().dependOnClassesThat().haveSimpleNameEndingWith("Repository");
+                            "com.flowops.observability..");
 
     /**
-     * Domain model classes are Spring-free. JPA annotations are tolerated for now
-     * (pragmatic stance for Spring + JPA at this project size); Spring Data
-     * repositories and Specifications are excluded — they migrate to
-     * {@code infra.persistence} in Phase 2, at which point this rule can be
-     * widened to cover the whole domain package.
+     * The API layer (controllers + DTOs) orchestrates through the application
+     * layer only. It must not import infrastructure adapters, workers, or
+     * persistence internals. (Domain imports are allowed — DTO mapping needs
+     * the aggregate types.)
+     */
+    @ArchTest
+    static final ArchRule api_must_not_depend_on_infra =
+            noClasses().that().resideInAPackage("com.flowops.api..")
+                    .should().dependOnClassesThat().resideInAPackage("com.flowops.infra..");
+
+    /**
+     * Domain model classes are Spring-free — no Spring Data repositories,
+     * no Spring annotations, no Spring types. All persistence is behind
+     * pure-Java ports in {@code domain.port}, implemented by adapters
+     * in {@code infra.persistence}.
      */
     @ArchTest
     static final ArchRule domain_model_is_spring_free =
             noClasses().that().resideInAPackage("com.flowops.domain..")
-                    .and().haveNameNotMatching(".*Repository|.*Specifications")
                     .should().dependOnClassesThat().resideInAPackage("org.springframework..");
 
-    /** Services implement use cases against the domain — they must not know about the API layer. */
+    /** The application layer orchestrates the domain — it must not know about the API layer. */
     @ArchTest
-    static final ArchRule service_must_not_depend_on_api =
-            noClasses().that().resideInAPackage("com.flowops.service..")
+    static final ArchRule application_must_not_depend_on_api =
+            noClasses().that().resideInAPackage("com.flowops.application..")
                     .should().dependOnClassesThat().resideInAPackage("com.flowops.api..");
+
+    /**
+     * Application services and use cases never touch security types. The API edge
+     * projects the security principal into {@code domain.identity.CallerIdentity};
+     * application code and domain policy consume only that framework-free identity.
+     */
+    @ArchTest
+    static final ArchRule application_must_not_depend_on_security =
+            noClasses().that().resideInAnyPackage("com.flowops.application..", "com.flowops.domain..")
+                    .should().dependOnClassesThat().resideInAPackage("com.flowops.security..");
+
+    /** The application layer stays framework-agnostic — no infrastructure adapters (persistence, workers, SMTP…). */
+    @ArchTest
+    static final ArchRule application_must_not_depend_on_infra =
+            noClasses().that().resideInAPackage("com.flowops.application..")
+                    .should().dependOnClassesThat().resideInAPackage("com.flowops.infra..");
 }

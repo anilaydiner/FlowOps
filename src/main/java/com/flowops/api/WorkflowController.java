@@ -4,17 +4,17 @@ import com.flowops.api.dto.PageResponse;
 import com.flowops.api.dto.WorkflowRequest;
 import com.flowops.api.dto.WorkflowResponse;
 import com.flowops.domain.StepSpec;
-import com.flowops.domain.WorkflowView;
+import com.flowops.application.model.WorkflowView;
 import com.flowops.domain.query.WorkflowFilter;
-import com.flowops.service.WorkflowService;
+import com.flowops.application.service.WorkflowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import com.flowops.domain.paging.PageQuery;
+import com.flowops.domain.paging.PageResult;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -72,8 +72,8 @@ public class WorkflowController {
             @RequestParam(defaultValue = "20") int size
     ) {
         WorkflowFilter filter = new WorkflowFilter(code, name);
-        PageRequest pageRequest = UserController.buildPageRequest(page, size, sort, ALLOWED_SORT_FIELDS);
-        Page<WorkflowResponse> mapped = workflowService.list(filter, pageRequest)
+        PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        PageResult<WorkflowResponse> mapped = workflowService.list(filter, pageQuery)
                 .map(v -> WorkflowResponse.from(v.workflow(), v.steps()));
         return PageResponse.from(mapped);
     }

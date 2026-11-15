@@ -1,5 +1,5 @@
 package com.flowops.infra.mail;
-import com.flowops.service.EmailGateway;
+import com.flowops.domain.port.EmailGateway;
 
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;

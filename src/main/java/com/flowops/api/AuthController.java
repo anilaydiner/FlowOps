@@ -4,7 +4,7 @@ import com.flowops.api.dto.AuthRequest;
 import com.flowops.api.dto.AuthResponse;
 import com.flowops.domain.User;
 import com.flowops.security.JwtService;
-import com.flowops.service.UserService;
+import com.flowops.application.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;

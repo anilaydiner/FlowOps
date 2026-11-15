@@ -1,11 +1,11 @@
 package com.flowops.infra.worker;
-import com.flowops.service.ActionHandler;
+import com.flowops.domain.port.ActionHandler;
 
 import com.flowops.domain.ExecutionJob;
-import com.flowops.domain.ExecutionJobRepository;
+import com.flowops.domain.port.ExecutionJobRepository;
 import com.flowops.domain.JobStatus;
 import com.flowops.domain.Request;
-import com.flowops.domain.RequestRepository;
+import com.flowops.domain.port.RequestRepository;
 import com.flowops.domain.RequestStatus;
 import com.flowops.observability.FlowOpsSpans;
 import com.flowops.observability.MetricNames;

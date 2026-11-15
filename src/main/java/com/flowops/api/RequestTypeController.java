@@ -5,14 +5,14 @@ import com.flowops.domain.query.RequestTypeFilter;
 import com.flowops.api.dto.RequestTypeRequest;
 import com.flowops.domain.RequestTypeSpec;
 import com.flowops.api.dto.RequestTypeResponse;
-import com.flowops.service.RequestTypeService;
+import com.flowops.application.service.RequestTypeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.PageRequest;
+import com.flowops.domain.paging.PageQuery;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -76,8 +76,8 @@ public class RequestTypeController {
             @RequestParam(defaultValue = "20") int size
     ) {
         RequestTypeFilter filter = new RequestTypeFilter(code, name, departmentCode, active);
-        PageRequest pageRequest = UserController.buildPageRequest(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(requestTypeService.list(filter, pageRequest).map(RequestTypeResponse::from));
+        PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        return PageResponse.from(requestTypeService.list(filter, pageQuery).map(RequestTypeResponse::from));
     }
 
     @GetMapping("/{id}")

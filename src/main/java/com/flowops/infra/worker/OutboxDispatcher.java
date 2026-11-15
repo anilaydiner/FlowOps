@@ -1,20 +1,20 @@
 package com.flowops.infra.worker;
-import com.flowops.service.EmailGateway;
+import com.flowops.domain.port.EmailGateway;
 
 import com.flowops.domain.EmailLogEntry;
-import com.flowops.domain.EmailLogEntryRepository;
+import com.flowops.domain.port.EmailLogEntryRepository;
 import com.flowops.domain.Notification;
-import com.flowops.domain.NotificationRepository;
+import com.flowops.domain.port.NotificationRepository;
 import com.flowops.domain.OutboxMessage;
-import com.flowops.domain.OutboxMessageRepository;
+import com.flowops.domain.port.OutboxMessageRepository;
 import com.flowops.domain.OutboxStatus;
 import com.flowops.domain.User;
-import com.flowops.domain.UserRepository;
+import com.flowops.domain.port.UserRepository;
 import com.flowops.observability.FlowOpsSpans;
 import com.flowops.observability.MetricNames;
 import com.flowops.observability.SpanNames;
-import com.flowops.service.OutboxPayload;
-import com.flowops.service.OutboxService;
+import com.flowops.domain.OutboxPayload;
+import com.flowops.application.service.OutboxService;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;

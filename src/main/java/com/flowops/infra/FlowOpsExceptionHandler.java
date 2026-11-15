@@ -1,5 +1,7 @@
 package com.flowops.infra;
 
+import com.flowops.observability.CorrelationId;
+
 import com.flowops.security.SecurityConfig;
 import org.slf4j.MDC;
 import org.springframework.core.MethodParameter;

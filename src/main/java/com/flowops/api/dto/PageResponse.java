@@ -1,6 +1,6 @@
 package com.flowops.api.dto;
 
-import org.springframework.data.domain.Page;
+import com.flowops.domain.paging.PageResult;
 
 import java.util.List;
 
@@ -22,12 +22,12 @@ public record PageResponse<T>(
         boolean last
 ) {
 
-    public static <T> PageResponse<T> from(Page<T> source) {
+    public static <T> PageResponse<T> from(PageResult<T> source) {
         return new PageResponse<>(
-                source.getContent(),
-                source.getNumber(),
-                source.getSize(),
-                source.getTotalElements(),
+                source.content(),
+                source.page(),
+                source.size(),
+                source.totalElements(),
                 source.getTotalPages(),
                 source.isFirst(),
                 source.isLast()

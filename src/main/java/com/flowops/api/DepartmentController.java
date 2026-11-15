@@ -3,21 +3,19 @@ package com.flowops.api;
 import com.flowops.api.dto.PageResponse;
 import com.flowops.domain.Department;
 import com.flowops.domain.query.DepartmentFilter;
-import com.flowops.service.DepartmentService;
+import com.flowops.application.service.DepartmentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
+import com.flowops.domain.paging.PageQuery;
+import com.flowops.domain.paging.PageResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -69,31 +67,8 @@ public class DepartmentController {
             @RequestParam(defaultValue = "20") int size
     ) {
         DepartmentFilter filter = new DepartmentFilter(code, name);
-        PageRequest pageRequest = buildPageRequest(page, size, sort);
-        Page<Department> result = departments.list(filter, pageRequest);
+        PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        PageResult<Department> result = departments.list(filter, pageQuery);
         return PageResponse.from(result);
-    }
-
-    static PageRequest buildPageRequest(int page, int size, List<String> sortParams) {
-        int safePage = Math.max(0, page);
-        int safeSize = Math.min(Math.max(1, size), 100);
-
-        Sort sort;
-        if (sortParams == null || sortParams.isEmpty()) {
-            sort = Sort.by(Sort.Direction.ASC, "id");
-        } else {
-            List<Sort.Order> orders = new ArrayList<>();
-            for (String s : sortParams) {
-                if (s == null || s.isBlank()) continue;
-                String[] parts = s.split(",", 2);
-                String field = parts[0].strip();
-                if (field.isEmpty() || !ALLOWED_SORT_FIELDS.contains(field.toLowerCase())) continue;
-                Sort.Direction dir = (parts.length > 1 && parts[1].strip().equalsIgnoreCase("desc"))
-                        ? Sort.Direction.DESC : Sort.Direction.ASC;
-                orders.add(new Sort.Order(dir, field));
-            }
-            sort = orders.isEmpty() ? Sort.by(Sort.Direction.ASC, "id") : Sort.by(orders);
-        }
-        return PageRequest.of(safePage, safeSize, sort);
     }
 }

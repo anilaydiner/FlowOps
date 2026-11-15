@@ -4,14 +4,12 @@ import com.flowops.api.dto.NotificationResponse;
 import com.flowops.api.dto.PageResponse;
 import com.flowops.domain.Notification;
 import com.flowops.security.UserPrincipal;
-import com.flowops.service.NotificationService;
+import com.flowops.application.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import com.flowops.domain.paging.PageQuery;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -43,7 +41,7 @@ public class NotificationController {
             @AuthenticationPrincipal UserPrincipal user
     ) {
         int safeSize = Math.min(Math.max(1, size), 100);
-        Pageable pageable = PageRequest.of(page, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
+        PageQuery pageQuery = new PageQuery(page, safeSize, List.of(new PageQuery.Order("createdAt", true)));
         if (Boolean.TRUE.equals(unread)) {
             // Fetch all unread, then manually page (small dataset expected)
             List<Notification> allUnread = notifications.findUnread(user.id());
@@ -58,7 +56,7 @@ public class NotificationController {
                     page == 0, page >= totalPages - 1
             );
         } else {
-            return PageResponse.from(notifications.list(user.id(), pageable).map(NotificationResponse::from));
+            return PageResponse.from(notifications.list(user.id(), pageQuery).map(NotificationResponse::from));
         }
     }
 

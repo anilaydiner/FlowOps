@@ -1,19 +1,19 @@
 package com.flowops;
 
-import com.flowops.domain.DepartmentRepository;
+import com.flowops.infra.persistence.DepartmentJpaRepository;
 import com.flowops.domain.ExecutionJob;
-import com.flowops.domain.ExecutionJobRepository;
+import com.flowops.infra.persistence.ExecutionJobJpaRepository;
 import com.flowops.domain.JobStatus;
 import com.flowops.domain.OutboxMessage;
-import com.flowops.domain.OutboxMessageRepository;
+import com.flowops.infra.persistence.OutboxMessageJpaRepository;
 import com.flowops.domain.OutboxStatus;
 import com.flowops.domain.Request;
-import com.flowops.domain.RequestRepository;
+import com.flowops.infra.persistence.RequestJpaRepository;
 import com.flowops.domain.RequestStatus;
 import com.flowops.domain.Role;
-import com.flowops.domain.RoleRepository;
+import com.flowops.infra.persistence.RoleJpaRepository;
 import com.flowops.domain.User;
-import com.flowops.domain.UserRepository;
+import com.flowops.infra.persistence.UserJpaRepository;
 import com.flowops.infra.worker.JobWorker;
 import com.flowops.infra.worker.OutboxDispatcher;
 import com.flowops.infra.action.SimulatedActionHandler;
@@ -60,13 +60,13 @@ class FailureDrillTest extends AbstractIntegrationTest {
     @Autowired SlaScanner slaScanner;
     @Autowired SimulatedEmailGateway emailGateway;
     @Autowired SimulatedActionHandler actionHandler;
-    @Autowired UserRepository users;
-    @Autowired RoleRepository roles;
-    @Autowired DepartmentRepository departments;
+    @Autowired UserJpaRepository users;
+    @Autowired RoleJpaRepository roles;
+    @Autowired DepartmentJpaRepository departments;
     @Autowired PasswordEncoder encoder;
-    @Autowired OutboxMessageRepository outboxRepo;
-    @Autowired ExecutionJobRepository jobRepo;
-    @Autowired RequestRepository requestRepo;
+    @Autowired OutboxMessageJpaRepository outboxRepo;
+    @Autowired ExecutionJobJpaRepository jobRepo;
+    @Autowired RequestJpaRepository requestRepo;
     @Autowired TransactionTemplate txTemplate;
 
     private String hankToken;
@@ -242,6 +242,8 @@ class FailureDrillTest extends AbstractIntegrationTest {
             failedNow.forEach(m -> {
                 assertThat(m.getRetryCount()).isGreaterThanOrEqualTo(1);
                 assertThat(m.getNextRetryAt()).isAfter(Instant.now().minusSeconds(1));
+                // A failed send must never be stamped as delivered.
+                assertThat(m.getSentAt()).as("failed message must have sent_at NULL").isNull();
             });
 
             // Transport recovers: clear the failure, backdate the retry, dispatch again.
@@ -249,10 +251,14 @@ class FailureDrillTest extends AbstractIntegrationTest {
             backdateFailedOutbox();
             dispatcher.dispatch();
 
-            // Every outbox row for this request ends up SENT — nothing lost.
+            // Every outbox row for this request ends up SENT — nothing lost,
+            // and only now (after a real successful send) is sent_at stamped.
             List<OutboxMessage> mine = outboxFor(reqId);
             assertThat(mine).isNotEmpty();
-            assertThat(mine).allSatisfy(m -> assertThat(m.getStatus()).isEqualTo(OutboxStatus.SENT));
+            assertThat(mine).allSatisfy(m -> {
+                assertThat(m.getStatus()).isEqualTo(OutboxStatus.SENT);
+                assertThat(m.getSentAt()).as("SENT message must have sent_at").isNotNull();
+            });
 
             // No duplicate deliveries: every idempotency key for this request
             // is unique (the DB unique constraint + claim logic guarantee it).
@@ -288,6 +294,8 @@ class FailureDrillTest extends AbstractIntegrationTest {
             assertThat(after.getStatus()).isEqualTo(OutboxStatus.DEAD_LETTER);
             assertThat(after.getRetryCount()).isGreaterThanOrEqualTo(target.getMaxRetries());
             assertThat(after.getLastError()).contains("Simulated email failure");
+            // Never delivered → never stamped as delivered.
+            assertThat(after.getSentAt()).as("dead-lettered message must have sent_at NULL").isNull();
         }
     }
 

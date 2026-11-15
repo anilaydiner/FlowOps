@@ -1,5 +1,5 @@
 package com.flowops.infra.mail;
-import com.flowops.service.EmailGateway;
+import com.flowops.domain.port.EmailGateway;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +26,12 @@ public class SimulatedEmailGateway implements EmailGateway {
     private volatile boolean simulatedFailure = false;
     private volatile int failuresRemaining = 0;
 
+    public SimulatedEmailGateway() {
+        log.warn("EMAIL GATEWAY: SIMULATED (log-only, NO transport). Sends are recorded in "
+                + "the outbox as SENT but nothing reaches Mailpit/SMTP/inbox. "
+                + "To deliver real mail set FLOWOPS_EMAIL_GATEWAY=smtp (Mailpit at localhost:1025).");
+    }
+
     @Override
     public void send(String to, String subject, String body) {
         if (simulatedFailure) {
@@ -34,8 +40,8 @@ public class SimulatedEmailGateway implements EmailGateway {
             }
             throw new EmailGatewayException("Simulated email failure (to=" + to + ")");
         }
-        log.info("EMAIL SENT (simulated): to={} subject='{}' bodyLen={}", to, subject,
-                body == null ? 0 : body.length());
+        log.warn("EMAIL NOT DELIVERED (simulated gateway, log-only): to={} subject='{}' bodyLen={}",
+                to, subject, body == null ? 0 : body.length());
     }
 
     @Override
@@ -46,7 +52,8 @@ public class SimulatedEmailGateway implements EmailGateway {
             }
             throw new EmailGatewayException("Simulated email failure (to=" + to + ")");
         }
-        log.info("EMAIL SENT (simulated/html): to={} subject='{}' textLen={} htmlLen={}", to, subject,
+        log.warn("EMAIL NOT DELIVERED (simulated gateway, log-only): to={} subject='{}' textLen={} htmlLen={}",
+                to, subject,
                 textBody == null ? 0 : textBody.length(), htmlBody == null ? 0 : htmlBody.length());
     }
 

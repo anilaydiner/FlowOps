@@ -1,7 +1,15 @@
 package com.flowops;
 
+import com.flowops.infra.persistence.EmailLogEntryJpaRepository;
+import com.flowops.domain.OutboxMessage;
+import com.flowops.infra.persistence.OutboxMessageJpaRepository;
+import com.flowops.infra.mail.SimulatedEmailGateway;
+import com.flowops.infra.worker.JobWorker;
+import com.flowops.infra.worker.OutboxDispatcher;
+import com.flowops.infra.worker.SlaScanner;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -354,6 +362,77 @@ class UsersApiTest extends AbstractIntegrationTest {
             mvc.perform(delete("/api/v1/users/1")
                             .header("Authorization", "Bearer " + adminToken()))
                     .andExpect(status().isConflict());
+        }
+
+        @Autowired
+        private OutboxMessageJpaRepository outboxRepo;
+        @Autowired
+        private OutboxDispatcher dispatcher;
+        @Autowired
+        private EmailLogEntryJpaRepository emailLogRepo;
+        @Autowired
+        private JobWorker jobWorker;
+        @Autowired
+        private SlaScanner slaScanner;
+        @Autowired
+        private SimulatedEmailGateway emailGateway;
+
+        /**
+         * Make the outbox deterministic for this class: pause the background
+         * schedulers (so the test's explicit {@code dispatch()} is the only
+         * delivery path — no {@code FOR UPDATE SKIP LOCKED} races) and clear
+         * any failure injected by a prior test class (the gateway bean is
+         * shared across the whole suite).
+         */
+        @BeforeEach
+        void deterministicOutbox() {
+            jobWorker.setRunning(false);
+            dispatcher.setRunning(false);
+            slaScanner.setRunning(false);
+            emailGateway.clearSimulatedFailure();
+        }
+
+        @Test
+        void creatingUser_sendsWelcomeMail_withInitialPassword() throws Exception {
+            String password = "welcome123";
+            String email = "welcometest1@example.com";
+            MvcResult result = mvc.perform(post("/api/v1/users")
+                            .header("Authorization", "Bearer " + adminToken())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(mapper.writeValueAsString(java.util.Map.of(
+                                    "username", "welcometest1",
+                                    "displayName", "Welcome Test",
+                                    "email", email,
+                                    "password", password))))
+                    .andExpect(status().isCreated())
+                    .andReturn();
+            long id = mapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+
+            // 1) Welcome mail enqueued atomically with user creation (idempotent — exactly one)
+            java.util.List<OutboxMessage> welcomes = outboxRepo.findAll().stream()
+                    .filter(m -> m.getRecipientId() != null && m.getRecipientId() == id)
+                    .filter(m -> m.getIdempotencyKey().endsWith(":welcome"))
+                    .toList();
+            assertThat(welcomes).hasSize(1);
+            assertThat(welcomes.get(0).getChannel()).isEqualTo("EMAIL");
+            assertThat(welcomes.get(0).getPayload()).contains(password);
+
+            // 2) Dispatch until delivered. dispatch() claims the OLDEST 50 due
+            //    rows, and a pending backlog from other test classes can push
+            //    this (newest) row out of a single batch — so loop until the
+            //    welcome mail is actually in the email log.
+            for (int i = 0; i < 50 && !deliveredTo(email); i++) {
+                dispatcher.dispatch();
+            }
+            assertThat(deliveredTo(email))
+                    .as("welcome email delivered to %s", email).isTrue();
+
+            // 3) The user can actually sign in with the delivered password
+            assertThat(token("welcometest1", password)).isNotBlank();
+        }
+
+        private boolean deliveredTo(String email) {
+            return emailLogRepo.findAll().stream().anyMatch(e -> email.equals(e.getToAddress()));
         }
     }
 

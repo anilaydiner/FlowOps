@@ -3,13 +3,13 @@ package com.flowops.api;
 import com.flowops.api.dto.PageResponse;
 import com.flowops.domain.query.PermissionFilter;
 import com.flowops.api.dto.PermissionResponse;
-import com.flowops.service.PermissionService;
+import com.flowops.application.service.PermissionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import org.springframework.data.domain.PageRequest;
+import com.flowops.domain.paging.PageQuery;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -62,8 +62,8 @@ public class PermissionController {
             @RequestParam(defaultValue = "20") int size
     ) {
         PermissionFilter filter = new PermissionFilter(code, name);
-        PageRequest pageRequest = UserController.buildPageRequest(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(permissionService.list(filter, pageRequest).map(PermissionResponse::from));
+        PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        return PageResponse.from(permissionService.list(filter, pageQuery).map(PermissionResponse::from));
     }
 
     @GetMapping("/{id}")

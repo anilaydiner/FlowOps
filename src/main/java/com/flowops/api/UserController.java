@@ -1,19 +1,18 @@
 package com.flowops.api;
 
 import com.flowops.api.dto.PageResponse;
+import com.flowops.domain.paging.PageQuery;
 import com.flowops.domain.query.UserFilter;
 import com.flowops.api.dto.UserRequest;
 import com.flowops.api.dto.UserResponse;
 import com.flowops.security.UserPrincipal;
-import com.flowops.service.UserService;
+import com.flowops.application.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -90,38 +89,35 @@ public class UserController {
             @RequestParam(defaultValue = "20") int size
     ) {
         UserFilter filter = new UserFilter(username, displayName, email, departmentCode, roleCode, active);
-        PageRequest pageRequest = buildPageRequest(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(userService.list(filter, pageRequest).map(UserResponse::from));
+        PageQuery pageQuery = buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        return PageResponse.from(userService.list(filter, pageQuery).map(UserResponse::from));
     }
 
     /**
-     * Build a {@link PageRequest} from explicit page/size/sort params.
+     * Build a {@link PageQuery} from explicit page/size/sort params.
      * Sort format: {@code field,asc} or {@code field,desc}.
      * Unknown fields are silently ignored (prevents SQL injection via arbitrary column names).
      */
-    static PageRequest buildPageRequest(int page, int size, List<String> sortParams, List<String> allowedFields) {
+    static PageQuery buildPageQuery(int page, int size, List<String> sortParams, List<String> allowedFields) {
         int safePage = Math.max(0, page);
         int safeSize = Math.min(Math.max(1, size), 100);
 
-        Sort sort;
-        if (sortParams == null || sortParams.isEmpty()) {
-            sort = Sort.by(Sort.Direction.ASC, "id");
-        } else {
-            List<Sort.Order> orders = new ArrayList<>();
+        List<PageQuery.Order> orders = new ArrayList<>();
+        if (sortParams != null) {
             for (String s : sortParams) {
                 if (s == null || s.isBlank()) continue;
                 String[] parts = s.split(",", 2);
                 String field = parts[0].strip();
                 if (field.isEmpty()) continue;
                 if (!allowedFields.contains(field.toLowerCase())) continue;
-                Sort.Direction dir = (parts.length > 1 && parts[1].strip().equalsIgnoreCase("desc"))
-                        ? Sort.Direction.DESC
-                        : Sort.Direction.ASC;
-                orders.add(new Sort.Order(dir, field));
+                boolean descending = parts.length > 1 && parts[1].strip().equalsIgnoreCase("desc");
+                orders.add(new PageQuery.Order(field, descending));
             }
-            sort = orders.isEmpty() ? Sort.by(Sort.Direction.ASC, "id") : Sort.by(orders);
         }
-        return PageRequest.of(safePage, safeSize, sort);
+        if (orders.isEmpty()) {
+            orders.add(new PageQuery.Order("id", false));
+        }
+        return new PageQuery(safePage, safeSize, orders);
     }
 
     /** Whitelist of sortable fields — prevents arbitrary column access. */
@@ -130,12 +126,12 @@ public class UserController {
 
     @GetMapping("/me")
     public UserResponse me(@AuthenticationPrincipal UserPrincipal caller) {
-        return UserResponse.from(userService.get(caller.id(), caller));
+        return UserResponse.from(userService.get(caller.id(), caller.toIdentity()));
     }
 
     @GetMapping("/{id}")
     public UserResponse get(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
-        return UserResponse.from(userService.get(id, caller));
+        return UserResponse.from(userService.get(id, caller.toIdentity()));
     }
 
     @PostMapping
@@ -165,6 +161,6 @@ public class UserController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
-        userService.delete(id, caller);
+        userService.delete(id, caller.toIdentity());
     }
 }

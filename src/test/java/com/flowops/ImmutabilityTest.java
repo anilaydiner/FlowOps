@@ -1,15 +1,15 @@
 package com.flowops;
 
 import com.flowops.domain.Clarification;
-import com.flowops.domain.ClarificationRepository;
-import com.flowops.domain.DecisionRepository;
-import com.flowops.domain.DepartmentRepository;
+import com.flowops.infra.persistence.ClarificationJpaRepository;
+import com.flowops.infra.persistence.DecisionJpaRepository;
+import com.flowops.infra.persistence.DepartmentJpaRepository;
 import com.flowops.domain.ExecutionJob;
-import com.flowops.domain.ExecutionJobRepository;
+import com.flowops.infra.persistence.ExecutionJobJpaRepository;
 import com.flowops.domain.Role;
-import com.flowops.domain.RoleRepository;
+import com.flowops.infra.persistence.RoleJpaRepository;
 import com.flowops.domain.User;
-import com.flowops.domain.UserRepository;
+import com.flowops.infra.persistence.UserJpaRepository;
 import com.flowops.infra.worker.JobWorker;
 import com.flowops.infra.worker.OutboxDispatcher;
 import com.flowops.infra.worker.SlaScanner;
@@ -55,15 +55,15 @@ class ImmutabilityTest extends AbstractIntegrationTest {
     @Autowired JobWorker jobWorker;
     @Autowired OutboxDispatcher dispatcher;
     @Autowired SlaScanner slaScanner;
-    @Autowired UserRepository users;
-    @Autowired RoleRepository roles;
-    @Autowired DepartmentRepository departments;
+    @Autowired UserJpaRepository users;
+    @Autowired RoleJpaRepository roles;
+    @Autowired DepartmentJpaRepository departments;
     @Autowired PasswordEncoder encoder;
     @Autowired JdbcTemplate jdbc;
     @Autowired TransactionTemplate txTemplate;
-    @Autowired DecisionRepository decisionRepo;
-    @Autowired ExecutionJobRepository jobRepo;
-    @Autowired ClarificationRepository clarificationRepo;
+    @Autowired DecisionJpaRepository decisionRepo;
+    @Autowired ExecutionJobJpaRepository jobRepo;
+    @Autowired ClarificationJpaRepository clarificationRepo;
 
     private String hankToken;
     private String adminToken;

@@ -2,6 +2,7 @@ package com.flowops;
 
 import com.flowops.domain.AuditEvent;
 import com.flowops.domain.*;
+import com.flowops.infra.persistence.*;
 import com.flowops.infra.worker.JobWorker;
 import com.flowops.infra.worker.OutboxDispatcher;
 import com.flowops.infra.worker.SlaScanner;
@@ -41,13 +42,13 @@ class AuditApiTest extends AbstractIntegrationTest {
     @Autowired JobWorker jobWorker;
     @Autowired OutboxDispatcher dispatcher;
     @Autowired SlaScanner slaScanner;
-    @Autowired UserRepository users;
-    @Autowired RoleRepository roles;
-    @Autowired DepartmentRepository departments;
+    @Autowired UserJpaRepository users;
+    @Autowired RoleJpaRepository roles;
+    @Autowired DepartmentJpaRepository departments;
     @Autowired PasswordEncoder encoder;
-    @Autowired RequestRepository requestRepo;
-    @Autowired StepInstanceRepository stepRepo;
-    @Autowired WorkflowStepRepository stepDefRepo;
+    @Autowired RequestJpaRepository requestRepo;
+    @Autowired StepInstanceJpaRepository stepRepo;
+    @Autowired WorkflowStepJpaRepository stepDefRepo;
     @Autowired TransactionTemplate txTemplate;
 
     private String hankToken;

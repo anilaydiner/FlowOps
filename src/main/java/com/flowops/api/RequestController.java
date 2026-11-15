@@ -6,14 +6,14 @@ import com.flowops.domain.query.RequestFilter;
 import com.flowops.api.dto.RequestResponse;
 import com.flowops.api.dto.UpdateRequestRequest;
 import com.flowops.security.UserPrincipal;
-import com.flowops.service.RequestService;
+import com.flowops.application.service.RequestService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.PageRequest;
+import com.flowops.domain.paging.PageQuery;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -58,7 +58,7 @@ public class RequestController {
     public ResponseEntity<RequestResponse> createDraft(@Valid @RequestBody CreateRequestRequest request,
                                                        @AuthenticationPrincipal UserPrincipal caller) {
         RequestResponse body = RequestResponse.from(
-                requestService.createDraft(request.typeCode(), request.payload(), caller));
+                requestService.createDraft(request.typeCode(), request.payload(), caller.toIdentity()));
         return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
 
@@ -93,8 +93,8 @@ public class RequestController {
             @AuthenticationPrincipal UserPrincipal caller
     ) {
         RequestFilter filter = new RequestFilter(status, typeCode, mine);
-        PageRequest pageRequest = UserController.buildPageRequest(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(requestService.list(filter, pageRequest, caller).map(RequestResponse::from));
+        PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        return PageResponse.from(requestService.list(filter, pageQuery, caller.toIdentity()).map(RequestResponse::from));
     }
 
     @GetMapping("/queue")
@@ -118,15 +118,15 @@ public class RequestController {
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal caller
     ) {
-        PageRequest pageRequest = UserController.buildPageRequest(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(requestService.queue(pageRequest, caller).map(RequestResponse::from));
+        PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        return PageResponse.from(requestService.queue(pageQuery, caller.toIdentity()).map(RequestResponse::from));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get request detail",
             description = "Owner or admin only; 404 for other users (no existence leak).")
     public RequestResponse get(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
-        return RequestResponse.from(requestService.get(id, caller));
+        return RequestResponse.from(requestService.get(id, caller.toIdentity()));
     }
 
     @PutMapping("/{id}")
@@ -144,7 +144,7 @@ public class RequestController {
     public RequestResponse updateDraft(@PathVariable Long id,
                                        @Valid @RequestBody UpdateRequestRequest request,
                                        @AuthenticationPrincipal UserPrincipal caller) {
-        return RequestResponse.from(requestService.updateDraft(id, request.payload(), caller));
+        return RequestResponse.from(requestService.updateDraft(id, request.payload(), caller.toIdentity()));
     }
 
     @PostMapping("/{id}/cancel")
@@ -155,7 +155,7 @@ public class RequestController {
             @ApiResponse(responseCode = "409", description = "Request is in a terminal state")
     })
     public RequestResponse cancel(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
-        return RequestResponse.from(requestService.cancel(id, caller));
+        return RequestResponse.from(requestService.cancel(id, caller.toIdentity()));
     }
 
     @PostMapping("/{id}/submit")
@@ -174,7 +174,7 @@ public class RequestController {
             @ApiResponse(responseCode = "409", description = "Not in DRAFT, no workflow configured, or workflow inactive")
     })
     public RequestResponse submit(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
-        return RequestResponse.from(requestService.submit(id, caller));
+        return RequestResponse.from(requestService.submit(id, caller.toIdentity()));
     }
 
     @PostMapping("/{id}/decisions")
@@ -196,7 +196,7 @@ public class RequestController {
     public RequestResponse decide(@PathVariable Long id,
                                   @Valid @RequestBody com.flowops.api.dto.DecisionRequest body,
                                   @AuthenticationPrincipal UserPrincipal caller) {
-        return RequestResponse.from(requestService.decide(id, body.action(), body.justification(), body.delegatedTo(), caller));
+        return RequestResponse.from(requestService.decide(id, body.action(), body.justification(), body.delegatedTo(), caller.toIdentity()));
     }
 
     @PostMapping("/{id}/close")
@@ -207,6 +207,6 @@ public class RequestController {
             @ApiResponse(responseCode = "409", description = "Request is not in EXECUTED or REJECTED")
     })
     public RequestResponse close(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
-        return RequestResponse.from(requestService.close(id, caller));
+        return RequestResponse.from(requestService.close(id, caller.toIdentity()));
     }
 }

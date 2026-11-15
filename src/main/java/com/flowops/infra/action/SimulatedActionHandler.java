@@ -1,5 +1,5 @@
 package com.flowops.infra.action;
-import com.flowops.service.ActionHandler;
+import com.flowops.domain.port.ActionHandler;
 
 import com.flowops.domain.JobActions;
 import com.flowops.domain.Request;

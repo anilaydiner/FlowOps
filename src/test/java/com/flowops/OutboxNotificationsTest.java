@@ -1,19 +1,19 @@
 package com.flowops;
 
-import com.flowops.domain.DepartmentRepository;
+import com.flowops.infra.persistence.DepartmentJpaRepository;
 import com.flowops.domain.EmailLogEntry;
-import com.flowops.domain.EmailLogEntryRepository;
+import com.flowops.infra.persistence.EmailLogEntryJpaRepository;
 import com.flowops.domain.Notification;
-import com.flowops.domain.NotificationRepository;
+import com.flowops.infra.persistence.NotificationJpaRepository;
 import com.flowops.domain.OutboxMessage;
-import com.flowops.domain.OutboxMessageRepository;
+import com.flowops.infra.persistence.OutboxMessageJpaRepository;
 import com.flowops.domain.OutboxStatus;
 import com.flowops.domain.Role;
-import com.flowops.domain.RoleRepository;
+import com.flowops.infra.persistence.RoleJpaRepository;
 import com.flowops.domain.User;
-import com.flowops.domain.UserRepository;
+import com.flowops.infra.persistence.UserJpaRepository;
 import com.flowops.infra.worker.OutboxDispatcher;
-import com.flowops.service.OutboxService;
+import com.flowops.application.service.OutboxService;
 import com.flowops.infra.mail.SimulatedEmailGateway;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,17 +61,17 @@ class OutboxNotificationsTest {
     }
 
     @Autowired MockMvc mvc;
-    @Autowired OutboxMessageRepository outboxRepo;
-    @Autowired NotificationRepository notificationRepo;
-    @Autowired EmailLogEntryRepository emailLogRepo;
+    @Autowired OutboxMessageJpaRepository outboxRepo;
+    @Autowired NotificationJpaRepository notificationRepo;
+    @Autowired EmailLogEntryJpaRepository emailLogRepo;
     @Autowired OutboxDispatcher dispatcher;
     @Autowired com.flowops.infra.worker.JobWorker jobWorker;
     @Autowired com.flowops.infra.worker.SlaScanner slaScanner;
     @Autowired OutboxService outbox;
     @Autowired SimulatedEmailGateway emailGateway;
-    @Autowired UserRepository users;
-    @Autowired RoleRepository roles;
-    @Autowired DepartmentRepository departments;
+    @Autowired UserJpaRepository users;
+    @Autowired RoleJpaRepository roles;
+    @Autowired DepartmentJpaRepository departments;
     @Autowired PasswordEncoder encoder;
 
     // ── Setup: create test users ─────────────────────────────────────────

@@ -1,7 +1,7 @@
 package com.flowops.security;
 
-import com.flowops.domain.UserRepository;
-import com.flowops.infra.CorrelationId;
+import com.flowops.domain.port.UserRepository;
+import com.flowops.observability.CorrelationId;
 import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

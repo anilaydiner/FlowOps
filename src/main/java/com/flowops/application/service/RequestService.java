@@ -1,0 +1,249 @@
+package com.flowops.application.service;
+
+import com.flowops.application.model.RequestDetail;
+import com.flowops.application.usecase.CancelRequest;
+import com.flowops.application.usecase.CloseRequest;
+import com.flowops.application.usecase.CreateDraft;
+import com.flowops.application.usecase.DecideStep;
+import com.flowops.application.usecase.SubmitRequest;
+import com.flowops.application.usecase.UpdateDraft;
+import com.flowops.domain.Decision;
+import com.flowops.domain.DecisionAction;
+import com.flowops.domain.Clarification;
+import com.flowops.domain.ExecutionJob;
+import com.flowops.domain.Request;
+import com.flowops.domain.RequestStatus;
+import com.flowops.domain.StepInstance;
+import com.flowops.domain.StepState;
+import com.flowops.domain.exception.NotFoundException;
+import com.flowops.domain.identity.CallerIdentity;
+import com.flowops.domain.paging.PageQuery;
+import com.flowops.domain.paging.PageResult;
+import com.flowops.domain.port.ClarificationRepository;
+import com.flowops.domain.port.DecisionRepository;
+import com.flowops.domain.port.ExecutionJobRepository;
+import com.flowops.domain.port.RequestRepository;
+import com.flowops.domain.port.StepInstanceRepository;
+import com.flowops.domain.query.RequestFilter;
+import com.flowops.observability.FlowOpsSpans;
+import com.flowops.observability.MetricNames;
+import com.flowops.observability.SpanNames;
+import io.micrometer.core.instrument.MeterRegistry;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Request lifecycle: draft create/edit/cancel (iteration 3) plus
+ * submit/decide/close through the workflow engine (iteration 4).
+ */
+@Service
+public class RequestService {
+
+    private final RequestRepository requests;
+    private final CreateDraft createDraft;
+    private final UpdateDraft updateDraft;
+    private final CancelRequest cancelRequest;
+    private final SubmitRequest submitRequest;
+    private final DecideStep decideStep;
+    private final CloseRequest closeRequest;
+    private final FlowOpsSpans spans;
+    private final MeterRegistry metrics;
+    private final StepInstanceRepository stepInstances;
+    private final DecisionRepository decisions;
+    private final ClarificationRepository clarifications;
+    private final ExecutionJobRepository executionJobs;
+
+    public RequestService(RequestRepository requests,
+                          CreateDraft createDraft,
+                          UpdateDraft updateDraft,
+                          CancelRequest cancelRequest,
+                          SubmitRequest submitRequest,
+                          DecideStep decideStep,
+                          CloseRequest closeRequest,
+                          FlowOpsSpans spans,
+                          MeterRegistry metrics,
+                          StepInstanceRepository stepInstances,
+                          DecisionRepository decisions,
+                          ClarificationRepository clarifications,
+                          ExecutionJobRepository executionJobs) {
+        this.requests = requests;
+        this.createDraft = createDraft;
+        this.updateDraft = updateDraft;
+        this.cancelRequest = cancelRequest;
+        this.submitRequest = submitRequest;
+        this.decideStep = decideStep;
+        this.closeRequest = closeRequest;
+        this.spans = spans;
+        this.metrics = metrics;
+        this.stepInstances = stepInstances;
+        this.decisions = decisions;
+        this.clarifications = clarifications;
+        this.executionJobs = executionJobs;
+    }
+
+    @Transactional
+    public RequestDetail createDraft(String typeCode, Map<String, Object> payload, CallerIdentity caller) {
+        return RequestDetail.of(ready(createDraft.execute(typeCode, payload, caller)));
+    }
+
+    @Transactional(readOnly = true)
+    public RequestDetail get(Long id, CallerIdentity caller) {
+        Request request = requests.findById(id)
+                .orElseThrow(() -> new NotFoundException("Request not found: " + id));
+        checkReadAccess(request, caller);
+        return fullDetail(request);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResult<RequestDetail> list(RequestFilter filter, PageQuery query, CallerIdentity caller) {
+        // Non-admins can only ever see their own requests
+        PageResult<Request> page = requests.findAll(filter, query, caller.id(), caller.isAdmin());
+        return page.map(r -> RequestDetail.of(ready(r)));
+    }
+
+    @Transactional
+    public RequestDetail updateDraft(Long id, Map<String, Object> newPayload, CallerIdentity caller) {
+        return RequestDetail.of(ready(updateDraft.execute(id, newPayload, caller)));
+    }
+
+    @Transactional
+    public RequestDetail cancel(Long id, CallerIdentity caller) {
+        return RequestDetail.of(ready(cancelRequest.execute(id, caller)));
+    }
+
+    // ── workflow lifecycle (iteration 4) ───────────────────────────────
+
+    /**
+     * Submits a draft into the workflow: DRAFT → IN_REVIEW with the first
+     * applicable step materialized (or APPROVED when every step is skipped).
+     * Owner or admin only; non-owner gets 404 (no existence leak).
+     */
+    @Transactional
+    public RequestDetail submit(Long id, CallerIdentity caller) {
+        requireWriteAccess(id, caller);
+        Request submitted = spans.run(SpanNames.REQUEST_SUBMIT, Map.of(
+                        "request.id", String.valueOf(id),
+                        "user", caller.username()),
+                () -> submitRequest.execute(id, caller));
+        metrics.counter(MetricNames.REQUEST_SUBMITTED).increment();
+        return fullDetail(submitted);
+    }
+
+    /**
+     * Records an APPROVE/REJECT/DELEGATE decision on the current step.
+     * SoD and role eligibility are enforced by the {@code DecideStep} use case.
+     */
+    @Transactional
+    public RequestDetail decide(Long id, DecisionAction action, String justification,
+                          Long delegatedTo, CallerIdentity caller) {
+        Request decided = spans.run(SpanNames.REQUEST_DECIDE, Map.of(
+                        "request.id", String.valueOf(id),
+                        "user", caller.username(),
+                        "action", String.valueOf(action)),
+                () -> decideStep.execute(id, action, justification, caller, delegatedTo));
+        metrics.counter(MetricNames.REQUEST_DECIDED, "action", action.name()).increment();
+        if (decided.getStatus() == RequestStatus.APPROVED) {
+            metrics.counter(MetricNames.REQUEST_APPROVED).increment();
+        }
+        return fullDetail(decided);
+    }
+
+    /**
+     * Closes an EXECUTED or REJECTED request (terminal).
+     */
+    @Transactional
+    public RequestDetail close(Long id, CallerIdentity caller) {
+        Request closed = spans.run(SpanNames.REQUEST_CLOSE, Map.of(
+                        "request.id", String.valueOf(id),
+                        "user", caller.username()),
+                () -> closeRequest.execute(id, caller));
+        metrics.counter(MetricNames.REQUEST_CLOSED).increment();
+        return fullDetail(closed);
+    }
+
+    // ── queue (approver inbox) ─────────────────────────────────────────
+
+    /**
+     * Returns IN_REVIEW requests where the caller is eligible for the current
+     * (PENDING) step: the step's required role is in the caller's roles and
+     * the caller is not the requester (SoD).
+     */
+    @Transactional(readOnly = true)
+    public PageResult<RequestDetail> queue(PageQuery query, CallerIdentity caller) {
+        Set<String> roles = (caller.roles() != null) ? caller.roles() : Set.of();
+        if (roles.isEmpty()) {
+            return PageResult.empty(query.page(), query.size());
+        }
+        List<Long> eligibleIds = stepInstances.findEligibleRequestIds(
+                StepState.PENDING, RequestStatus.IN_REVIEW, roles, caller.id());
+        if (eligibleIds.isEmpty()) {
+            return PageResult.empty(query.page(), query.size());
+        }
+        PageResult<Request> page = requests.findQueuePage(eligibleIds, query);
+        return page.map(r -> RequestDetail.of(ready(r)));
+    }
+
+    // ── helpers ────────────────────────────────────────────────────────
+
+    private Request requireWriteAccess(Long id, CallerIdentity caller) {
+        Request request = requests.findById(id)
+                .orElseThrow(() -> new NotFoundException("Request not found: " + id));
+        if (!isOwnerOrAdmin(request, caller)) {
+            throw new NotFoundException("Request not found: " + id);
+        }
+        return request;
+    }
+
+    /**
+     * Initializes lazy associations (requester, owning department) while the
+     * transaction/session is still open, so DTO mapping in the controller
+     * cannot trigger a LazyInitializationException. List views keep this
+     * light — step/decision detail is loaded only on the detail path.
+     */
+    private Request ready(Request r) {
+        r.getRequester().getUsername();
+        com.flowops.domain.Department dept = r.getType().getOwningDepartment();
+        if (dept != null) {
+            dept.getCode();
+        }
+        return r;
+    }
+
+    /**
+     * Detail path: loads step instances + their decisions (and touches the
+     * lazy step/actor associations) while the session is open, and assembles
+     * them into a {@link RequestDetail} read model so
+     * {@code RequestResponse.from()} can map them without a session.
+     */
+    private RequestDetail fullDetail(Request r) {
+        ready(r);
+        List<StepInstance> steps = stepInstances.findByRequestIdOrderById(r.getId());
+        Map<Long, List<Decision>> byStep = new LinkedHashMap<>();
+        for (StepInstance si : steps) {
+            si.getStep().getCode(); // touch lazy step
+            List<Decision> ds = decisions.findByStepInstanceIdOrderById(si.getId());
+            ds.forEach(d -> d.getActorUsername()); // touch lazy actor
+            byStep.put(si.getId(), ds);
+        }
+        // Iteration 7: load clarifications + execution jobs
+        List<Clarification> clari = clarifications.findByRequestIdOrderByCreatedAtDesc(r.getId());
+        List<ExecutionJob> jobs = executionJobs.findByRequestIdOrderByCreatedAtAsc(r.getId());
+        return RequestDetail.full(r, steps, byStep, clari, jobs);
+    }
+
+    private void checkReadAccess(Request request, CallerIdentity caller) {
+        if (!isOwnerOrAdmin(request, caller)) {
+            // Do not leak existence of other users' requests
+            throw new NotFoundException("Request not found: " + request.getId());
+        }
+    }
+
+    private boolean isOwnerOrAdmin(Request request, CallerIdentity caller) {
+        return caller.isAdmin() || caller.id().equals(request.getRequester().getId());
+    }
+}

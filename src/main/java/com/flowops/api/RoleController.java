@@ -5,14 +5,14 @@ import com.flowops.domain.query.RoleFilter;
 import com.flowops.api.dto.RoleRequest;
 import com.flowops.domain.RoleSpec;
 import com.flowops.api.dto.RoleResponse;
-import com.flowops.service.RoleService;
+import com.flowops.application.service.RoleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.PageRequest;
+import com.flowops.domain.paging.PageQuery;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -72,8 +72,8 @@ public class RoleController {
             @RequestParam(defaultValue = "20") int size
     ) {
         RoleFilter filter = new RoleFilter(code, name);
-        PageRequest pageRequest = UserController.buildPageRequest(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(roleService.list(filter, pageRequest).map(RoleResponse::from));
+        PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        return PageResponse.from(roleService.list(filter, pageQuery).map(RoleResponse::from));
     }
 
     @GetMapping("/{id}")

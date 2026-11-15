@@ -2,9 +2,9 @@ package com.flowops;
 
 import com.flowops.domain.DecisionAction;
 import com.flowops.domain.User;
-import com.flowops.domain.UserRepository;
-import com.flowops.security.UserPrincipal;
-import com.flowops.service.workflow.DecideStep;
+import com.flowops.infra.persistence.UserJpaRepository;
+import com.flowops.domain.identity.CallerIdentity;
+import com.flowops.application.usecase.DecideStep;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,7 +46,7 @@ class ConcurrentDecideTest extends AbstractIntegrationTest {
     private DecideStep decideStep;
 
     @Autowired
-    private UserRepository users;
+    private UserJpaRepository users;
 
     private final HttpClient http = HttpClient.newHttpClient();
 
@@ -121,10 +121,10 @@ class ConcurrentDecideTest extends AbstractIntegrationTest {
         assertThat(r.statusCode()).describedAs("create admin user").isEqualTo(201);
     }
 
-    private UserPrincipal principal(String username) {
+    private CallerIdentity principal(String username) {
         User u = users.findByUsername(username)
                 .orElseThrow(() -> new IllegalStateException("User not found: " + username));
-        return new UserPrincipal(u.getId(), u.getUsername(), Set.of("ADMIN"));
+        return new CallerIdentity(u.getId(), u.getUsername(), Set.of("ADMIN"));
     }
 
     @Test
@@ -140,8 +140,8 @@ class ConcurrentDecideTest extends AbstractIntegrationTest {
         assertThat(submit(alice, rid)).isEqualTo(200);
 
         // Build principals for the concurrent approvers
-        final UserPrincipal adminP = principal("admin");
-        final UserPrincipal bobP = principal("bob8");
+        final CallerIdentity adminP = principal("admin");
+        final CallerIdentity bobP = principal("bob8");
 
         // Fire 10 concurrent decides at the service layer.
         // All threads read the same @Version; the UPDATE ... WHERE version=N
@@ -157,7 +157,7 @@ class ConcurrentDecideTest extends AbstractIntegrationTest {
         try {
             List<Future<?>> futures = new ArrayList<>();
             for (int i = 0; i < threads; i++) {
-                final UserPrincipal ap = (i % 2 == 0) ? adminP : bobP;
+                final CallerIdentity ap = (i % 2 == 0) ? adminP : bobP;
                 futures.add(pool.submit(() -> {
                     try {
                         barrier.await();

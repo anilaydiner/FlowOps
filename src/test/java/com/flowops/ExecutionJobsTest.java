@@ -1,6 +1,7 @@
 package com.flowops;
 
 import com.flowops.domain.*;
+import com.flowops.infra.persistence.*;
 import com.flowops.infra.worker.JobWorker;
 import com.flowops.infra.worker.OutboxDispatcher;
 import com.flowops.infra.action.SimulatedActionHandler;
@@ -35,19 +36,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ExecutionJobsTest extends AbstractIntegrationTest {
 
     @Autowired MockMvc mvc;
-    @Autowired ExecutionJobRepository jobRepo;
-    @Autowired RequestRepository requestRepo;
-    @Autowired DecisionRepository decisionRepo;
-    @Autowired StepInstanceRepository stepInstanceRepo;
+    @Autowired ExecutionJobJpaRepository jobRepo;
+    @Autowired RequestJpaRepository requestRepo;
+    @Autowired DecisionJpaRepository decisionRepo;
+    @Autowired StepInstanceJpaRepository stepInstanceRepo;
     @Autowired JobWorker jobWorker;
     @Autowired OutboxDispatcher dispatcher;
     @Autowired SlaScanner slaScanner;
     @Autowired SimulatedActionHandler actionHandler;
-    @Autowired UserRepository users;
-    @Autowired RoleRepository roles;
-    @Autowired DepartmentRepository departments;
+    @Autowired UserJpaRepository users;
+    @Autowired RoleJpaRepository roles;
+    @Autowired DepartmentJpaRepository departments;
     @Autowired PasswordEncoder encoder;
-    @Autowired RequestTypeRepository typeRepo;
+    @Autowired RequestTypeJpaRepository typeRepo;
     @Autowired org.springframework.transaction.support.TransactionTemplate txTemplate;
 
     private String bobToken;

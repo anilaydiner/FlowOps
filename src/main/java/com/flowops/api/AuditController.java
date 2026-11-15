@@ -2,7 +2,7 @@ package com.flowops.api;
 
 import com.flowops.domain.AuditEvent;
 import com.flowops.security.UserPrincipal;
-import com.flowops.service.AuditService;
+import com.flowops.application.service.AuditService;
 import com.flowops.domain.exception.RequestValidationException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -61,7 +61,7 @@ public class AuditController {
             @Parameter(description = "Event type filter") @RequestParam(required = false) String type,
             @AuthenticationPrincipal UserPrincipal caller) {
         try {
-            return auditService.timeline(id, from, to, type, caller);
+            return auditService.timeline(id, from, to, type, caller.toIdentity());
         } catch (IllegalArgumentException e) {
             throw new RequestValidationException(Map.of("type", e.getMessage()));
         }

@@ -1,6 +1,6 @@
 package com.flowops.security;
 
-import com.flowops.domain.UserRepository;
+import com.flowops.domain.port.UserRepository;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.authorization.AuthorizationManager;
 import org.springframework.security.core.Authentication;

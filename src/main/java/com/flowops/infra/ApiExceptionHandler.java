@@ -6,7 +6,7 @@ import com.flowops.domain.exception.ForbiddenException;
 import com.flowops.domain.exception.InvalidStateTransitionException;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.RequestValidationException;
-import com.flowops.service.UserService;
+import com.flowops.application.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;

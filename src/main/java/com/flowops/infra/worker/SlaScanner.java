@@ -1,14 +1,14 @@
 package com.flowops.infra.worker;
-import com.flowops.service.OutboxService;
+import com.flowops.application.service.OutboxService;
 
 import com.flowops.domain.Request;
-import com.flowops.domain.RequestRepository;
+import com.flowops.domain.port.RequestRepository;
 import com.flowops.domain.RequestStatus;
 import com.flowops.domain.StepInstance;
-import com.flowops.domain.StepInstanceRepository;
+import com.flowops.domain.port.StepInstanceRepository;
 import com.flowops.domain.StepState;
 import com.flowops.domain.User;
-import com.flowops.domain.UserRepository;
+import com.flowops.domain.port.UserRepository;
 import com.flowops.domain.WorkflowStep;
 import com.flowops.observability.FlowOpsSpans;
 import com.flowops.observability.MetricNames;

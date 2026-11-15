@@ -4,7 +4,7 @@ import com.flowops.api.dto.ClarificationAnswerRequest;
 import com.flowops.api.dto.ClarificationRequest;
 import com.flowops.api.dto.ClarificationResponse;
 import com.flowops.security.UserPrincipal;
-import com.flowops.service.ClarificationService;
+import com.flowops.application.service.ClarificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -40,7 +40,7 @@ public class ClarificationController {
             @AuthenticationPrincipal UserPrincipal caller) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ClarificationResponse.from(
-                        clarificationService.ask(id, body.question(), caller)));
+                        clarificationService.ask(id, body.question(), caller.toIdentity())));
     }
 
     @GetMapping
@@ -49,7 +49,7 @@ public class ClarificationController {
     public List<ClarificationResponse> list(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal caller) {
-        return clarificationService.listByRequest(id, caller).stream()
+        return clarificationService.listByRequest(id, caller.toIdentity()).stream()
                 .map(ClarificationResponse::from)
                 .toList();
     }
@@ -68,6 +68,6 @@ public class ClarificationController {
             @Valid @RequestBody ClarificationAnswerRequest body,
             @AuthenticationPrincipal UserPrincipal caller) {
         return ClarificationResponse.from(
-                clarificationService.answer(cid, id, body.answer(), caller));
+                clarificationService.answer(cid, id, body.answer(), caller.toIdentity()));
     }
 }

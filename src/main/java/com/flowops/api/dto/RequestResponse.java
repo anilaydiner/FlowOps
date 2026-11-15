@@ -4,7 +4,7 @@ import com.flowops.domain.Clarification;
 import com.flowops.domain.Decision;
 import com.flowops.domain.ExecutionJob;
 import com.flowops.domain.Request;
-import com.flowops.domain.RequestDetail;
+import com.flowops.application.model.RequestDetail;
 import com.flowops.domain.StepInstance;
 
 import java.time.Instant;
