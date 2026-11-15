@@ -1,25 +1,54 @@
 # FlowOps — Architecture
 
-Clean Architecture (single-module variant) with DDD rich domain model.
-All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
+Clean Architecture with DDD rich domain model.
+Layer boundaries are enforced **twice**: structurally (4 Maven modules — an
+illegal dependency is a compile error) and by `ArchitectureTest`
+(11 ArchUnit rules for the seams Maven can't see).
+
+## Modules
+
+```
+flowops (parent pom)
+├── flowops-domain        pure domain core — JDK + slf4j (+ JPA annotations
+│                         temporarily, see "JPA Annotation Trade-off")
+├── flowops-application   use cases, per-bounded-context services, ports,
+│                         read models — depends on: domain
+├── flowops-infra         JPA adapters, workers, mail, actions, observability
+│                         adapters, security (JWT filter chain) —
+│                         depends on: domain, application
+└── flowops-app           bootable: REST API (controllers + web edge),
+                          config, FlowOpsApplication, migrations, tests —
+                          depends on: everything; spring-boot repackage
+```
+
+| Module | Key dependencies (beyond the modules it uses) |
+|--------|-----------------------------------------------|
+| `flowops-domain` | slf4j-api |
+| `flowops-application` | spring-context, spring-tx, spring-security-crypto |
+| `flowops-infra` | spring-boot-starter-data-jpa/-mail/-security/-web, micrometer, OpenTelemetry, jjwt, Jackson 3 |
+| `flowops-app` | spring-boot-starter-web/-validation/-actuator, flyway, postgresql, springdoc, testcontainers, archunit (test) |
+
+Shared vocabulary classes live in the domain so every module can reference
+them: `domain.exception.ApiErrors` (RFC 7807 `urn:flowops:error:*` namespace)
+and `domain.CorrelationId` (header + MDC key names).
 
 ## Layer Dependency Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│  api/                                                                          │
+│  api/  [flowops-app]                                                            │
 │  ├── *Controller.java    REST endpoints, DTO mapping, auth projection           │
 │  ├── dto/                Request/Response DTOs (20 records, mapping-only)       │
 │  └── web/                HTTP edge: RFC 7807 exception handlers, ProblemDetails │
-│                          advice, CorrelationIdFilter, ApiErrors (owner of the   │
-│                          urn:flowops:error:* namespace)                         │
+│                          advice, CorrelationIdFilter (error URIs come from     │
+│                          domain.exception.ApiErrors)                           │
 │                                                                        │       │
 │  depends on:  domain (DTO mapping) + application (service calls)          │       │
 └──────────────────────────────────────────────────────────────────────────────────┘
          │                                          │
          ▼                                          ▼
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│  application/                                                                   │
+│  application/  [flowops-application]                                             │
 │  ├── request/         RequestService, ClarificationService                      │
 │  ├── identity/        UserService, PasswordResetService                         │
 │  ├── workflow/        WorkflowService, RequestTypeService                       │
@@ -43,7 +72,7 @@ All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
          │
          ▼
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│  domain/          THE CORE — pure Java + JPA annotations (see trade-off note)   │
+│  domain/  [flowops-domain]   THE CORE — pure Java (see JPA trade-off note)      │
 │  ├── (root)         Entities: Request, Workflow, WorkflowStep, StepInstance,    │
 │  │                  Decision, Clarification, User, Role, Permission,            │
 │  │                  Department, RequestType, ExecutionJob, OutboxMessage,       │
@@ -63,7 +92,7 @@ All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
          ▲
          │  implements ports
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│  infra/                                                                       │
+│  infra/  [flowops-infra]                                                        │
 │  ├── persistence/     *JpaRepository (Spring Data) + @Repository adapters       │
 │  │                   (SpringWorkflowRepository, SpringStepInstanceRepository,  │
 │  │                   …) + Paging translator + Specifications                    │
@@ -78,20 +107,22 @@ All dependency rules are **enforced by `ArchitectureTest`** (11 ArchUnit rules).
 │  depends on:  domain (entities + ports) + Spring + infra libraries    │       │
 └──────────────────────────────────────────────────────────────────────────────────┘
 
-  security/        JWT filter, UserPrincipal (projects to CallerIdentity)
-                   depends on: domain.identity + api.web.ApiErrors (error URIs)
+  security/  [flowops-infra]    JWT filter, UserPrincipal (projects to CallerIdentity)
+                   depends on: domain.identity + domain.exception.ApiErrors (error URIs)
                    forbidden:   application
 
-  observability/   CorrelationId, FlowOpsSpans (OTel helper), TracingConfig,
+  observability/  [flowops-infra]   FlowOpsSpans (OTel helper), TracingConfig,
                    SpanNames/MetricNames registries,
                    RequestLifecycleObservabilityAdapter, SlaMetricsAdapter,
                    ExecutionJobObservabilityAdapter, OutboxObservabilityAdapter
                    (implement application ports)
                    depends on:  application.port + domain (read-only) + OTel/Micrometer
 
-  config/          OpenApiConfig (API docs), DomainServiceConfig (domain-service
+  config/  [flowops-app]        OpenApiConfig (API docs), DomainServiceConfig (domain-service
                    beans), FlowOpsUrlsConfig (binds flowops.* URLs into the
                    FlowOpsUrls record)
+
+  FlowOpsApplication  [flowops-app]   @SpringBootApplication + @EnableScheduling
 ```
 
 ## Dependency Rules (ArchUnit — 11 rules in `ArchitectureTest`)
@@ -134,9 +165,10 @@ Everything inward of the API edge sees only `CallerIdentity`.
 
 ## Web Edge & Error Contract
 
-- `api/web/ApiErrors` owns the RFC 7807 `type` namespace (`urn:flowops:error:*`);
-  the MVC exception handlers, the `ProblemDetails` advice, and the security
-  filter chain (401/403) all derive their `type` URIs from it.
+- `domain/exception/ApiErrors` (shared domain vocabulary) owns the RFC 7807
+  `type` namespace (`urn:flowops:error:*`); the MVC exception handlers, the
+  `ProblemDetails` advice, and the security filter chain (401/403) all derive
+  their `type` URIs from it.
 - Authentication failures surface as the domain exception
   `domain.exception.InvalidCredentialsException`; `api/web/ApiExceptionHandler`
   maps it to `401` — the application layer never names an HTTP status.
@@ -233,19 +265,26 @@ instead of `@Value` injection.
 ## JPA Annotation Trade-off
 
 Domain entities carry `jakarta.persistence` annotations as a pragmatic
-single-module decision. The domain is still **logically** Spring-free:
-no Spring imports, no Spring types, no Spring behaviour. Persistence
-knowledge is confined to annotation metadata consumed by the adapter.
+decision — this is the one temporary exception in an otherwise pure domain,
+and it is quarantined in `flowops-domain`, whose pom is the only place
+outside `flowops-infra`/`flowops-app` that may depend on
+`jakarta.persistence-api` / `hibernate-core`.
 
-The migration path to full Option B (separate JPA entities + mappers)
-is available without touching ports, use-cases, or API code — see
-`domain/package-info.java` for details.
+The domain is still **logically** Spring-free: no Spring imports, no Spring
+types, no Spring behaviour. Persistence knowledge is confined to annotation
+metadata consumed by the adapter.
+
+The migration path to full Option B (separate JPA entities + mappers in
+`flowops-infra`, domain reduced to JDK + slf4j) is available without touching
+ports, use-cases, or API code — see `domain/package-info.java` for details.
 
 ## Testing
 
-- **ArchitectureTest** — 11 ArchUnit rules (above)
+- **ArchitectureTest** — 11 ArchUnit rules (above), runs in `flowops-app`
+  against the full classpath of all modules
 - **Unit tests** — domain logic, use cases, services
-- **Integration tests** — `@SpringBootTest` + Testcontainers PostgreSQL
+- **Integration tests** — `@SpringBootTest` + Testcontainers PostgreSQL, in
+  `flowops-app` (the only module with a Spring context)
 - **ConcurrentDecideTest** — SoD + optimistic locking under concurrent access
 
-Run: `./mvnw test`
+Run: `./mvnw test` (reactor build; bootable JAR in `flowops-app/target/`)
