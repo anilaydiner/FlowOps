@@ -3,40 +3,47 @@
  *
  * <h2>Layer rules (enforced by {@code ArchitectureTest})</h2>
  * <ul>
- *   <li>May depend on: the JDK and JPA annotations only.</li>
- *   <li>Must NOT depend on: Spring, security, infra, observability, application, api.</li>
+ *   <li>May depend on: the JDK and slf4j only.</li>
+ *   <li>Must NOT depend on: Spring, JPA ({@code jakarta.persistence}),
+ *       Hibernate ({@code org.hibernate}), security, infra, observability,
+ *       application, api.</li>
  * </ul>
  *
- * <h2>JPA annotation trade-off</h2>
+ * <h2>Persistence separation</h2>
  * <p>
- * Entity classes in this package carry {@code jakarta.persistence} annotations
- * ({@code @Entity}, {@code @Table}, {@code @Column}, etc.) as a pragmatic
- * single-module decision. A strict DDD split would keep the domain model
- * annotation-free and project it onto separate JPA entities via mappers
- * ("Option B"), at roughly 2× the code surface.
+ * The aggregates in this package are pure Java — no persistence annotations.
+ * Their JPA mapping lives in {@code infra.persistence.entity}
+ * ({@code RequestEntity}, {@code UserEntity}, …), one entity per aggregate,
+ * with an identical column mapping. {@code infra.persistence.mapping}
+ * ({@code RequestMappers}, …) converts aggregate ↔ entity at the adapter
+ * boundary; adapters implement the pure-Java ports in {@code domain.port}.
  * </p>
  * <p>
- * The architectural boundary is still enforced:
+ * Aggregates therefore expose a public no-arg constructor and a
+ * "rehydration only" setter section used exclusively by those mappers.
+ * Business behavior goes through the named methods
+ * ({@code Request.transitionTo}, {@code ExecutionJob.markCompleted}, …);
+ * business code should never construct an aggregate blank or use the
+ * rehydration setters.
+ * </p>
+ * <p>
+ * The architectural boundary is enforced three ways:
  * </p>
  * <ul>
- *   <li>Persistence access is behind pure-Java ports in {@code domain.port}.</li>
- *   <li>Spring Data implementations live in {@code infra.persistence}.</li>
- *   <li>{@code domain} must not import any {@code org.springframework.*} class
- *       (ArchUnit rule {@code domain_model_is_spring_free}).</li>
+ *   <li>Module boundaries — {@code flowops-domain} declares no
+ *       {@code jakarta.persistence} or {@code org.hibernate} dependency, so
+ *       any accidental import fails the build.</li>
+ *   <li>ArchUnit rule {@code domain_model_is_persistence_free} in
+ *       {@code ArchitectureTest}.</li>
+ *   <li>Persistence access is behind pure-Java ports in {@code domain.port},
+ *       implemented in {@code infra.persistence}.</li>
  * </ul>
- * <p>
- * The annotations are declarative metadata consumed by the persistence
- * adapter — they do not make the domain <em>logically</em> depend on Spring.
- * If the codebase grows beyond a single service, the natural migration path
- * is extracting the annotations into JPA entities and introducing mappers
- * without changing any port, use-case, or API code.
- * </p>
  *
  * <h2>Package layout</h2>
  * <pre>
  * domain/
- *   ├── (root)          Entities &amp; value objects (Request, Workflow, StepInstance, …)
- *   ├── exception/      Domain exceptions (BusinessRuleViolation, NotFound, …)
+ *   ├── (root)          Aggregates &amp; value objects (Request, Workflow, StepInstance, …)
+ *   ├── exception/      Domain exceptions (InvalidStateTransition, NotFound, …)
  *   ├── identity/       CallerIdentity — framework-free identity record
  *   ├── paging/         PageQuery / PageResult — framework-free paging twins
  *   ├── policy/         AuthorizationEvaluator, PermissionCodes, TargetContext

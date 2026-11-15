@@ -1,17 +1,5 @@
 package com.flowops.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -20,56 +8,42 @@ import java.util.Map;
  * An ordered approval step within a workflow.
  * The optional JSONB {@code condition} is evaluated against the request
  * payload; when false the step is materialized as SKIPPED (Not Applicable).
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.WorkflowStepEntity}; the
+ * rehydration constructor and setters exist solely for that mapper.
  */
-@Entity
-@Table(name = "workflow_steps")
 public class WorkflowStep {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "workflow_id", nullable = false)
     private Workflow workflow;
 
-    @Column(nullable = false)
     private int position;
 
-    @Column(nullable = false, length = 64)
     private String code;
 
-    @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(name = "required_role", nullable = false, length = 64)
     private String requiredRole;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "completion_rule", nullable = false, length = 8)
     private CompletionRule completionRule = CompletionRule.ANY_OF;
 
-    @Column(name = "required_approvals", nullable = false)
     private int requiredApprovals = 1;
 
     /** JSONB condition, e.g. {"field":"amount","op":">","value":5000}; null = always applies. */
-    @Column(name = "condition")
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private Map<String, Object> condition = new LinkedHashMap<>();
 
-    @Column(name = "sla_minutes")
     private Integer slaMinutes;
 
-    @Column(name = "escalation_role", length = 64)
     private String escalationRole;
 
-    @Column(name = "is_terminal", nullable = false)
     private boolean terminal = false;
 
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    protected WorkflowStep() {
+    public WorkflowStep() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public WorkflowStep(Workflow workflow, int position, String code, String name, String requiredRole) {
@@ -106,4 +80,20 @@ public class WorkflowStep {
     public String getEscalationRole() { return escalationRole; }
     public boolean isTerminal() { return terminal; }
     public Instant getCreatedAt() { return createdAt; }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setWorkflow(Workflow workflow) { this.workflow = workflow; }
+    public void setPosition(int position) { this.position = position; }
+    public void setCode(String code) { this.code = code; }
+    public void setName(String name) { this.name = name; }
+    public void setRequiredRole(String requiredRole) { this.requiredRole = requiredRole; }
+    public void setCompletionRule(CompletionRule completionRule) { this.completionRule = completionRule; }
+    public void setRequiredApprovals(int requiredApprovals) { this.requiredApprovals = requiredApprovals; }
+    public void setCondition(Map<String, Object> condition) { this.condition = condition; }
+    public void setSlaMinutes(Integer slaMinutes) { this.slaMinutes = slaMinutes; }
+    public void setEscalationRole(String escalationRole) { this.escalationRole = escalationRole; }
+    public void setTerminal(boolean terminal) { this.terminal = terminal; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

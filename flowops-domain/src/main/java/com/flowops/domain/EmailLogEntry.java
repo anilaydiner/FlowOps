@@ -1,45 +1,33 @@
 package com.flowops.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
 import java.time.Instant;
 
 /**
  * Simulated email store — records every "sent" email for test verification.
  * A real deployment would swap the gateway; this table stays as an audit trail.
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.EmailLogEntryEntity}; the
+ * rehydration constructor and setters exist solely for that mapper.
  */
-@Entity
-@Table(name = "email_log")
 public class EmailLogEntry {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "to_address", nullable = false, length = 256)
     private String toAddress;
 
-    @Column(nullable = false, length = 256)
     private String subject;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
     private String body;
 
-    @Column(nullable = false, length = 16)
     private String status = "DELIVERED";
 
-    @Column(name = "outbox_id")
     private Long outboxId;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected EmailLogEntry() {
+    public EmailLogEntry() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public EmailLogEntry(String toAddress, String subject, String body, Long outboxId) {
@@ -61,4 +49,14 @@ public class EmailLogEntry {
     public Instant getCreatedAt() { return createdAt; }
 
     public void setStatus(String status) { this.status = status; }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setToAddress(String toAddress) { this.toAddress = toAddress; }
+    public void setSubject(String subject) { this.subject = subject; }
+    public void setBody(String body) { this.body = body; }
+    public void rehydrateStatus(String status) { this.status = status; }
+    public void setOutboxId(Long outboxId) { this.outboxId = outboxId; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

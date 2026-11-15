@@ -79,6 +79,20 @@ class ArchitectureTest {
             noClasses().that().resideInAPackage("com.flowops.domain..")
                     .should().dependOnClassesThat().resideInAPackage("org.springframework..");
 
+    /**
+     * The domain model is persistence-annotation-free — no
+     * {@code jakarta.persistence}, no Hibernate. JPA mapping lives in
+     * {@code infra.persistence.entity} (one entity per aggregate, identical
+     * column mapping) and is bridged by mappers in {@code infra.persistence.mapping}.
+     * Backed by the module boundary too: {@code flowops-domain}'s pom declares
+     * no persistence dependency.
+     */
+    @ArchTest
+    static final ArchRule domain_model_is_persistence_free =
+            noClasses().that().resideInAPackage("com.flowops.domain..")
+                    .should().dependOnClassesThat()
+                    .resideInAnyPackage("jakarta.persistence..", "org.hibernate..");
+
     /** The application layer orchestrates the domain — it must not know about the API layer. */
     @ArchTest
     static final ArchRule application_must_not_depend_on_api =

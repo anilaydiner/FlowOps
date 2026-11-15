@@ -1,7 +1,6 @@
 package com.flowops.api.web;
 
 import com.flowops.domain.exception.ConflictException;
-import com.flowops.domain.exception.ApiErrors;
 import com.flowops.domain.exception.ForbiddenException;
 import com.flowops.domain.exception.InvalidCredentialsException;
 import com.flowops.domain.exception.InvalidStateTransitionException;

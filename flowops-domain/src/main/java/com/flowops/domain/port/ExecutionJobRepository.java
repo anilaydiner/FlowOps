@@ -42,4 +42,6 @@ public interface ExecutionJobRepository {
     List<ExecutionJob> findByRequestIdIn(List<Long> requestIds);
 
     void resetNextRetryAt(Long id, Instant ts);
+
+    Optional<ExecutionJob> findById(Long id);
 }

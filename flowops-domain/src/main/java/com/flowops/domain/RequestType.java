@@ -1,14 +1,5 @@
 package com.flowops.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,56 +8,42 @@ import java.util.Map;
 /**
  * A request type (e.g. EXPENSE, IT_ACCESS) with JSONB-driven
  * per-type field requirements and validation rules.
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.RequestTypeEntity}; the
+ * rehydration constructor and setters exist solely for that mapper.
  */
-@Entity
-@Table(name = "request_types")
 public class RequestType {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 32)
     private String code;
 
-    @Column(nullable = false, length = 100)
     private String name;
 
     private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owning_dept_id")
     private Department owningDepartment;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "default_workflow_id")
     private Workflow defaultWorkflow;
 
     /** Required payload fields: field name → human-readable description. */
-    @Column(name = "required_fields", nullable = false)
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private Map<String, Object> requiredFields = new LinkedHashMap<>();
 
     /** Validation rules: field name → rule object (e.g. {"type":"number","min":0.01}). */
-    @Column(name = "validation_rules", nullable = false)
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private Map<String, Object> validationRules = new LinkedHashMap<>();
 
     /** Execution actions triggered on APPROVED (e.g. ["PROVISIONING"]). */
-    @Column(name = "execution_actions", nullable = false)
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private List<String> executionActions = new java.util.ArrayList<>();
 
-    @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    protected RequestType() {
+    public RequestType() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public RequestType(String code, String name, String description, Department owningDepartment) {
@@ -124,4 +101,19 @@ public class RequestType {
     public boolean isActive() { return active; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setCode(String code) { this.code = code; }
+    public void setName(String name) { this.name = name; }
+    public void setDescription(String description) { this.description = description; }
+    public void setOwningDepartment(Department owningDepartment) { this.owningDepartment = owningDepartment; }
+    public void rehydrateDefaultWorkflow(Workflow workflow) { this.defaultWorkflow = workflow; }
+    public void rehydrateRequiredFields(Map<String, Object> requiredFields) { this.requiredFields = requiredFields; }
+    public void rehydrateValidationRules(Map<String, Object> validationRules) { this.validationRules = validationRules; }
+    public void setExecutionActions(List<String> executionActions) { this.executionActions = executionActions; }
+    public void rehydrateActive(boolean active) { this.active = active; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
 }

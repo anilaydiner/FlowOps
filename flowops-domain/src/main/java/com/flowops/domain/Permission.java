@@ -1,14 +1,5 @@
 package com.flowops.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
 import java.time.Instant;
 
 /**
@@ -26,34 +17,29 @@ import java.time.Instant;
  *
  * <p>The same {@code code} may appear multiple times with different scopes;
  * the unique constraint is on {@code (code, scopeType, scopeValue)}.
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.PermissionEntity}; the rehydration
+ * constructor and setters exist solely for that mapper.
  */
-@Entity
-@Table(name = "permissions")
 public class Permission {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 64)
     private String code;
 
-    @Column(nullable = false, length = 100)
     private String name;
 
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "scope_type", length = 32)
     private ScopeType scopeType;
 
-    @Column(name = "scope_value", length = 128)
     private String scopeValue;
 
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    protected Permission() {
+    public Permission() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public Permission(String code, String name, String description) {
@@ -97,4 +83,14 @@ public class Permission {
     public void setDescription(String description) { this.description = description; }
     public void setScopeType(ScopeType scopeType) { this.scopeType = scopeType; }
     public void setScopeValue(String scopeValue) { this.scopeValue = scopeValue; }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setCode(String code) { this.code = code; }
+    public void rehydrateName(String name) { this.name = name; }
+    public void rehydrateDescription(String description) { this.description = description; }
+    public void rehydrateScopeType(ScopeType scopeType) { this.scopeType = scopeType; }
+    public void rehydrateScopeValue(String scopeValue) { this.scopeValue = scopeValue; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

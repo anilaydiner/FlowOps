@@ -1,7 +1,7 @@
 package com.flowops.infra.persistence;
 
-import com.flowops.domain.Request;
 import com.flowops.domain.RequestStatus;
+import com.flowops.infra.persistence.entity.RequestEntity;
 
 import com.flowops.domain.query.RequestFilter;
 import jakarta.persistence.criteria.Join;
@@ -20,7 +20,7 @@ public final class RequestSpecifications {
      * @param callerId       the authenticated caller's user id
      * @param callerIsAdmin  admins see all requests; everyone else is restricted to their own
      */
-    public static Specification<Request> from(RequestFilter filter, Long callerId, boolean callerIsAdmin) {
+    public static Specification<RequestEntity> from(RequestFilter filter, Long callerId, boolean callerIsAdmin) {
         boolean hasTypeFilter = filter != null && filter.typeCode() != null && !filter.typeCode().isBlank();
         boolean hasStatusFilter = filter != null && filter.status() != null && !filter.status().isBlank();
         boolean hasMineFilter = filter != null && Boolean.TRUE.equals(filter.mine());

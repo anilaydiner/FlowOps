@@ -1,17 +1,6 @@
 package com.flowops.domain;
 
 import com.flowops.domain.exception.InvalidStateTransitionException;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -21,57 +10,41 @@ import java.util.Map;
 /**
  * A workflow step materialized for a specific request (PLAN §3).
  * The engine advances a request by satisfying/skipping these in position order.
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.StepInstanceEntity}; the
+ * rehydration constructor and setters exist solely for that mapper.
  */
-@Entity
-@Table(name = "step_instances")
 public class StepInstance {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "request_id", nullable = false)
     private Request request;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "step_id", nullable = false)
     private WorkflowStep step;
 
-    @Column(nullable = false)
     private int position;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 12)
     private StepState state = StepState.PENDING;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "rule", nullable = false, length = 8)
     private CompletionRule rule;
 
-    @Column(name = "required_approvals", nullable = false)
     private int requiredApprovals;
 
-    @Column(name = "condition")
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private Map<String, Object> condition = new LinkedHashMap<>();
 
-    @Column(name = "skip_reason", length = 200)
     private String skipReason;
 
-    @Column(name = "blocked_reason", length = 200)
     private String blockedReason;
 
-    @Column(name = "satisfied_by")
     private Long satisfiedBy;
 
-    @Column(name = "satisfied_at")
     private Instant satisfiedAt;
 
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    protected StepInstance() {
+    public StepInstance() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public StepInstance(Request request, WorkflowStep step) {
@@ -168,4 +141,20 @@ public class StepInstance {
     public Long getSatisfiedBy() { return satisfiedBy; }
     public Instant getSatisfiedAt() { return satisfiedAt; }
     public Instant getCreatedAt() { return createdAt; }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setRequest(Request request) { this.request = request; }
+    public void setStep(WorkflowStep step) { this.step = step; }
+    public void setPosition(int position) { this.position = position; }
+    public void setState(StepState state) { this.state = state; }
+    public void setRule(CompletionRule rule) { this.rule = rule; }
+    public void setRequiredApprovals(int requiredApprovals) { this.requiredApprovals = requiredApprovals; }
+    public void setCondition(Map<String, Object> condition) { this.condition = condition; }
+    public void setSkipReason(String skipReason) { this.skipReason = skipReason; }
+    public void setBlockedReason(String blockedReason) { this.blockedReason = blockedReason; }
+    public void setSatisfiedBy(Long satisfiedBy) { this.satisfiedBy = satisfiedBy; }
+    public void setSatisfiedAt(Instant satisfiedAt) { this.satisfiedAt = satisfiedAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

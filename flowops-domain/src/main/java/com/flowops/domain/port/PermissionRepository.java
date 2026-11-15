@@ -5,6 +5,7 @@ import com.flowops.domain.paging.PageQuery;
 import com.flowops.domain.paging.PageResult;
 import com.flowops.domain.query.PermissionFilter;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -23,4 +24,6 @@ public interface PermissionRepository {
     Optional<Permission> findByCode(String code);
 
     boolean existsByCode(String code);
+
+    List<Permission> findAll();
 }

@@ -30,8 +30,16 @@ public interface OutboxMessageRepository {
 
     long countByStatus(OutboxStatus status);
 
+    /** Total number of outbox messages (test/operational support). */
+    long count();
+
     /** Claim a batch of dispatchable messages (FOR UPDATE SKIP LOCKED). */
     List<OutboxMessage> claimBatch(Instant now, int limit);
 
     List<OutboxMessage> findByKeyPrefix(String prefix);
+
+    /** All outbox messages (test/operational support). */
+    List<OutboxMessage> findAll();
+
+    Optional<OutboxMessage> findById(Long id);
 }

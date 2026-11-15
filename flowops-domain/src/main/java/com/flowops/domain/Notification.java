@@ -1,48 +1,35 @@
 package com.flowops.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
 import java.time.Instant;
 
 /**
  * An internal feed notification visible to the recipient (PLAN §8).
  * Created by the dispatcher when delivering a FEED-channel outbox message.
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.NotificationEntity}; the
+ * rehydration constructor and setters exist solely for that mapper.
  */
-@Entity
-@Table(name = "notifications")
 public class Notification {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "recipient_id", nullable = false)
     private Long recipientId;
 
-    @Column(nullable = false, length = 32)
     private String type;
 
-    @Column(nullable = false, length = 256)
     private String title;
 
-    @Column(columnDefinition = "TEXT")
     private String body;
 
-    @Column(name = "request_id")
     private Long requestId;
 
-    @Column(name = "read_at")
     private Instant readAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected Notification() {
+    public Notification() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public Notification(Long recipientId, String type, String title, String body, Long requestId) {
@@ -76,4 +63,15 @@ public class Notification {
             this.readAt = Instant.now();
         }
     }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setRecipientId(Long recipientId) { this.recipientId = recipientId; }
+    public void setType(String type) { this.type = type; }
+    public void setTitle(String title) { this.title = title; }
+    public void setBody(String body) { this.body = body; }
+    public void setRequestId(Long requestId) { this.requestId = requestId; }
+    public void setReadAt(Instant readAt) { this.readAt = readAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

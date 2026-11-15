@@ -1,7 +1,7 @@
 package com.flowops.infra.persistence;
 
-import com.flowops.domain.Workflow;
 import com.flowops.domain.query.WorkflowFilter;
+import com.flowops.infra.persistence.entity.WorkflowEntity;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -12,7 +12,7 @@ public final class WorkflowSpecifications {
 
     private WorkflowSpecifications() { }
 
-    public static Specification<Workflow> from(WorkflowFilter filter) {
+    public static Specification<WorkflowEntity> from(WorkflowFilter filter) {
         if (filter == null || filter.isEmpty()) {
             return null;
         }

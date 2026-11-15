@@ -1,8 +1,7 @@
 package com.flowops.infra.persistence;
 
-import com.flowops.domain.Department;
-
 import com.flowops.domain.query.DepartmentFilter;
+import com.flowops.infra.persistence.entity.DepartmentEntity;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -13,7 +12,7 @@ public final class DepartmentSpecifications {
 
     private DepartmentSpecifications() { }
 
-    public static Specification<Department> from(DepartmentFilter filter) {
+    public static Specification<DepartmentEntity> from(DepartmentFilter filter) {
         if (filter == null || filter.isEmpty()) {
             return null;
         }

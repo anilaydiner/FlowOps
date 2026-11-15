@@ -4,9 +4,9 @@ import com.flowops.application.identity.PasswordResetService;
 import com.flowops.domain.PasswordResetToken;
 import com.flowops.domain.Role;
 import com.flowops.domain.User;
-import com.flowops.infra.persistence.OutboxMessageJpaRepository;
-import com.flowops.infra.persistence.RoleJpaRepository;
-import com.flowops.infra.persistence.UserJpaRepository;
+import com.flowops.domain.port.OutboxMessageRepository;
+import com.flowops.domain.port.RoleRepository;
+import com.flowops.domain.port.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,11 +44,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ForgotPasswordTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mvc;
-    @Autowired private UserJpaRepository users;
-    @Autowired private RoleJpaRepository roles;
-    @Autowired private OutboxMessageJpaRepository outbox;
+    @Autowired private UserRepository users;
+    @Autowired private RoleRepository roles;
+    @Autowired private OutboxMessageRepository outbox;
     @Autowired private PasswordEncoder encoder;
-    @Autowired private com.flowops.infra.persistence.PasswordResetTokenJpaRepository tokens;
+    @Autowired private com.flowops.domain.port.PasswordResetTokenRepository tokens;
 
     private static final String OLD_PASSWORD = "OldPass123!";
     private static final String NEW_PASSWORD = "NewPass456!";

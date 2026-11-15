@@ -1,17 +1,5 @@
 package com.flowops.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -19,48 +7,36 @@ import java.util.Map;
 /**
  * An immutable decision recorded on a step instance (PLAN §3).
  * Evidence carries the explainability payload (which role/permission matched).
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.DecisionEntity}; the
+ * rehydration constructor and setters exist solely for that mapper.
  */
-@Entity
-@Table(name = "decisions")
 public class Decision {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "request_id", nullable = false)
     private Request request;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "step_instance_id", nullable = false)
     private StepInstance stepInstance;
 
-    @Column(name = "actor_id", nullable = false)
     private Long actorId;
 
-    @Column(name = "actor_username", length = 100)
     private String actorUsername;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 12)
     private DecisionAction action;
 
-    @Column(name = "justification", length = 1000)
     private String justification;
 
-    @Column(name = "evidence")
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private Map<String, Object> evidence = new LinkedHashMap<>();
 
     /** Set when action == DELEGATE: the user the approval was delegated to. */
-    @Column(name = "delegated_to")
     private Long delegatedTo;
 
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    protected Decision() {
+    public Decision() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public Decision(Request request, StepInstance stepInstance, Long actorId,
@@ -84,7 +60,7 @@ public class Decision {
         this.createdAt = Instant.now();
     }
 
-    // ── Getters ────────────────────────────────────────────────────
+    // ── Getters ────────────────────────────────────────────
 
     public Long getId() { return id; }
     public Request getRequest() { return request; }
@@ -96,4 +72,17 @@ public class Decision {
     public Map<String, Object> getEvidence() { return evidence; }
     public Long getDelegatedTo() { return delegatedTo; }
     public Instant getCreatedAt() { return createdAt; }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setRequest(Request request) { this.request = request; }
+    public void setStepInstance(StepInstance stepInstance) { this.stepInstance = stepInstance; }
+    public void setActorId(Long actorId) { this.actorId = actorId; }
+    public void setActorUsername(String actorUsername) { this.actorUsername = actorUsername; }
+    public void setAction(DecisionAction action) { this.action = action; }
+    public void setJustification(String justification) { this.justification = justification; }
+    public void setEvidence(Map<String, Object> evidence) { this.evidence = evidence; }
+    public void setDelegatedTo(Long delegatedTo) { this.delegatedTo = delegatedTo; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

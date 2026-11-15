@@ -1,8 +1,7 @@
 package com.flowops.infra.persistence;
 
-import com.flowops.domain.Permission;
-
 import com.flowops.domain.query.PermissionFilter;
+import com.flowops.infra.persistence.entity.PermissionEntity;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -13,7 +12,7 @@ public final class PermissionSpecifications {
 
     private PermissionSpecifications() { }
 
-    public static Specification<Permission> from(PermissionFilter filter) {
+    public static Specification<PermissionEntity> from(PermissionFilter filter) {
         if (filter == null || filter.isEmpty()) {
             return null;
         }

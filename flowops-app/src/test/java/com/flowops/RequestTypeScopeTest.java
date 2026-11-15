@@ -2,9 +2,9 @@ package com.flowops;
 
 import com.flowops.domain.Role;
 import com.flowops.domain.User;
-import com.flowops.infra.persistence.PermissionJpaRepository;
-import com.flowops.infra.persistence.RoleJpaRepository;
-import com.flowops.infra.persistence.UserJpaRepository;
+import com.flowops.domain.port.PermissionRepository;
+import com.flowops.domain.port.RoleRepository;
+import com.flowops.domain.port.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -37,9 +37,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class RequestTypeScopeTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mvc;
-    @Autowired private UserJpaRepository users;
-    @Autowired private RoleJpaRepository roles;
-    @Autowired private PermissionJpaRepository permissions;
+    @Autowired private UserRepository users;
+    @Autowired private RoleRepository roles;
+    @Autowired private PermissionRepository permissions;
     @Autowired private PasswordEncoder encoder;
 
     // ── helpers ────────────────────────────────────────────────────────

@@ -1,15 +1,15 @@
 package com.flowops.infra.persistence;
 
-import com.flowops.domain.Role;
+import com.flowops.infra.persistence.entity.RoleEntity;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.Optional;
 
-public interface RoleJpaRepository extends JpaRepository<Role, Long>, JpaSpecificationExecutor<Role> {
+public interface RoleJpaRepository extends JpaRepository<RoleEntity, Long>, JpaSpecificationExecutor<RoleEntity> {
 
-    Optional<Role> findByCode(String code);
+    Optional<RoleEntity> findByCode(String code);
 
     boolean existsByCode(String code);
 

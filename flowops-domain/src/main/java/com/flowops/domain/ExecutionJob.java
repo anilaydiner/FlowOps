@@ -1,14 +1,6 @@
 package com.flowops.domain;
 
 import com.flowops.domain.exception.InvalidStateTransitionException;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -21,59 +13,46 @@ import java.util.Map;
  *
  * <p>Idempotency: the unique {@code idempotencyKey} guarantees each
  * (request, action) pair is enqueued exactly once.
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.ExecutionJobEntity}; the
+ * rehydration constructor and setters exist solely for that mapper.
  */
-@Entity
-@Table(name = "execution_jobs")
 public class ExecutionJob {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "idempotency_key", nullable = false, unique = true, length = 256)
     private String idempotencyKey;
 
-    @Column(name = "request_id", nullable = false)
     private Long requestId;
 
     /** PROVISIONING | PURCHASE_TICKET | ACCOUNTING_EXPORT */
-    @Column(nullable = false, length = 64)
     private String action;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
     private JobStatus status = JobStatus.PLANNED;
 
-    @Column(name = "retry_count", nullable = false)
     private int retryCount = 0;
 
     /** Default retry budget before a job is dead-lettered. */
     public static final int DEFAULT_MAX_RETRIES = 5;
 
-    @Column(name = "max_retries", nullable = false)
     private int maxRetries = DEFAULT_MAX_RETRIES;
 
-    @Column(name = "next_retry_at")
     private Instant nextRetryAt;
 
-    @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;
 
     /** Result payload from the action handler (JSONB). */
-    @Column(name = "result")
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private Map<String, Object> result;
 
-    @Column(name = "correlation_id", length = 64)
     private String correlationId;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    @Column(name = "completed_at")
     private Instant completedAt;
 
-    protected ExecutionJob() {
+    public ExecutionJob() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public ExecutionJob(String idempotencyKey, Long requestId, String action, String correlationId) {
@@ -150,4 +129,20 @@ public class ExecutionJob {
             this.status = JobStatus.FAILED;
         }
     }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
+    public void setRequestId(Long requestId) { this.requestId = requestId; }
+    public void setAction(String action) { this.action = action; }
+    public void setStatus(JobStatus status) { this.status = status; }
+    public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
+    public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
+    public void setNextRetryAt(Instant nextRetryAt) { this.nextRetryAt = nextRetryAt; }
+    public void setLastError(String lastError) { this.lastError = lastError; }
+    public void setResult(Map<String, Object> result) { this.result = result; }
+    public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
 }

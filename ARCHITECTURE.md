@@ -9,8 +9,8 @@ illegal dependency is a compile error) and by `ArchitectureTest`
 
 ```
 flowops (parent pom)
-├── flowops-domain        pure domain core — JDK + slf4j (+ JPA annotations
-│                         temporarily, see "JPA Annotation Trade-off")
+├── flowops-domain        pure domain core — JDK + slf4j ONLY
+│                         (aggregates, ports, policy; zero framework deps)
 ├── flowops-application   use cases, per-bounded-context services, ports,
 │                         read models — depends on: domain
 ├── flowops-infra         JPA adapters, workers, mail, actions, observability
@@ -72,8 +72,8 @@ and `domain.CorrelationId` (header + MDC key names).
          │
          ▼
 ┌──────────────────────────────────────────────────────────────────────────────────┐
-│  domain/  [flowops-domain]   THE CORE — pure Java (see JPA trade-off note)      │
-│  ├── (root)         Entities: Request, Workflow, WorkflowStep, StepInstance,    │
+│  domain/  [flowops-domain]   THE CORE — pure Java (JDK + slf4j only)            │
+│  ├── (root)         Aggregates: Request, Workflow, WorkflowStep, StepInstance,  │
 │  │                  Decision, Clarification, User, Role, Permission,            │
 │  │                  Department, RequestType, ExecutionJob, OutboxMessage,       │
 │  │                  Notification, EmailLogEntry, OutboxPayload (value object)   │
@@ -86,14 +86,16 @@ and `domain.CorrelationId` (header + MDC key names).
 │  ├── query/         Filter objects (RequestFilter, WorkflowFilter, …)          │
 │  └── service/       Domain services (PayloadValidator, ConditionEvaluator)      │
 │                                                                        │       │
-│  depends on:  JDK + jakarta.persistence annotations ONLY              │       │
-│  forbidden:   Spring, security, infra, observability, application, api  │       │
+│  depends on:  JDK + slf4j ONLY                                   │       │
+│  forbidden:   Spring, JPA/Hibernate, security, infra, application, api │       │
 └──────────────────────────────────────────────────────────────────────────────────┘
          ▲
          │  implements ports
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │  infra/  [flowops-infra]                                                        │
-│  ├── persistence/     *JpaRepository (Spring Data) + @Repository adapters       │
+│  ├── persistence/     entity/ (JPA entities, one per aggregate) +               │
+│  │                   mapping/ (aggregate ↔ entity mappers) +                    │
+│  │                   *JpaRepository (Spring Data) + @Repository adapters        │
 │  │                   (SpringWorkflowRepository, SpringStepInstanceRepository,  │
 │  │                   …) + Paging translator + Specifications                    │
 │  │                   + JacksonOutboxPayloadCodec (implements                    │
@@ -189,13 +191,16 @@ domain/port/RequestRepository.java       ← pure Java interface (port)
   │ implements
   │
 infra/persistence/SpringRequestRepository.java   ← @Repository adapter
-  │
+  │                                               (maps domain ↔ entity)
   │ delegates to
   ▼
 infra/persistence/RequestJpaRepository.java      ← Spring Data JPA repository
+                                                    (operates on RequestEntity)
 ```
 
-12 ports, 12 Spring Data repositories, 12 `@Repository` adapters.
+12 ports, 12 Spring Data repositories, 12 `@Repository` adapters,
+16 JPA entities (`infra.persistence.entity`) and 16 mappers
+(`infra.persistence.mapping`).
 
 Idempotent writes go through port methods like `saveIfAbsent(…)` — the
 duplicate-key handling (Spring `DataIntegrityViolationException`) is caught
@@ -262,25 +267,52 @@ Configuration follows the same pattern: `EmailComposer` takes the
 `application.port.FlowOpsUrls` record (bound by `config.FlowOpsUrlsConfig`)
 instead of `@Value` injection.
 
-## JPA Annotation Trade-off
+## Domain / Persistence Separation
 
-Domain entities carry `jakarta.persistence` annotations as a pragmatic
-decision — this is the one temporary exception in an otherwise pure domain,
-and it is quarantined in `flowops-domain`, whose pom is the only place
-outside `flowops-infra`/`flowops-app` that may depend on
-`jakarta.persistence-api` / `hibernate-core`.
+The domain model is **pure Java** — no `jakarta.persistence`, no Hibernate,
+no Spring. Enforcement is three-layered:
 
-The domain is still **logically** Spring-free: no Spring imports, no Spring
-types, no Spring behaviour. Persistence knowledge is confined to annotation
-metadata consumed by the adapter.
+1. **Module boundary** — `flowops-domain`'s pom declares only `slf4j-api`;
+   an accidental JPA import fails the build.
+2. **ArchUnit** — `domain_model_is_persistence_free`
+   (+ `domain_model_is_spring_free`) in `ArchitectureTest`.
+3. **Design** — all persistence access is behind pure-Java ports in
+   `domain.port`, implemented by adapters in `infra.persistence`.
 
-The migration path to full Option B (separate JPA entities + mappers in
-`flowops-infra`, domain reduced to JDK + slf4j) is available without touching
-ports, use-cases, or API code — see `domain/package-info.java` for details.
+The mapping is one JPA entity per aggregate:
+
+```
+com.flowops.domain.Request          ← aggregate (state machine, invariants)
+com.flowops.infra.persistence.
+  entity.RequestEntity              ← @Entity(name="Request"), identical columns
+  mapping.RequestMappers            ← toEntity / fromEntity, null-safe
+  SpringRequestRepository           ← adapter: port methods, maps at the boundary
+  RequestJpaRepository              ← Spring Data (JpaRepository<RequestEntity, Long>)
+```
+
+Conventions:
+
+- Entities keep the **JPQL entity name** via `@Entity(name = "<Aggregate>")`
+  (e.g. `UserEntity` is entity `User`), so existing `@Query` JPQL and
+  Specifications work unchanged; they keep identical `@Table`/`@Column`
+  mappings (JSONB via `@JdbcTypeCode(SqlTypes.JSON)`).
+- Adapters persist with `saveAndFlush` and **backfill** the generated id
+  (and `Request`'s `@Version`) onto the aggregate, so caller semantics are
+  identical to the old single-entity world.
+- Aggregates expose a public no-arg constructor plus a
+  *"Setters (persistence rehydration only)"* section used exclusively by the
+  mappers; business behavior still goes through the named methods
+  (`transitionTo`, `markCompleted`, …). Where a business setter already
+  exists (e.g. `User.setRoles`, `RequestType.setActive`), the rehydration
+  setter is named `rehydrate<Field>()` so mappers never trigger business
+  side effects (timestamp bumps).
+
+The database schema is untouched — only the Java-side mapping moved.
+See `domain/package-info.java` for the full layer rules.
 
 ## Testing
 
-- **ArchitectureTest** — 11 ArchUnit rules (above), runs in `flowops-app`
+- **ArchitectureTest** — 12 ArchUnit rules (above), runs in `flowops-app`
   against the full classpath of all modules
 - **Unit tests** — domain logic, use cases, services
 - **Integration tests** — `@SpringBootTest` + Testcontainers PostgreSQL, in

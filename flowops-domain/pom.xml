@@ -16,16 +16,5 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
-
-        <!-- TEMPORARY (Phase 3 will remove): JPA annotations still live on the domain entities.
-             Once entities + mappers are split into flowops-infra this module is JDK + slf4j only. -->
-        <dependency>
-            <groupId>jakarta.persistence</groupId>
-            <artifactId>jakarta.persistence-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.hibernate.orm</groupId>
-            <artifactId>hibernate-core</artifactId>
-        </dependency>
     </dependencies>
 </project>

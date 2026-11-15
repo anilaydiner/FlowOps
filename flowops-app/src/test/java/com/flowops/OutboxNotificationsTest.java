@@ -1,17 +1,17 @@
 package com.flowops;
 
-import com.flowops.infra.persistence.DepartmentJpaRepository;
+import com.flowops.domain.port.DepartmentRepository;
 import com.flowops.domain.EmailLogEntry;
-import com.flowops.infra.persistence.EmailLogEntryJpaRepository;
+import com.flowops.domain.port.EmailLogEntryRepository;
 import com.flowops.domain.Notification;
-import com.flowops.infra.persistence.NotificationJpaRepository;
+import com.flowops.domain.port.NotificationRepository;
 import com.flowops.domain.OutboxMessage;
-import com.flowops.infra.persistence.OutboxMessageJpaRepository;
+import com.flowops.domain.port.OutboxMessageRepository;
 import com.flowops.domain.OutboxStatus;
 import com.flowops.domain.Role;
-import com.flowops.infra.persistence.RoleJpaRepository;
+import com.flowops.domain.port.RoleRepository;
 import com.flowops.domain.User;
-import com.flowops.infra.persistence.UserJpaRepository;
+import com.flowops.domain.port.UserRepository;
 import com.flowops.infra.worker.OutboxDispatcher;
 import com.flowops.application.notification.OutboxService;
 import com.flowops.infra.mail.SimulatedEmailGateway;
@@ -61,17 +61,17 @@ class OutboxNotificationsTest {
     }
 
     @Autowired MockMvc mvc;
-    @Autowired OutboxMessageJpaRepository outboxRepo;
-    @Autowired NotificationJpaRepository notificationRepo;
-    @Autowired EmailLogEntryJpaRepository emailLogRepo;
+    @Autowired OutboxMessageRepository outboxRepo;
+    @Autowired NotificationRepository notificationRepo;
+    @Autowired EmailLogEntryRepository emailLogRepo;
     @Autowired OutboxDispatcher dispatcher;
     @Autowired com.flowops.infra.worker.JobWorker jobWorker;
     @Autowired com.flowops.infra.worker.SlaScanner slaScanner;
     @Autowired OutboxService outbox;
     @Autowired SimulatedEmailGateway emailGateway;
-    @Autowired UserJpaRepository users;
-    @Autowired RoleJpaRepository roles;
-    @Autowired DepartmentJpaRepository departments;
+    @Autowired UserRepository users;
+    @Autowired RoleRepository roles;
+    @Autowired DepartmentRepository departments;
     @Autowired PasswordEncoder encoder;
 
     // ── Setup: create test users ─────────────────────────────────────────
@@ -392,8 +392,7 @@ class OutboxNotificationsTest {
         @Order(1)
         void list_returnsMyNotifications() throws Exception {
             var alice = users.findByUsername("alice").orElseThrow();
-            if (notificationRepo.findByRecipientId(alice.getId(),
-                    org.springframework.data.domain.Pageable.unpaged()).isEmpty()) {
+            if (notificationRepo.findByRecipientId(alice.getId()).isEmpty()) {
                 outbox.notifyFeed(1L, alice.getId(), "NOTIFY_TEST", "Hello", "World", null);
                 dispatcher.dispatch();
             }
@@ -470,8 +469,7 @@ class OutboxNotificationsTest {
             dispatcher.dispatch();
 
             var alice = users.findByUsername("alice").orElseThrow();
-            List<Notification> aliceNotifs = notificationRepo.findByRecipientId(alice.getId(),
-                    org.springframework.data.domain.Pageable.unpaged()).getContent();
+            List<Notification> aliceNotifs = notificationRepo.findByRecipientId(alice.getId());
             assertThat(aliceNotifs.stream()
                     .noneMatch(n -> n.getType().equals("NOTIFY_BOB_ONLY"))).isTrue();
         }

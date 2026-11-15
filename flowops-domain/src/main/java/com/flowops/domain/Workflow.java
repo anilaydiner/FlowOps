@@ -1,40 +1,32 @@
 package com.flowops.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
 import java.time.Instant;
 
-@Entity
-@Table(name = "workflows")
+/**
+ * A named, code-identified approval workflow.
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.WorkflowEntity}; the rehydration
+ * constructor and setters exist solely for that mapper.
+ */
 public class Workflow {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 64)
     private String code;
 
-    @Column(nullable = false, length = 100)
     private String name;
 
     private String description;
 
-    @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    protected Workflow() {
+    public Workflow() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public Workflow(String code, String name, String description) {
@@ -65,4 +57,14 @@ public class Workflow {
     public boolean isActive() { return active; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setCode(String code) { this.code = code; }
+    public void setName(String name) { this.name = name; }
+    public void setDescription(String description) { this.description = description; }
+    public void rehydrateActive(boolean active) { this.active = active; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
 }

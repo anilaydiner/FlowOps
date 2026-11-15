@@ -5,6 +5,8 @@ import com.flowops.domain.paging.PageQuery;
 import com.flowops.domain.paging.PageResult;
 import com.flowops.domain.port.RoleRepository;
 import com.flowops.domain.query.RoleFilter;
+import com.flowops.infra.persistence.entity.RoleEntity;
+import com.flowops.infra.persistence.mapping.RoleMappers;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -13,7 +15,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Collection;
 import java.util.Optional;
 
-/** JPA adapter for the {@link RoleRepository} port. */
+/** JPA adapter for the {@link RoleRepository} port. Maps domain ↔ entity. */
 @Repository
 public class SpringRoleRepository implements RoleRepository {
 
@@ -25,32 +27,34 @@ public class SpringRoleRepository implements RoleRepository {
 
     @Override
     public Role save(Role role) {
-        return jpaRepository.save(role);
+        RoleEntity saved = jpaRepository.saveAndFlush(RoleMappers.toEntity(role));
+        role.setId(saved.getId());
+        return role;
     }
 
     @Override
     public Optional<Role> findById(Long id) {
-        return jpaRepository.findById(id);
+        return jpaRepository.findById(id).map(RoleMappers::fromEntity);
     }
 
     @Override
     public void delete(Role role) {
-        jpaRepository.delete(role);
+        jpaRepository.deleteById(role.getId());
     }
 
     @Override
     public PageResult<Role> findAll(RoleFilter filter, PageQuery query) {
         Pageable pageable = Paging.toPageable(query);
-        Specification<Role> spec = RoleSpecifications.from(filter);
-        Page<Role> page = (spec == null)
+        Specification<RoleEntity> spec = RoleSpecifications.from(filter);
+        Page<RoleEntity> page = (spec == null)
                 ? jpaRepository.findAll(pageable)
                 : jpaRepository.findAll(spec, pageable);
-        return Paging.toPageResult(page);
+        return Paging.toPageResult(page.map(RoleMappers::fromEntity));
     }
 
     @Override
     public Optional<Role> findByCode(String code) {
-        return jpaRepository.findByCode(code);
+        return jpaRepository.findByCode(code).map(RoleMappers::fromEntity);
     }
 
     @Override

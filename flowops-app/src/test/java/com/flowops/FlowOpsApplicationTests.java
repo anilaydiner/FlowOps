@@ -1,9 +1,9 @@
 package com.flowops;
 
-import com.flowops.infra.persistence.DepartmentJpaRepository;
-import com.flowops.infra.persistence.RoleJpaRepository;
+import com.flowops.domain.port.DepartmentRepository;
+import com.flowops.domain.port.RoleRepository;
 import com.flowops.domain.User;
-import com.flowops.infra.persistence.UserJpaRepository;
+import com.flowops.domain.port.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -12,16 +12,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 class FlowOpsApplicationTests extends AbstractIntegrationTest {
 
     @Autowired
-    private UserJpaRepository userRepository;
+    private UserRepository userRepository;
 
     @Autowired
-    private DepartmentJpaRepository departmentRepository;
+    private DepartmentRepository departmentRepository;
 
     @Autowired
-    private RoleJpaRepository roleRepository;
+    private RoleRepository roleRepository;
 
     @Autowired
-    private com.flowops.infra.persistence.RequestTypeJpaRepository requestTypeRepository;
+    private com.flowops.domain.port.RequestTypeRepository requestTypeRepository;
 
     @Test
     void contextLoadsAndMigrationsApply() {

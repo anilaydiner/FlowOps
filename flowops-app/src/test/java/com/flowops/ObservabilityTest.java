@@ -1,12 +1,12 @@
 package com.flowops;
 
-import com.flowops.infra.persistence.DepartmentJpaRepository;
-import com.flowops.infra.persistence.ExecutionJobJpaRepository;
+import com.flowops.domain.port.DepartmentRepository;
+import com.flowops.domain.port.ExecutionJobRepository;
 import com.flowops.domain.JobStatus;
 import com.flowops.domain.Role;
-import com.flowops.infra.persistence.RoleJpaRepository;
+import com.flowops.domain.port.RoleRepository;
 import com.flowops.domain.User;
-import com.flowops.infra.persistence.UserJpaRepository;
+import com.flowops.domain.port.UserRepository;
 import com.flowops.observability.InMemorySpanExporter;
 import com.flowops.infra.worker.JobWorker;
 import com.flowops.infra.worker.OutboxDispatcher;
@@ -54,11 +54,11 @@ class ObservabilityTest extends AbstractIntegrationTest {
     @Autowired SlaScanner slaScanner;
     @Autowired SimulatedEmailGateway emailGateway;
     @Autowired com.flowops.infra.action.SimulatedActionHandler actionHandler;
-    @Autowired UserJpaRepository users;
-    @Autowired RoleJpaRepository roles;
-    @Autowired DepartmentJpaRepository departments;
+    @Autowired UserRepository users;
+    @Autowired RoleRepository roles;
+    @Autowired DepartmentRepository departments;
     @Autowired PasswordEncoder encoder;
-    @Autowired ExecutionJobJpaRepository jobRepo;
+    @Autowired ExecutionJobRepository jobRepo;
     @Autowired JdbcTemplate jdbc;
 
     private String hankToken;

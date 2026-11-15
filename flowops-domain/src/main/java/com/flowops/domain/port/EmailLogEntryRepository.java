@@ -17,4 +17,6 @@ public interface EmailLogEntryRepository {
     Optional<EmailLogEntry> findFirstByOutboxId(Long outboxId);
 
     long countByStatus(String status);
+
+    List<EmailLogEntry> findAll();
 }

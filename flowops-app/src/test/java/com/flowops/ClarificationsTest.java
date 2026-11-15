@@ -1,7 +1,7 @@
 package com.flowops;
 
 import com.flowops.domain.*;
-import com.flowops.infra.persistence.*;
+import com.flowops.domain.port.*;
 import com.flowops.infra.worker.OutboxDispatcher;
 import com.flowops.infra.worker.SlaScanner;
 import org.junit.jupiter.api.*;
@@ -32,14 +32,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ClarificationsTest extends AbstractIntegrationTest {
 
     @Autowired MockMvc mvc;
-    @Autowired ClarificationJpaRepository clariRepo;
-    @Autowired RequestJpaRepository requestRepo;
+    @Autowired ClarificationRepository clariRepo;
+    @Autowired RequestRepository requestRepo;
     @Autowired OutboxDispatcher dispatcher;
     @Autowired SlaScanner slaScanner;
     @Autowired com.flowops.infra.worker.JobWorker jobWorker;
-    @Autowired UserJpaRepository users;
-    @Autowired RoleJpaRepository roles;
-    @Autowired DepartmentJpaRepository departments;
+    @Autowired UserRepository users;
+    @Autowired RoleRepository roles;
+    @Autowired DepartmentRepository departments;
     @Autowired PasswordEncoder encoder;
 
     private String bobToken;

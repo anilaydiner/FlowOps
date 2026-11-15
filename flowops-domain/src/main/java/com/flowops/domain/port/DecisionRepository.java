@@ -4,6 +4,7 @@ import com.flowops.domain.Decision;
 import com.flowops.domain.DecisionAction;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Persistence port for {@link Decision} records.
@@ -15,4 +16,8 @@ public interface DecisionRepository {
     List<Decision> findByStepInstanceIdOrderById(Long stepInstanceId);
 
     long countByStepInstanceIdAndAction(Long stepInstanceId, DecisionAction action);
+
+    List<Decision> findAll();
+
+    Optional<Decision> findById(Long id);
 }

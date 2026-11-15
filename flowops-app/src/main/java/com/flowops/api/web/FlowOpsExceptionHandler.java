@@ -1,7 +1,6 @@
 package com.flowops.api.web;
 
 import com.flowops.domain.CorrelationId;
-import com.flowops.domain.exception.ApiErrors;
 
 import org.slf4j.MDC;
 import org.springframework.core.MethodParameter;

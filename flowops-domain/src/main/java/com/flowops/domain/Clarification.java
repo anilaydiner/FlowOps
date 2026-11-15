@@ -1,49 +1,37 @@
 package com.flowops.domain;
 
 import com.flowops.domain.exception.ConflictException;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 
 import java.time.Instant;
 
 /**
  * A Q&A entry in the clarification thread on a request (PLAN §8, iteration 7).
  * Lightweight: no state machine, just ask → optional answer.
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.ClarificationEntity}; the
+ * rehydration constructor and setters exist solely for that mapper.
  */
-@Entity
-@Table(name = "clarifications")
 public class Clarification {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "request_id", nullable = false)
     private Long requestId;
 
-    @Column(name = "asked_by", nullable = false)
     private Long askedBy;
 
-    @Column(name = "question", nullable = false, columnDefinition = "TEXT")
     private String question;
 
-    @Column(name = "answer", columnDefinition = "TEXT")
     private String answer;
 
-    @Column(name = "answered_by")
     private Long answeredBy;
 
-    @Column(name = "answered_at")
     private Instant answeredAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected Clarification() {
+    public Clarification() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public Clarification(Long requestId, Long askedBy, String question) {
@@ -77,4 +65,15 @@ public class Clarification {
     public Long getAnsweredBy() { return answeredBy; }
     public Instant getAnsweredAt() { return answeredAt; }
     public Instant getCreatedAt() { return createdAt; }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setRequestId(Long requestId) { this.requestId = requestId; }
+    public void setAskedBy(Long askedBy) { this.askedBy = askedBy; }
+    public void setQuestion(String question) { this.question = question; }
+    public void setAnswer(String answer) { this.answer = answer; }
+    public void setAnsweredBy(Long answeredBy) { this.answeredBy = answeredBy; }
+    public void setAnsweredAt(Instant answeredAt) { this.answeredAt = answeredAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

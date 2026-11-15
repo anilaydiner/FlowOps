@@ -1,14 +1,6 @@
 package com.flowops.domain;
 
 import com.flowops.domain.exception.InvalidStateTransitionException;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -19,33 +11,25 @@ import java.time.Instant;
  *
  * <p>Idempotency: the unique {@code idempotencyKey} guarantees each logical
  * notification is enqueued exactly once, even if the triggering code re-runs.
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.OutboxMessageEntity}; the
+ * rehydration constructor and setters exist solely for that mapper.
  */
-@Entity
-@Table(name = "outbox")
 public class OutboxMessage {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "idempotency_key", nullable = false, unique = true, length = 256)
     private String idempotencyKey;
 
-    @Column(nullable = false, length = 32)
     private String channel;
 
-    @Column(name = "recipient_id", nullable = false)
     private Long recipientId;
 
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
-    @Column(nullable = false)
     private String payload;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
     private OutboxStatus status = OutboxStatus.PENDING;
 
-    @Column(name = "retry_count", nullable = false)
     private int retryCount = 0;
 
     /** Default retry budget before a message is dead-lettered. */
@@ -80,25 +64,20 @@ public class OutboxMessage {
     /** Delivery channel: in-app feed notification. */
     public static final String CHANNEL_FEED = "FEED";
 
-    @Column(name = "max_retries", nullable = false)
     private int maxRetries = DEFAULT_MAX_RETRIES;
 
-    @Column(name = "next_retry_at")
     private Instant nextRetryAt;
 
-    @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;
 
-    @Column(name = "correlation_id", length = 64)
     private String correlationId;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    @Column(name = "sent_at")
     private Instant sentAt;
 
-    protected OutboxMessage() {
+    public OutboxMessage() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public OutboxMessage(String idempotencyKey, String channel, Long recipientId,
@@ -173,4 +152,20 @@ public class OutboxMessage {
             this.status = OutboxStatus.FAILED;
         }
     }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
+    public void setChannel(String channel) { this.channel = channel; }
+    public void setRecipientId(Long recipientId) { this.recipientId = recipientId; }
+    public void setPayload(String payload) { this.payload = payload; }
+    public void setStatus(OutboxStatus status) { this.status = status; }
+    public void rehydrateRetryCount(int retryCount) { this.retryCount = retryCount; }
+    public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
+    public void rehydrateNextRetryAt(Instant nextRetryAt) { this.nextRetryAt = nextRetryAt; }
+    public void setLastError(String lastError) { this.lastError = lastError; }
+    public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setSentAt(Instant sentAt) { this.sentAt = sentAt; }
 }

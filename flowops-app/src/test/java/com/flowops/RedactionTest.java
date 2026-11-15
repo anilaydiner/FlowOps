@@ -3,8 +3,9 @@ package com.flowops;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.flowops.infra.persistence.DepartmentJpaRepository;
-import com.flowops.infra.persistence.RoleJpaRepository;
+import com.flowops.domain.port.DepartmentRepository;
+import com.flowops.domain.port.RoleRepository;
+import com.flowops.domain.port.UserRepository;
 import com.flowops.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,9 +40,9 @@ class RedactionTest extends AbstractIntegrationTest {
 
     @Autowired MockMvc mvc;
     @Autowired JwtService jwtService;
-    @Autowired com.flowops.infra.persistence.UserJpaRepository users;
-    @Autowired com.flowops.infra.persistence.RoleJpaRepository roles;
-    @Autowired com.flowops.infra.persistence.DepartmentJpaRepository departments;
+    @Autowired UserRepository users;
+    @Autowired RoleRepository roles;
+    @Autowired DepartmentRepository departments;
     @Autowired org.springframework.security.crypto.password.PasswordEncoder encoder;
 
     private String hankToken;

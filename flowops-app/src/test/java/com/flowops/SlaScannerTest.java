@@ -1,7 +1,7 @@
 package com.flowops;
 
 import com.flowops.domain.*;
-import com.flowops.infra.persistence.*;
+import com.flowops.domain.port.*;
 import com.flowops.infra.worker.OutboxDispatcher;
 import com.flowops.infra.worker.SlaScanner;
 import org.junit.jupiter.api.*;
@@ -35,16 +35,16 @@ class SlaScannerTest extends AbstractIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired SlaScanner slaScanner;
     @Autowired OutboxDispatcher dispatcher;
-    @Autowired StepInstanceJpaRepository stepRepo;
-    @Autowired WorkflowStepJpaRepository stepDefRepo;
-    @Autowired RequestJpaRepository requestRepo;
-    @Autowired OutboxMessageJpaRepository outboxRepo;
-    @Autowired UserJpaRepository users;
-    @Autowired RoleJpaRepository roles;
-    @Autowired DepartmentJpaRepository departments;
+    @Autowired StepInstanceRepository stepRepo;
+    @Autowired WorkflowStepRepository stepDefRepo;
+    @Autowired RequestRepository requestRepo;
+    @Autowired OutboxMessageRepository outboxRepo;
+    @Autowired UserRepository users;
+    @Autowired RoleRepository roles;
+    @Autowired DepartmentRepository departments;
     @Autowired PasswordEncoder encoder;
-    @Autowired RequestTypeJpaRepository typeRepo;
-    @Autowired WorkflowJpaRepository workflowRepo;
+    @Autowired RequestTypeRepository typeRepo;
+    @Autowired WorkflowRepository workflowRepo;
     @Autowired org.springframework.transaction.support.TransactionTemplate txTemplate;
 
     private String bobToken;

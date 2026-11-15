@@ -5,11 +5,11 @@ import com.flowops.domain.OutboxMessage;
 import com.flowops.domain.Role;
 import com.flowops.domain.StepState;
 import com.flowops.domain.User;
-import com.flowops.infra.persistence.DepartmentJpaRepository;
-import com.flowops.infra.persistence.OutboxMessageJpaRepository;
-import com.flowops.infra.persistence.RoleJpaRepository;
-import com.flowops.infra.persistence.StepInstanceJpaRepository;
-import com.flowops.infra.persistence.UserJpaRepository;
+import com.flowops.domain.port.DepartmentRepository;
+import com.flowops.domain.port.OutboxMessageRepository;
+import com.flowops.domain.port.RoleRepository;
+import com.flowops.domain.port.StepInstanceRepository;
+import com.flowops.domain.port.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -45,12 +45,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ApproverNotificationTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mvc;
-    @Autowired private UserJpaRepository users;
-    @Autowired private RoleJpaRepository roles;
-    @Autowired private DepartmentJpaRepository departments;
+    @Autowired private UserRepository users;
+    @Autowired private RoleRepository roles;
+    @Autowired private DepartmentRepository departments;
     @Autowired private PasswordEncoder encoder;
-    @Autowired private OutboxMessageJpaRepository outboxRepo;
-    @Autowired private StepInstanceJpaRepository stepInstances;
+    @Autowired private OutboxMessageRepository outboxRepo;
+    @Autowired private StepInstanceRepository stepInstances;
 
     private static final String PASSWORD = "pass123456";
 

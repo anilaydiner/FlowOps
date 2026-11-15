@@ -1,12 +1,5 @@
 package com.flowops.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
 import java.time.Instant;
 
 /**
@@ -23,34 +16,29 @@ import java.time.Instant;
  * </ul>
  *
  * <p>Pure-Java aggregate — no Spring types (enforced by the architecture tests).
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.PasswordResetTokenEntity}; the
+ * rehydration constructor and setters exist solely for that mapper.
  */
-@Entity
-@Table(name = "password_reset_tokens")
 public class PasswordResetToken {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
     private Long userId;
 
     /** SHA-256 hex digest of the raw token (the raw value is never stored). */
-    @Column(name = "token_hash", nullable = false, unique = true, length = 64)
     private String tokenHash;
 
-    @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 
     /** Set when the token has been consumed (single-use enforcement). */
-    @Column(name = "used_at")
     private Instant usedAt;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected PasswordResetToken() {
-        // JPA
+    public PasswordResetToken() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public PasswordResetToken(Long userId, String tokenHash, Instant expiresAt) {
@@ -89,4 +77,13 @@ public class PasswordResetToken {
     public Instant getExpiresAt() { return expiresAt; }
     public Instant getUsedAt() { return usedAt; }
     public Instant getCreatedAt() { return createdAt; }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setUserId(Long userId) { this.userId = userId; }
+    public void setTokenHash(String tokenHash) { this.tokenHash = tokenHash; }
+    public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
+    public void setUsedAt(Instant usedAt) { this.usedAt = usedAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

@@ -1,8 +1,7 @@
 package com.flowops.infra.persistence;
 
-import com.flowops.domain.User;
-
 import com.flowops.domain.query.UserFilter;
+import com.flowops.infra.persistence.entity.UserEntity;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
@@ -23,7 +22,7 @@ public final class UserSpecifications {
      * Compose a single {@code AND} specification from all non-null filter fields.
      * Returns {@code null} when the filter is empty (caller should skip the spec).
      */
-    public static Specification<User> from(UserFilter filter) {
+    public static Specification<UserEntity> from(UserFilter filter) {
         if (filter == null || filter.isEmpty()) {
             return null;
         }

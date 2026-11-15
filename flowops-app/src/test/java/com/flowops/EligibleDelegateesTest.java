@@ -2,9 +2,9 @@ package com.flowops;
 
 import com.flowops.domain.Role;
 import com.flowops.domain.User;
-import com.flowops.infra.persistence.DepartmentJpaRepository;
-import com.flowops.infra.persistence.RoleJpaRepository;
-import com.flowops.infra.persistence.UserJpaRepository;
+import com.flowops.domain.port.DepartmentRepository;
+import com.flowops.domain.port.RoleRepository;
+import com.flowops.domain.port.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -44,9 +44,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class EligibleDelegateesTest extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mvc;
-    @Autowired private UserJpaRepository users;
-    @Autowired private RoleJpaRepository roles;
-    @Autowired private DepartmentJpaRepository departments;
+    @Autowired private UserRepository users;
+    @Autowired private RoleRepository roles;
+    @Autowired private DepartmentRepository departments;
     @Autowired private PasswordEncoder encoder;
 
     private static final String PASSWORD = "pass123456";

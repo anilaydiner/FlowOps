@@ -5,6 +5,7 @@ import com.flowops.domain.paging.PageQuery;
 import com.flowops.domain.paging.PageResult;
 import com.flowops.domain.query.RequestTypeFilter;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -21,4 +22,6 @@ public interface RequestTypeRepository {
     Optional<RequestType> findByCode(String code);
 
     boolean existsByCode(String code);
+
+    long count();
 }

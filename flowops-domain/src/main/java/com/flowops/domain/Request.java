@@ -1,20 +1,7 @@
 package com.flowops.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.InvalidStateTransitionException;
-import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -24,49 +11,29 @@ import java.util.Set;
 /**
  * A workflow request. Iteration 3 covers the draft lifecycle
  * (DRAFT → CANCELLED); submit/workflow lands in iteration 4.
- * Optimistic locking via {@code @Version} guards concurrent transitions.
+ * Optimistic locking (the persistence entity's {@code @Version}) guards
+ * concurrent transitions.
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.RequestEntity}; the rehydration
+ * constructor and setters exist solely for that mapper. Business behavior
+ * goes through the named methods ({@link #transitionTo}, {@link #replacePayload}, …).
  */
-@Entity
-@Table(name = "requests")
 public class Request {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
-    @JoinColumn(name = "type_id", nullable = false)
     private RequestType type;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "requester_id", nullable = false)
     private User requester;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
     private RequestStatus status = RequestStatus.DRAFT;
-
-    @Column(nullable = false)
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     private Map<String, Object> payload = new LinkedHashMap<>();
-
-    @Version
-    @Column(nullable = false)
     private Long version = 0L;
-
-    @Column(name = "correlation_id", length = 36)
     private String correlationId;
-
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
-
-    @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
-
-    @Column(name = "submitted_at")
     private Instant submittedAt;
 
-    protected Request() {
+    public Request() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public static Request newDraft(RequestType type, User requester,
@@ -113,7 +80,8 @@ public class Request {
     /**
      * State-machine transition: enforces the legal lifecycle above and throws
      * {@link InvalidStateTransitionException} on an illegal edge.
-     * (Concurrent writers are additionally serialized by the {@code @Version} guard.)
+     * (Concurrent writers are additionally serialized by the version guard
+     * on the persistence entity.)
      */
     public void transitionTo(RequestStatus newStatus) {
         Set<RequestStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(status, Set.of());
@@ -135,7 +103,7 @@ public class Request {
         return this.status == RequestStatus.DRAFT;
     }
 
-    // ── Getters / Setters ──────────────────────────────────────────────
+    // ── Getters ────────────────────────────────────────────────────────
 
     public Long getId() { return id; }
     public RequestType getType() { return type; }
@@ -147,4 +115,17 @@ public class Request {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public Instant getSubmittedAt() { return submittedAt; }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setType(RequestType type) { this.type = type; }
+    public void setRequester(User requester) { this.requester = requester; }
+    public void setStatus(RequestStatus status) { this.status = status; }
+    public void setPayload(Map<String, Object> payload) { this.payload = payload; }
+    public void setVersion(Long version) { this.version = version; }
+    public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }
 }

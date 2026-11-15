@@ -2,7 +2,7 @@ package com.flowops;
 
 import com.flowops.domain.DecisionAction;
 import com.flowops.domain.User;
-import com.flowops.infra.persistence.UserJpaRepository;
+import com.flowops.domain.port.UserRepository;
 import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.application.usecase.DecideStep;
 import org.junit.jupiter.api.DisplayName;
@@ -46,7 +46,7 @@ class ConcurrentDecideTest extends AbstractIntegrationTest {
     private DecideStep decideStep;
 
     @Autowired
-    private UserJpaRepository users;
+    private UserRepository users;
 
     private final HttpClient http = HttpClient.newHttpClient();
 

@@ -1,8 +1,8 @@
 package com.flowops;
 
-import com.flowops.infra.persistence.EmailLogEntryJpaRepository;
+import com.flowops.domain.port.EmailLogEntryRepository;
 import com.flowops.domain.OutboxMessage;
-import com.flowops.infra.persistence.OutboxMessageJpaRepository;
+import com.flowops.domain.port.OutboxMessageRepository;
 import com.flowops.infra.mail.SimulatedEmailGateway;
 import com.flowops.infra.worker.JobWorker;
 import com.flowops.infra.worker.OutboxDispatcher;
@@ -365,11 +365,11 @@ class UsersApiTest extends AbstractIntegrationTest {
         }
 
         @Autowired
-        private OutboxMessageJpaRepository outboxRepo;
+        private OutboxMessageRepository outboxRepo;
         @Autowired
         private OutboxDispatcher dispatcher;
         @Autowired
-        private EmailLogEntryJpaRepository emailLogRepo;
+        private EmailLogEntryRepository emailLogRepo;
         @Autowired
         private JobWorker jobWorker;
         @Autowired

@@ -1,6 +1,5 @@
 package com.flowops.security;
 
-import com.flowops.domain.exception.ApiErrors;
 import com.flowops.domain.CorrelationId;
 import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
@@ -19,6 +18,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 
 import java.io.IOException;
+import java.net.URI;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +27,13 @@ import jakarta.servlet.http.HttpServletResponse;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+    /**
+     * Prefix of the FlowOps RFC 7807 type namespace ({@code urn:flowops:error:<name>}).
+     * Duplicated here (rather than imported from the API layer's
+     * {@code ApiErrors}) because the infra module must not depend on the app module.
+     */
+    static final String ERROR_TYPE_BASE = "urn:flowops:error:";
 
     private final JwtAuthFilter jwtAuthFilter;
 
@@ -79,7 +86,7 @@ public class SecurityConfig {
 
     private void writeProblem(HttpServletResponse response, int status, String name, String detail) throws IOException {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatusCode.valueOf(status), detail);
-        problem.setType(ApiErrors.type(name));
+        problem.setType(URI.create(ERROR_TYPE_BASE + name));
         String correlationId = MDC.get(CorrelationId.MDC_KEY);
         if (correlationId != null) {
             problem.setProperty("correlationId", correlationId);

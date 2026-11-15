@@ -1,8 +1,7 @@
 package com.flowops.infra.persistence;
 
-import com.flowops.domain.Role;
-
 import com.flowops.domain.query.RoleFilter;
+import com.flowops.infra.persistence.entity.RoleEntity;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -13,7 +12,7 @@ public final class RoleSpecifications {
 
     private RoleSpecifications() { }
 
-    public static Specification<Role> from(RoleFilter filter) {
+    public static Specification<RoleEntity> from(RoleFilter filter) {
         if (filter == null || filter.isEmpty()) {
             return null;
         }

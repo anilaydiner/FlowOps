@@ -1,32 +1,26 @@
 package com.flowops.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
 import java.time.Instant;
 
-@Entity
-@Table(name = "departments")
+/**
+ * An organizational department (e.g. a cost center or business unit).
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.DepartmentEntity}; the rehydration
+ * constructor and setters exist solely for that mapper.
+ */
 public class Department {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 32)
     private String code;
 
-    @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    protected Department() {
+    public Department() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public Department(String code, String name) {
@@ -49,4 +43,11 @@ public class Department {
     public Instant getCreatedAt() {
         return createdAt;
     }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setCode(String code) { this.code = code; }
+    public void setName(String name) { this.name = name; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
 }

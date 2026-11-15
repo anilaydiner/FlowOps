@@ -1,7 +1,7 @@
 package com.flowops.infra.persistence;
 
-import com.flowops.domain.RequestType;
 import com.flowops.domain.query.RequestTypeFilter;
+import com.flowops.infra.persistence.entity.RequestTypeEntity;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
@@ -14,7 +14,7 @@ public final class RequestTypeSpecifications {
 
     private RequestTypeSpecifications() { }
 
-    public static Specification<RequestType> from(RequestTypeFilter filter) {
+    public static Specification<RequestTypeEntity> from(RequestTypeFilter filter) {
         if (filter == null || filter.isEmpty()) {
             return null;
         }

@@ -25,4 +25,7 @@ public interface NotificationRepository {
     List<Notification> findUnread(Long recipientId);
 
     void deleteAllByRecipientId(Long recipientId);
+
+    /** All notifications for a recipient (unpaged). */
+    List<Notification> findByRecipientId(Long recipientId);
 }

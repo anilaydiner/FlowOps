@@ -1,64 +1,42 @@
 package com.flowops.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
-
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-@Entity
-@Table(name = "users")
+/**
+ * A user account — authentication principal and authorization holder
+ * (roles, active flag, password hash).
+ *
+ * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
+ * lives in {@code infra.persistence.entity.UserEntity}; the rehydration
+ * constructor and setters exist solely for that mapper.
+ */
 public class User {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 64)
     private String username;
 
-    @Column(name = "display_name", nullable = false, length = 100)
     private String displayName;
 
-    @Column(length = 255, unique = true)
     private String email;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id")
     private Department department;
 
     /** Roles assigned to this user (e.g. ADMIN, MEMBER). */
-    @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
     private Set<Role> roles = new LinkedHashSet<>();
 
-    @Column(name = "password_hash", nullable = false, length = 100)
     private String passwordHash;
 
-    @Column(nullable = false)
     private boolean active = true;
 
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
-    protected User() {
+    public User() {
+        // Rehydration only — used by the persistence mapper, not by business code.
     }
 
     public static User newUser(String username,
@@ -124,4 +102,17 @@ public class User {
     public boolean isActive() { return active; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+
+    // ── Setters (persistence rehydration only) ─────────────────────────
+
+    public void setId(Long id) { this.id = id; }
+    public void setUsername(String username) { this.username = username; }
+    public void setDisplayName(String displayName) { this.displayName = displayName; }
+    public void setEmail(String email) { this.email = email; }
+    public void setDepartment(Department department) { this.department = department; }
+    public void rehydrateRoles(Set<Role> roles) { this.roles = roles; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public void rehydrateActive(boolean active) { this.active = active; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
 }
