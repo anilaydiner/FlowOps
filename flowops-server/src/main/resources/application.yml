@@ -41,7 +41,10 @@ flowops:
   jwt:
     # Must be overridden via FLOWOPS_JWT_SECRET in any real environment
     secret: ${FLOWOPS_JWT_SECRET:dev-only-secret-please-override-0123456789abcdef-0123456789abcdef}
-    expiration-seconds: ${FLOWOPS_JWT_EXPIRY:28800}
+    expiration-seconds: ${FLOWOPS_JWT_EXPIRY:900}
+  auth:
+    refresh-token-lifetime: ${FLOWOPS_REFRESH_TOKEN_LIFETIME:7d}
+    maximum-session-lifetime: ${FLOWOPS_MAXIMUM_SESSION_LIFETIME:30d}
   # Training seed credentials (see db/migration/V1__initial.sql)
   seed:
     admin-password: ${FLOWOPS_ADMIN_PASSWORD:admin123}

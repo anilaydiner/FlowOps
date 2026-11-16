@@ -19,6 +19,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * Validates the Bearer token on each request and populates the SecurityContext
  * with a {@link UserPrincipal}. Invalid/missing tokens leave the context
  * unauthenticated (the entry point then renders a 401 ProblemDetail).
+ * Access-token validation is stateless: refresh revocation does not invalidate
+ * already-issued JWTs, which remain valid until their short expiration.
  */
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {

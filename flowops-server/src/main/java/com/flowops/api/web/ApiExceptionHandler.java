@@ -3,6 +3,7 @@ package com.flowops.api.web;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.ForbiddenException;
 import com.flowops.domain.exception.InvalidCredentialsException;
+import com.flowops.application.identity.session.InvalidRefreshTokenException;
 import com.flowops.domain.exception.InvalidStateTransitionException;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.RequestValidationException;
@@ -41,6 +42,12 @@ public class ApiExceptionHandler {
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ProblemDetail handleBadCredentials(InvalidCredentialsException ex) {
         return problem(HttpStatus.UNAUTHORIZED, "bad-credentials", "Invalid username or password");
+    }
+
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ProblemDetail handleInvalidRefreshToken(InvalidRefreshTokenException ex) {
+        return problem(HttpStatus.UNAUTHORIZED, "authentication", "Invalid or expired refresh token");
     }
 
     @ExceptionHandler(ForbiddenException.class)

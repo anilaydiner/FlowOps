@@ -18,13 +18,14 @@ class ArchitectureTest {
             "com.flowops.persistence..", "com.flowops.mail..", "com.flowops.action..",
             "com.flowops.worker..", "com.flowops.security..", "com.flowops.observability.."
     };
-    // HTTP adapters still project UserPrincipal and use JwtService at the security edge.
+    // HTTP adapters may project UserPrincipal at the security edge.
     private static final String[] NON_SECURITY_ADAPTERS = {
             "com.flowops.persistence..", "com.flowops.mail..", "com.flowops.action..",
             "com.flowops.worker..", "com.flowops.observability.."
     };
     private static final Set<String> WORKER_OPERATIONS = Set.of(
             "com.flowops.application.request.sla.ScanSla",
+            "com.flowops.application.identity.session.ExpiredSessionCleanup",
             "com.flowops.application.execution.ProcessExecutionJobs",
             "com.flowops.application.notification.outbox.DeliverOutbox");
 

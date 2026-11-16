@@ -5,9 +5,13 @@ import com.flowops.api.dto.AuthResponse;
 import com.flowops.api.dto.ForgotPasswordRequest;
 import com.flowops.api.dto.ResetPasswordRequest;
 import com.flowops.application.identity.PasswordResetService;
-import com.flowops.application.identity.UserService;
-import com.flowops.domain.identity.User;
-import com.flowops.security.JwtService;
+import com.flowops.application.identity.session.AuthenticationService;
+import com.flowops.application.identity.session.TokenPair;
+import com.flowops.api.dto.RefreshTokenRequest;
+import com.flowops.security.UserPrincipal;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -24,23 +28,44 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
-    private final UserService userService;
+    private final AuthenticationService authentication;
     private final PasswordResetService passwordResetService;
-    private final JwtService jwtService;
 
-    public AuthController(UserService userService,
-                          PasswordResetService passwordResetService,
-                          JwtService jwtService) {
-        this.userService = userService;
+    public AuthController(AuthenticationService authentication, PasswordResetService passwordResetService) {
+        this.authentication = authentication;
         this.passwordResetService = passwordResetService;
-        this.jwtService = jwtService;
     }
 
     @PostMapping("/token")
     public ResponseEntity<AuthResponse> token(@Valid @RequestBody AuthRequest request) {
-        User user = userService.authenticate(request.username(), request.password());
-        String token = jwtService.issue(user);
-        return ResponseEntity.ok(AuthResponse.bearer(token, jwtService.getExpirationSeconds()));
+        return tokens(authentication.login(request.username(), request.password()));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Rotate a refresh token and issue a new access/refresh pair")
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return tokens(authentication.refresh(request.refreshToken()));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Revoke the current refresh session; issued access tokens expire naturally")
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserPrincipal principal,
+                                       @Valid @RequestBody(required = false) RefreshTokenRequest request) {
+        authentication.logout(principal != null ? principal.sessionId() : null,
+                request != null ? request.refreshToken() : null);
+        return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+    }
+
+    @PostMapping("/logout-all")
+    @Operation(summary = "Revoke every refresh session for the authenticated user")
+    public ResponseEntity<Void> logoutAll(@AuthenticationPrincipal UserPrincipal principal) {
+        authentication.logoutAll(principal.id());
+        return ResponseEntity.noContent().cacheControl(CacheControl.noStore()).build();
+    }
+
+    private ResponseEntity<AuthResponse> tokens(TokenPair pair) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).header(HttpHeaders.PRAGMA, "no-cache")
+                .body(AuthResponse.from(pair));
     }
 
     /**

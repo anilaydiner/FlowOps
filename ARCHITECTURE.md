@@ -52,6 +52,8 @@ flowops-application/src/main/java/com/flowops/application/
     RequestDetailReader
   workflow/         Workflow and request-type management; workflow/model/WorkflowView
   identity/         User management and password reset orchestration
+    session/        Login, refresh rotation, revocation, settings and expired-session cleanup
+    port/           Access-token issuer and authentication-session storage contracts
   organization/     Department, role and permission management
   notification/     Templates, notification subscribers and feed orchestration
     model/          EmailLogEntry delivery audit record
@@ -71,7 +73,7 @@ flowops-infrastructure/src/main/java/com/flowops/
     mapping/        Aggregate/entity mappers
   mail/             Simulated and SMTP email gateways
   action/           External execution adapter
-  worker/           JobWorker, OutboxDispatcher and SlaScanner scheduling shells
+  worker/           Job/outbox/SLA scheduling shells and hourly authentication-session cleanup
   security/         JWT handling, UserPrincipal and security configuration
   observability/    Micrometer/OpenTelemetry adapters and configuration
 
@@ -199,8 +201,8 @@ and application paging remain zero-based.
 Fifteen ArchUnit rules enforce inward dependencies, framework/persistence-free domain
 code, persistence-only request restoration, telemetry placement and restricted worker
 entry points. Infrastructure rules enumerate all flattened adapter namespaces. The HTTP
-security edge retains its existing UserPrincipal/JwtService integration; other API-to-
-infrastructure dependencies are prohibited. Obsolete package roots cannot be reintroduced.
+security edge projects UserPrincipal; token issuance is behind an application-owned
+AccessTokenIssuer. Other API-to-infrastructure dependencies are prohibited. Obsolete package roots cannot be reintroduced.
 
 Tests include domain invariants and decision policy, mediator/event dispatch and Spring
 proxy behavior, API authorization/pagination, scalar projection equivalence and SQL counts,
@@ -227,3 +229,16 @@ such as RequestApproved. Domain code has no email-gateway or outbox references.
 Execution scheduling owns its job-key format independently of the outbox; its stored
 `req:<requestId>:<action>` keys remain unchanged. Outbox keys, SQL mappings, JSON
 payloads, retry/dead-letter behavior and transactional atomicity are unchanged.
+
+## Authentication lifecycle
+
+See [AUTHENTICATION.md](AUTHENTICATION.md) for endpoints, expiry configuration and rollout.
+Application authentication services own refresh-token rotation and session revocation;
+JWT and JDBC adapters implement their ports. Refresh credentials are opaque and hashed,
+rotation is serialized with a session-row lock, and replay revokes the token family.
+Access JWT authentication is stateless: signature, issuer/claims and expiration are
+validated without a session lookup. Logout, replay and credential changes prevent
+refresh; already-issued access tokens remain valid until their short expiration.
+Credential fingerprints and account status are checked when refreshing. Absolute
+session expiry bounds both access and refresh lifetimes. Flyway V15 adds the storage; hourly cleanup removes
+expired families. The domain contains no JWT or refresh-session mechanism.

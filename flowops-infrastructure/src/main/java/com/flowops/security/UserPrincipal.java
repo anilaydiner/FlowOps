@@ -2,12 +2,13 @@ package com.flowops.security;
 
 import com.flowops.domain.identity.CallerIdentity;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * The authenticated principal carried in the SecurityContext
  * after JWT validation.
  */
-public record UserPrincipal(Long id, String username, Set<String> roles) {
+public record UserPrincipal(Long id, String username, Set<String> roles, UUID sessionId) {
 
     /**
      * Project this security principal into the framework-free
