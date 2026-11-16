@@ -11,7 +11,7 @@ public final class SpanNames {
 
     private SpanNames() {}
 
-    // ── Request lifecycle (RequestService) ─────────────────────────────
+    // ── Request lifecycle (command handlers) ─────────────────────────────
     public static final String REQUEST_SUBMIT = "request.submit";
     public static final String REQUEST_DECIDE = "request.decide";
     public static final String REQUEST_CLOSE  = "request.close";

@@ -7,7 +7,17 @@ import com.flowops.domain.query.RequestFilter;
 import com.flowops.api.dto.RequestResponse;
 import com.flowops.api.dto.UpdateRequestRequest;
 import com.flowops.security.UserPrincipal;
-import com.flowops.application.request.RequestService;
+import com.flowops.application.request.command.CreateDraftCommand;
+import com.flowops.application.request.command.UpdateDraftCommand;
+import com.flowops.application.request.command.CancelRequestCommand;
+import com.flowops.application.request.command.SubmitRequestCommand;
+import com.flowops.application.request.command.DecideStepCommand;
+import com.flowops.application.request.command.CloseRequestCommand;
+import com.flowops.application.mediator.Mediator;
+import com.flowops.application.request.query.GetRequest;
+import com.flowops.application.request.query.GetEligibleDelegatees;
+import com.flowops.application.request.query.ListRequests;
+import com.flowops.application.request.query.GetApprovalQueue;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -15,6 +25,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import com.flowops.domain.paging.PageQuery;
+import com.flowops.api.web.Pagination;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,10 +47,10 @@ public class RequestController {
     private static final List<String> ALLOWED_SORT_FIELDS = List.of(
             "id", "status", "createdAt", "updatedAt");
 
-    private final RequestService requestService;
+    private final Mediator mediator;
 
-    public RequestController(RequestService requestService) {
-        this.requestService = requestService;
+    public RequestController(Mediator mediator) {
+        this.mediator = mediator;
     }
 
     @PostMapping
@@ -59,7 +70,7 @@ public class RequestController {
     public ResponseEntity<RequestResponse> createDraft(@Valid @RequestBody CreateRequestRequest request,
                                                        @AuthenticationPrincipal UserPrincipal caller) {
         RequestResponse body = RequestResponse.from(
-                requestService.createDraft(request.typeCode(), request.payload(), caller.toIdentity()));
+                mediator.send(new CreateDraftCommand(request.typeCode(), request.payload(), caller.toIdentity())));
         return ResponseEntity.status(HttpStatus.CREATED).body(body);
     }
 
@@ -74,14 +85,14 @@ public class RequestController {
                     - `mine` — true to restrict to the caller's requests (admin only)
 
                     **Sorting** — repeatable `sort` param, format `field,asc|desc`
-                    **Pagination**: `page` (default 0), `size` (default 20, max 100)
+                    **Pagination**: `page` (default 1), `size` (default 20, max 100)
                     """)
     @Parameters({
             @Parameter(name = "status", description = "Exact status (e.g. DRAFT)"),
             @Parameter(name = "typeCode", description = "Exact request-type code (e.g. EXPENSE)"),
             @Parameter(name = "mine", description = "Restrict to the caller's requests (admin only)"),
             @Parameter(name = "sort", description = "Sort field + direction: field,asc|desc. Repeatable for multi-sort."),
-            @Parameter(name = "page", description = "Zero-based page number (default 0)"),
+            @Parameter(name = "page", description = "One-based page number (default 1)"),
             @Parameter(name = "size", description = "Page size (default 20, max 100)")
     })
     public PageResponse<RequestResponse> list(
@@ -89,13 +100,13 @@ public class RequestController {
             @RequestParam(required = false) String typeCode,
             @RequestParam(required = false) Boolean mine,
             @RequestParam(required = false) List<String> sort,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal caller
     ) {
         RequestFilter filter = new RequestFilter(status, typeCode, mine);
-        PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(requestService.list(filter, pageQuery, caller.toIdentity()).map(RequestResponse::from));
+        PageQuery pageQuery = Pagination.toPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        return PageResponse.from(mediator.send(new ListRequests(filter, pageQuery, caller.toIdentity())).map(RequestResponse::from));
     }
 
     @GetMapping("/queue")
@@ -106,28 +117,28 @@ public class RequestController {
                     caller's roles and the caller is not the requester (SoD).
 
                     **Sorting** — repeatable `sort` param, format `field,asc|desc`
-                    **Pagination**: `page` (default 0), `size` (default 20, max 100)
+                    **Pagination**: `page` (default 1), `size` (default 20, max 100)
                     """)
     @Parameters({
             @Parameter(name = "sort", description = "Sort field + direction: field,asc|desc. Repeatable for multi-sort."),
-            @Parameter(name = "page", description = "Zero-based page number (default 0)"),
+            @Parameter(name = "page", description = "One-based page number (default 1)"),
             @Parameter(name = "size", description = "Page size (default 20, max 100)")
     })
     public PageResponse<RequestResponse> queue(
             @RequestParam(required = false) List<String> sort,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal caller
     ) {
-        PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(requestService.queue(pageQuery, caller.toIdentity()).map(RequestResponse::from));
+        PageQuery pageQuery = Pagination.toPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        return PageResponse.from(mediator.send(new GetApprovalQueue(pageQuery, caller.toIdentity())).map(RequestResponse::from));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get request detail",
             description = "Owner or admin only; 404 for other users (no existence leak).")
     public RequestResponse get(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
-        return RequestResponse.from(requestService.get(id, caller.toIdentity()));
+        return RequestResponse.from(mediator.send(new GetRequest(id, caller.toIdentity())));
     }
 
     @PutMapping("/{id}")
@@ -145,7 +156,7 @@ public class RequestController {
     public RequestResponse updateDraft(@PathVariable Long id,
                                        @Valid @RequestBody UpdateRequestRequest request,
                                        @AuthenticationPrincipal UserPrincipal caller) {
-        return RequestResponse.from(requestService.updateDraft(id, request.payload(), caller.toIdentity()));
+        return RequestResponse.from(mediator.send(new UpdateDraftCommand(id, request.payload(), caller.toIdentity())));
     }
 
     @PostMapping("/{id}/cancel")
@@ -156,7 +167,7 @@ public class RequestController {
             @ApiResponse(responseCode = "409", description = "Request is in a terminal state")
     })
     public RequestResponse cancel(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
-        return RequestResponse.from(requestService.cancel(id, caller.toIdentity()));
+        return RequestResponse.from(mediator.send(new CancelRequestCommand(id, caller.toIdentity())));
     }
 
     @PostMapping("/{id}/submit")
@@ -175,7 +186,7 @@ public class RequestController {
             @ApiResponse(responseCode = "409", description = "Not in DRAFT, no workflow configured, or workflow inactive")
     })
     public RequestResponse submit(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
-        return RequestResponse.from(requestService.submit(id, caller.toIdentity()));
+        return RequestResponse.from(mediator.send(new SubmitRequestCommand(id, caller.toIdentity())));
     }
 
     @PostMapping("/{id}/decisions")
@@ -197,7 +208,7 @@ public class RequestController {
     public RequestResponse decide(@PathVariable Long id,
                                   @Valid @RequestBody com.flowops.api.dto.DecisionRequest body,
                                   @AuthenticationPrincipal UserPrincipal caller) {
-        return RequestResponse.from(requestService.decide(id, body.action(), body.justification(), body.delegatedTo(), caller.toIdentity()));
+        return RequestResponse.from(mediator.send(new DecideStepCommand(id, body.action(), body.justification(), body.delegatedTo(), caller.toIdentity())));
     }
 
     @GetMapping("/{id}/eligible-delegatees")
@@ -217,7 +228,7 @@ public class RequestController {
     })
     public List<EligibleDelegateeResponse> eligibleDelegatees(
             @PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
-        return requestService.eligibleDelegatees(id, caller.toIdentity()).stream()
+        return mediator.send(new GetEligibleDelegatees(id, caller.toIdentity())).stream()
                 .map(EligibleDelegateeResponse::from)
                 .toList();
     }
@@ -230,6 +241,6 @@ public class RequestController {
             @ApiResponse(responseCode = "409", description = "Request is not in EXECUTED or REJECTED")
     })
     public RequestResponse close(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
-        return RequestResponse.from(requestService.close(id, caller.toIdentity()));
+        return RequestResponse.from(mediator.send(new CloseRequestCommand(id, caller.toIdentity())));
     }
 }

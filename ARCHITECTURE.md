@@ -3,7 +3,7 @@
 Clean Architecture with DDD rich domain model.
 Layer boundaries are enforced **twice**: structurally (4 Maven modules — an
 illegal dependency is a compile error) and by `ArchitectureTest`
-(11 ArchUnit rules for the seams Maven can't see).
+(13 ArchUnit rules for the seams Maven can't see).
 
 ## Modules
 
@@ -49,7 +49,7 @@ and `domain.CorrelationId` (header + MDC key names).
          ▼                                          ▼
 ┌──────────────────────────────────────────────────────────────────────────────────┐
 │  application/  [flowops-application]                                             │
-│  ├── request/         RequestService, ClarificationService                      │
+│  ├── request/         command/, query/, ClarificationService                      │
 │  ├── identity/        UserService, PasswordResetService                         │
 │  ├── workflow/        WorkflowService, RequestTypeService                       │
 │  ├── notification/    OutboxService, NotificationService, EmailComposer         │
@@ -235,7 +235,7 @@ ports, and span boundaries.
 - Lifecycle spans + counters (PLAN §8) are emitted by
   `observability.RequestLifecycleObservabilityAdapter`, which implements the
   framework-free `application.port.RequestLifecycleObservability` port that
-  `RequestService` calls — no `io.opentelemetry` / `io.micrometer` types in
+  request command handler calls — no `io.opentelemetry` / `io.micrometer` types in
   the application layer.
 - `observability.FlowOpsSpans` wraps span start/status/end; `SpanNames` and
   `MetricNames` are the shared name registries.
@@ -299,7 +299,12 @@ Conventions:
 - Adapters persist with `saveAndFlush` and **backfill** the generated id
   (and `Request`'s `@Version`) onto the aggregate, so caller semantics are
   identical to the old single-entity world.
-- Aggregates expose a public no-arg constructor plus a
+- `Request` has a private constructor and no state setters. Its mapper restores
+  persisted state with `Request.restore(Request.Snapshot)`; the repository acknowledges
+  generated ids and lock versions with `recordPersistence`. An ArchUnit rule confines
+  these APIs to persistence adapters. Payload maps and nested JSON maps/lists are
+  defensively copied and read-only, so edits must go through `replacePayload`.
+- Other aggregates still expose a public no-arg constructor plus a
   *"Setters (persistence rehydration only)"* section used exclusively by the
   mappers; business behavior still goes through the named methods
   (`transitionTo`, `markCompleted`, …). Where a business setter already
@@ -312,7 +317,7 @@ See `domain/package-info.java` for the full layer rules.
 
 ## Testing
 
-- **ArchitectureTest** — 12 ArchUnit rules (above), runs in `flowops-app`
+- **ArchitectureTest** — 13 ArchUnit rules (above), runs in `flowops-app`
   against the full classpath of all modules
 - **Unit tests** — domain logic, use cases, services
 - **Integration tests** — `@SpringBootTest` + Testcontainers PostgreSQL, in
@@ -320,3 +325,224 @@ See `domain/package-info.java` for the full layer rules.
 - **ConcurrentDecideTest** — SoD + optimistic locking under concurrent access
 
 Run: `./mvnw test` (reactor build; bootable JAR in `flowops-app/target/`)
+
+## Workflow decision policy
+
+`domain.policy.WorkflowDecisionPolicy` owns decision effects: review-state and
+supported-action validation, rejection, delegation without advancement, and approval
+completion against the materialized step's threshold. It performs no I/O and returns
+an explicit outcome. Approval counts supplied to it include the newly persisted decision.
+Completing a step leaves the request in review until the application materializes the
+next step (or discovers that none remain).
+
+`DecideStep` retains authorization and evidence, decision persistence and next-step
+materialization. After saving and flushing a fully approved request, it publishes
+`RequestApproved`; synchronous subscribers compose approval notifications and enqueue
+execution jobs. Rejection and delegation publish their own events for notification
+handlers. Submission similarly publishes `RequestSubmitted` after saving and flushing.
+All run in the existing transaction, with the request-version guard and outbox write
+ordering preserved.
+Rejection retains the pending step for audit compatibility. Domain tests run without
+Spring or a database; integration tests cover the orchestration and concurrency.
+
+## Synchronous mediator (incremental adoption)
+
+`Mediator.send(Message<R>)` dispatches a command or query to exactly one
+`MessageHandler<M, R>` on the caller's thread. `SynchronousMediator` discovers
+Spring-managed handlers using explicit `Class<M>` registrations; it stores the
+Spring proxies rather than unwrapping them. Duplicate registrations fail during
+startup, missing registrations fail during dispatch, and handler exceptions pass
+through unchanged. The dispatch registry contains the single unchecked cast,
+backed by the handler's typed registration and exact-class lookup.
+
+Migrated request read paths use `RequestController -> Mediator -> Handler`:
+
+- `GET /api/v1/requests/{id}` uses `GetRequest` / `GetRequestHandler`, retaining
+  owner/scoped-read permission checks against a scalar header before loading history.
+- `GET /api/v1/requests` uses `ListRequests` / `ListRequestsHandler`. Listing
+  permission determines whether the repository receives an own-request restriction;
+  filters, sort orders and pagination pass through unchanged.
+- `GET /api/v1/requests/queue` uses `GetApprovalQueue` / `GetApprovalQueueHandler`.
+  Queue permission is checked before any repository reads. Caller roles and id
+  constrain eligibility to pending steps on requests in review. Missing roles produce
+  an empty page without querying persistence; otherwise eligibility, count and paging
+  are resolved by the database through the application-owned `ApprovalQueueQueries`.
+
+Each handler owns a read-only transaction. List and queue results use scalar
+`RequestListItem` projections from application-owned `RequestListQueries` and
+`ApprovalQueueQueries` ports. Both retain ordering and page totals.
+`RequestDetailReader` assembles command responses; REST DTO
+mapping and response contracts stay at the API edge. The persistence boundary resolves
+associations, so query handlers do not force lazy initialization.
+
+Request lifecycle endpoints also dispatch through the mediator:
+`CreateDraftCommand`, `UpdateDraftCommand`, `CancelRequestCommand`,
+`SubmitRequestCommand`, `DecideStepCommand` and `CloseRequestCommand` each have
+one focused handler. `GetEligibleDelegatees` has a read-only query handler.
+`RequestController` depends only on `Mediator`; the former `RequestService` facade
+has been removed.
+
+Command handlers own the outer write transaction through response assembly and
+reuse the existing transactional use cases (which join that transaction). Submit,
+decide and close retain their lifecycle observability wrappers around the use case,
+followed by full detail assembly in the same transaction. Draft create/update and
+cancel retain lightweight responses. Authorization, request-version checks and outbox
+writes remain inside the existing use cases. Worker entry points continue to call
+use cases directly. PostgreSQL integration tests inject response-assembly failures
+to verify rollback of request state, steps, decisions, jobs and outbox writes.
+
+List, queue and GET detail queries now use projection adapters described below.
+Command response assembly retains its aggregate-based model with batched decisions.
+
+The mediator is for one-handler commands and queries. Business events and durable
+outbox delivery remain separate, and transactions and authorization stay explicit
+in handlers rather than being inferred by the dispatcher.
+
+## Transactional lifecycle events
+
+`domain.event.RequestApproved` is an immutable business fact containing the saved
+request id and approver username. It is separate from persisted outbox payloads.
+The fully approved branch of `DecideStep` publishes it after saving and flushing.
+The other lifecycle events contain only ids and immutable decision details:
+
+| Event | Publisher | Subscribers (in order) |
+|-------|-----------|------------------------|
+| `RequestSubmitted` | `SubmitRequest` | `NotifyRequestSubmitted`, `NotifySubmittedRequestApprovers` |
+| `RequestRejected` | `DecideStep` | `NotifyRequestRejected` |
+| `DecisionDelegated` | `DecideStep` | `NotifyDecisionDelegated` |
+
+Submission first writes requester notifications (order 100), then eligible-approver
+notifications (order 200) when the saved request remains in review. Submission with
+all steps skipped retains its existing behavior: it emits only `RequestSubmitted`,
+without triggering approval notifications or execution jobs. Rejection preserves its
+justification and requester recipient; delegation preserves the recorded step code,
+delegator username, delegatee recipient and existing email wording. Their notification
+handlers run at order 100. Notification payloads, keys and null correlation-id arguments
+are unchanged. Notifications for the next step after an approval still use the existing
+`ApproverNotifier` call in `DecideStep`.
+
+`DomainEventPublisher` fans out to all matching `DomainEventHandler<E>` subscribers.
+`SynchronousDomainEventPublisher` invokes Spring-managed handler proxies directly on
+the caller's thread, independent of Spring's configurable event multicaster. Its
+`publish` method requires an existing transaction (`MANDATORY`); there is no async or
+after-commit delivery. Missing subscribers fail explicitly. Handler exceptions stop
+fan-out and propagate, marking the enclosing transaction for rollback.
+
+Spring's ordered handler list preserves the previous sequence:
+
+1. `NotifyRequestApproved` (order 100) loads the saved request, composes the existing
+   approval email, and writes FEED and EMAIL outbox records with the existing keys.
+2. `EnqueueApprovedRequestJobs` (order 200) loads the saved request and delegates to
+   the existing idempotent execution-job enqueueing service.
+
+Subscribers resolve the request within the same transaction rather than sharing a
+mutable aggregate in the event. This adds two repository lookups on final approval
+and submission, and one on rejection or delegation.
+The request state, decision history, step changes, jobs and outbox entries commit or
+roll back together. Existing durable workers continue delivery after commit.
+
+Tests cover synchronous multi-handler dispatch, exception propagation, transaction
+requirements and replay idempotency. A PostgreSQL test installs a third subscriber
+that fails after verifying notification and job writes, then verifies that the full
+approval transaction rolled back. Parameterized PostgreSQL tests exercise successful
+commit, replay idempotency and late-subscriber rollback for submission, rejection and
+delegation, including rollback of submission's eligible-approver notifications.
+
+## Request list projection
+
+`ListRequestsHandler` checks listing permission, then calls the application-owned
+`RequestListQueries` port with the actual caller id and a separate list-all flag.
+The port returns `PageResult<RequestListItem>` without domain request aggregates.
+The former filtered `findAll` operation has been removed from `RequestRepository`;
+aggregate loading for commands is unchanged; GET detail uses its own query port.
+
+`JpaRequestListQueries` uses a Criteria constructor projection selecting only the
+request fields required by the existing list response, type code/name, optional
+department code and requester id/username/display name. It never selects entities or
+calls aggregate mappers. A left join preserves requests whose type has no department.
+The existing `RequestSpecifications` applies status/type/owner filters to both the
+projection and count queries before pagination; allowed sort fields match the API.
+The adapter performs one page query and one count query. Authorization's own user and
+permission lookups are separate from these two queries.
+
+`RequestResponse.from(RequestListItem)` preserves the HTTP response shape, including
+empty steps, clarifications and execution-job arrays. PostgreSQL tests compare it with
+the aggregate-based response and verify JSON, nullable joins, sorting, visibility and
+page totals. Hibernate statistics verify two statements and zero entity/collection
+loads for the projection operation.
+
+The migration also fixes `mine=true` for callers with listing permission: the previous
+handler passed a null caller id for these callers, so the owner filter returned no
+matches. The new port always receives the caller id, allowing the existing owner
+predicate to work for both own-only and list-all callers.
+
+## Approval queue projection
+
+`GetApprovalQueueHandler` authorizes queue access, then supplies caller id and roles
+to `ApprovalQueueQueries`. `JpaApprovalQueueQueries` selects request rows with an
+`EXISTS` predicate for a pending step whose required role matches or which has a
+DELEGATE decision addressed to the caller. The delegation must reference that same
+pending step instance. The request must be in review and belong to someone else.
+The existing role-less-caller empty-queue behavior is preserved.
+
+Eligibility filters apply before ordering, paging and counting. Correlated `EXISTS`
+predicates prevent duplicates from multiple matching steps or delegation records.
+There is no intermediate eligible-id list, unbounded `IN` clause or aggregate mapping.
+List and queue adapters share `RequestListProjection` for the scalar page and count
+queries. The old queue methods have been removed from request and step-instance
+repositories. A page uses two SQL statements (page and total count); eligibility is
+part of each statement rather than a separate prefetch.
+
+PostgreSQL tests cover role matches, delegation on the current pending instance,
+requester exclusion, request/step states, duplicate matches, sorted pages and totals.
+Statistics checks verify no entity loads and two statements for the queue projection.
+
+## Public pagination convention
+
+Every paginated HTTP endpoint uses one-based page numbers: omitted `page` defaults to
+1, `page=1` returns the first page and `page=2` returns the second. Page numbers below
+1 return HTTP 400. This intentionally replaces the previous zero-based API contract;
+clients sending `page=0` must switch to `page=1`. Default page size remains 20, with
+existing size normalization to the range 1–100.
+
+`api.web.Pagination` converts public page numbers to zero-based `PageQuery` values,
+validates the page and applies canonical whitelisted sort fields. `PageResponse.from`
+converts internal page numbers back to one-based values; first/last and total-page
+semantics remain unchanged, including empty and out-of-range pages. Notification
+feeds, including their manually paged unread path, use the same conversion and a
+long offset to avoid multiplication overflow. All application and persistence paging
+continues to use zero-based numbers.
+
+API contract tests cover defaults, explicit first/second pages and invalid page values
+across users, departments, roles, permissions, workflows, request types, requests,
+approval queues and both notification feed variants.
+
+## Request detail projections and decision batching
+
+`GetRequestHandler` uses the application-owned `RequestDetailQueries` port. It loads
+only a scalar `RequestListItem` header first, builds the same authorization target
+(including payload amount), and enforces owner/scoped-read permission before loading
+steps, decisions, clarifications or jobs. Missing requests retain the existing 404
+behavior; denied reads never load detail collections.
+
+`JpaRequestDetailQueries` returns `RequestDetailView`, whose nested records contain
+only scalar values, JSON and enums. The request header reuses the list projection.
+Separate projections load steps ordered by id, all request decisions ordered by id,
+clarifications by creation time descending and jobs by creation time ascending.
+Decisions are grouped by step-instance id without changing their order. Historical
+actor usernames and authorization evidence come directly from the decision rows.
+No entity or aggregate mapping is used, and DTO conversion remains at the API edge.
+
+The detail adapter uses five SQL statements (header, steps, batched decisions,
+clarifications, jobs), independent of step count. When there are no steps it skips
+the decision query, reducing this to four. Authorization's user/permission lookup
+is separate. PostgreSQL tests compare the scalar response to aggregate-based response
+assembly with one and four steps, full audit data, answered/unanswered clarifications,
+and planned/completed jobs; they verify fixed query counts and zero entity loads.
+
+Command handlers still return `RequestDetail` and use `RequestDetailReader` inside
+the write transaction. That reader now calls `DecisionRepository.findByRequestIdOrderById`
+once and groups decisions across all loaded steps, replacing one decision query per
+step. Steps without decisions retain empty lists. A focused test verifies interleaved
+history grouping, ordering and the single batch read. Existing transaction rollback
+and API tests continue to protect command behavior and response shapes.

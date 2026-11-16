@@ -1,0 +1,33 @@
+package com.flowops.application.request.query;
+
+import com.flowops.application.mediator.MessageHandler;
+import com.flowops.application.model.RequestListItem;
+import com.flowops.domain.paging.PageResult;
+import com.flowops.domain.policy.AuthorizationEvaluator;
+import com.flowops.domain.policy.PermissionCodes;
+import com.flowops.application.request.port.RequestListQueries;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class ListRequestsHandler implements MessageHandler<ListRequests, PageResult<RequestListItem>> {
+    private final RequestListQueries requests;
+    private final AuthorizationEvaluator authz;
+
+    public ListRequestsHandler(RequestListQueries requests, AuthorizationEvaluator authz) {
+        this.requests = requests;
+        this.authz = authz;
+    }
+
+    @Override
+    public Class<ListRequests> messageType() {
+        return ListRequests.class;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PageResult<RequestListItem> handle(ListRequests query) {
+        boolean canSeeAll = authz.hasPermission(query.caller(), PermissionCodes.REQUEST_LIST);
+        return requests.findAll(query.filter(), query.page(), query.caller().id(), canSeeAll);
+    }
+}

@@ -2,8 +2,6 @@ package com.flowops.infra.persistence.mapping;
 
 import com.flowops.domain.Request;
 import com.flowops.infra.persistence.entity.RequestEntity;
-import com.flowops.infra.persistence.entity.RequestTypeEntity;
-import com.flowops.infra.persistence.entity.UserEntity;
 
 /**
  * Maps the {@link Request} aggregate to and from its JPA entity.
@@ -42,17 +40,10 @@ public final class RequestMappers {
         if (e == null) {
             return null;
         }
-        Request d = new Request();
-        d.setId(e.getId());
-        d.setType(RequestTypeMappers.fromEntity(e.getType()));
-        d.setRequester(UserMappers.fromEntity(e.getRequester()));
-        d.setStatus(e.getStatus());
-        d.setPayload(e.getPayload());
-        d.setVersion(e.getVersion());
-        d.setCorrelationId(e.getCorrelationId());
-        d.setCreatedAt(e.getCreatedAt());
-        d.setUpdatedAt(e.getUpdatedAt());
-        d.setSubmittedAt(e.getSubmittedAt());
-        return d;
+        return Request.restore(new Request.Snapshot(
+                e.getId(), RequestTypeMappers.fromEntity(e.getType()),
+                UserMappers.fromEntity(e.getRequester()), e.getStatus(), e.getPayload(),
+                e.getVersion(), e.getCorrelationId(), e.getCreatedAt(),
+                e.getUpdatedAt(), e.getSubmittedAt()));
     }
 }

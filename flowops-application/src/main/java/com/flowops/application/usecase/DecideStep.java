@@ -4,6 +4,8 @@ import com.flowops.domain.policy.AuthorizationDecision;
 import com.flowops.domain.policy.AuthorizationEvaluator;
 import com.flowops.domain.policy.PermissionCodes;
 import com.flowops.domain.policy.TargetContext;
+import com.flowops.domain.policy.WorkflowDecisionPolicy;
+import com.flowops.domain.policy.WorkflowDecisionPolicy.Outcome;
 import com.flowops.domain.Decision;
 import com.flowops.domain.DecisionAction;
 import com.flowops.domain.port.DecisionRepository;
@@ -20,10 +22,10 @@ import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.ForbiddenException;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.identity.CallerIdentity;
-import com.flowops.application.notification.EmailComposer;
-import com.flowops.application.execution.ExecutionService;
-import com.flowops.domain.OutboxEvents;
-import com.flowops.application.notification.OutboxService;
+import com.flowops.application.event.DomainEventPublisher;
+import com.flowops.domain.event.RequestApproved;
+import com.flowops.domain.event.RequestRejected;
+import com.flowops.domain.event.DecisionDelegated;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -53,9 +55,7 @@ public class DecideStep {
     private final DecisionRepository decisions;
     private final StepMaterializer materializer;
     private final AuthorizationEvaluator authz;
-    private final OutboxService outbox;
-    private final ExecutionService executionService;
-    private final EmailComposer emailComposer;
+    private final DomainEventPublisher events;
     private final UserRepository users;
     private final ApproverNotifier approverNotifier;
 
@@ -64,9 +64,7 @@ public class DecideStep {
                       DecisionRepository decisions,
                       StepMaterializer materializer,
                       AuthorizationEvaluator authz,
-                      OutboxService outbox,
-                      ExecutionService executionService,
-                      EmailComposer emailComposer,
+                      DomainEventPublisher events,
                       UserRepository users,
                       ApproverNotifier approverNotifier) {
         this.requests = requests;
@@ -74,9 +72,7 @@ public class DecideStep {
         this.decisions = decisions;
         this.materializer = materializer;
         this.authz = authz;
-        this.outbox = outbox;
-        this.executionService = executionService;
-        this.emailComposer = emailComposer;
+        this.events = events;
         this.users = users;
         this.approverNotifier = approverNotifier;
     }
@@ -89,16 +85,9 @@ public class DecideStep {
     @Transactional
     public Request execute(Long requestId, DecisionAction action, String justification,
                            CallerIdentity caller, Long delegatedTo) {
-        if (action == DecisionAction.OVERRIDE) {
-            throw new ConflictException("OVERRIDE not available yet");
-        }
-        if (action == DecisionAction.DELEGATE && delegatedTo == null) {
-            throw new ConflictException("DELEGATE requires a delegatedTo user ID");
-        }
+        WorkflowDecisionPolicy.validateAction(action, delegatedTo);
         Request request = load(requestId);
-        if (request.getStatus() != RequestStatus.IN_REVIEW) {
-            throw new ConflictException("Request is not in review (current: " + request.getStatus() + ")");
-        }
+        WorkflowDecisionPolicy.requireInReview(request);
         StepInstance current = stepInstances.findTopByRequestIdAndStateOrderById(requestId, StepState.PENDING)
                 .orElseThrow(() -> new ConflictException("No active step to decide on request " + requestId));
         WorkflowStep step = current.getStep();
@@ -155,44 +144,32 @@ public class DecideStep {
                 action, justification, evidenceMap, delegatedTo);
         decisions.save(decisionRecord);
 
-        // ── DELEGATE: record only, do NOT advance the workflow ──────────
-        if (action == DecisionAction.DELEGATE) {
+        // Count after saving so the policy sees the newly recorded approval.
+        long approvals = action == DecisionAction.APPROVE
+                ? decisions.countByStepInstanceIdAndAction(current.getId(), DecisionAction.APPROVE)
+                : 0;
+        Outcome outcome = WorkflowDecisionPolicy.apply(request, current, action, approvals, caller.id());
+
+        if (outcome == Outcome.DELEGATED) {
             Request saved = requests.save(request);
             log.info("DELEGATE recorded: request={} from={} to={} step={}",
                     requestId, caller.username(), delegatedTo, step.getCode());
 
-            // Notify the delegatee
-            EmailComposer.ComposedEmail delegateEmail = emailComposer.delegated(
-                    request, caller.username(), "the delegatee", step.getCode());
-            outbox.notifyFeed(requestId, delegatedTo, OutboxEvents.NOTIFY_DELEGATE,
-                    delegateEmail.subject(), delegateEmail.text(), null);
-            outbox.notifyEmail(requestId, delegatedTo, OutboxEvents.DELEGATED,
-                    delegateEmail.subject(), delegateEmail.text(), delegateEmail.html(), null);
+            events.publish(new DecisionDelegated(saved.getId(), caller.username(), delegatedTo, step.getCode()));
 
             return saved;
         }
 
-        if (action == DecisionAction.REJECT) {
-            request.transitionTo(RequestStatus.REJECTED);
+        if (outcome == Outcome.REJECTED) {
             Request saved = requests.save(request);
             requests.flush(); // surface optimistic-lock conflicts before outbox writes
 
-            // ── Outbox trigger: notify requester of rejection ────────────
-            Long requesterId = request.getRequester().getId();
-            EmailComposer.ComposedEmail rejectEmail = emailComposer.rejected(
-                    request, caller.username(), justification);
-            outbox.notifyFeed(requestId, requesterId, OutboxEvents.NOTIFY_REJECT,
-                    rejectEmail.subject(), rejectEmail.text(), null);
-            outbox.notifyEmail(requestId, requesterId, OutboxEvents.REJECTED,
-                    rejectEmail.subject(), rejectEmail.text(), rejectEmail.html(), null);
+            events.publish(new RequestRejected(saved.getId(), caller.username(), justification));
 
             return saved;
         }
 
-        // Completion rule: count APPROVE decisions on this step instance
-        long approvals = decisions.countByStepInstanceIdAndAction(current.getId(), DecisionAction.APPROVE);
-        if (approvals >= current.getRequiredApprovals()) {
-            current.satisfy(caller.id());
+        if (outcome == Outcome.STEP_COMPLETED) {
             stepInstances.save(current);
             materializer.materializeNext(request, step.getWorkflow(), current.getPosition());
 
@@ -205,17 +182,8 @@ public class DecideStep {
         Request saved = requests.save(request);
         requests.flush(); // surface optimistic-lock conflicts before outbox writes
 
-        // ── Outbox trigger: notify requester on approval (if fully approved) ──
-        if (request.getStatus() == RequestStatus.APPROVED) {
-            Long requesterId = request.getRequester().getId();
-            EmailComposer.ComposedEmail approveEmail = emailComposer.approved(request, caller.username());
-            outbox.notifyFeed(requestId, requesterId, OutboxEvents.NOTIFY_APPROVE,
-                    approveEmail.subject(), approveEmail.text(), null);
-            outbox.notifyEmail(requestId, requesterId, OutboxEvents.APPROVED,
-                    approveEmail.subject(), approveEmail.text(), approveEmail.html(), null);
-
-            // ── Iteration 7: enqueue execution jobs ─────────────────────
-            executionService.enqueueJobs(request);
+        if (saved.getStatus() == RequestStatus.APPROVED) {
+            events.publish(new RequestApproved(saved.getId(), caller.username()));
         }
 
         return saved;

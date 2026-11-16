@@ -34,6 +34,11 @@ public class SpringDecisionRepository implements DecisionRepository {
     }
 
     @Override
+    public List<Decision> findByRequestIdOrderById(Long requestId) {
+        return jpaRepository.findByRequestIdOrderById(requestId).stream().map(DecisionMappers::fromEntity).toList();
+    }
+
+    @Override
     public long countByStepInstanceIdAndAction(Long stepInstanceId, DecisionAction action) {
         return jpaRepository.countByStepInstanceIdAndAction(stepInstanceId, action);
     }

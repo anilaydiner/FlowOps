@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.validation.Valid;
 import com.flowops.domain.paging.PageQuery;
+import com.flowops.api.web.Pagination;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -53,7 +54,7 @@ public class RequestTypeController {
                     - `active` — true / false
 
                     **Sorting** — repeatable `sort` param, format `field,asc|desc`
-                    **Pagination**: `page` (default 0), `size` (default 20, max 100)
+                    **Pagination**: `page` (default 1), `size` (default 20, max 100)
                     """)
     @Parameters({
             @Parameter(name = "code", description = "Partial type code match (case-insensitive)"),
@@ -61,7 +62,7 @@ public class RequestTypeController {
             @Parameter(name = "departmentCode", description = "Exact owning department code (e.g. FINANCE)"),
             @Parameter(name = "active", description = "Filter by active flag"),
             @Parameter(name = "sort", description = "Sort field + direction: field,asc|desc. Repeatable for multi-sort."),
-            @Parameter(name = "page", description = "Zero-based page number (default 0)"),
+            @Parameter(name = "page", description = "One-based page number (default 1)"),
             @Parameter(name = "size", description = "Page size (default 20, max 100)")
     })
     @ApiResponses({
@@ -75,12 +76,12 @@ public class RequestTypeController {
             @RequestParam(required = false) String departmentCode,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) List<String> sort,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal caller
     ) {
         RequestTypeFilter filter = new RequestTypeFilter(code, name, departmentCode, active);
-        PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        PageQuery pageQuery = Pagination.toPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
         return PageResponse.from(requestTypeService.list(filter, pageQuery, caller.toIdentity()).map(RequestTypeResponse::from));
     }
 

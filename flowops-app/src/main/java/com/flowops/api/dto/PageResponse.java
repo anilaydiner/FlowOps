@@ -25,7 +25,7 @@ public record PageResponse<T>(
     public static <T> PageResponse<T> from(PageResult<T> source) {
         return new PageResponse<>(
                 source.content(),
-                source.page(),
+                source.page() + 1,
                 source.size(),
                 source.totalElements(),
                 source.getTotalPages(),

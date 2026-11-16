@@ -11,7 +11,7 @@ public final class MetricNames {
 
     private MetricNames() {}
 
-    // ── Request lifecycle (RequestService) ─────────────────────────────
+    // ── Request lifecycle (command handlers) ─────────────────────────────
     public static final String REQUEST_SUBMITTED = "flowops.request.submitted";
     public static final String REQUEST_DECIDED   = "flowops.request.decided";
     public static final String REQUEST_APPROVED  = "flowops.request.approved";

@@ -2,6 +2,7 @@ package com.flowops.api;
 
 import com.flowops.api.dto.PageResponse;
 import com.flowops.domain.paging.PageQuery;
+import com.flowops.api.web.Pagination;
 import com.flowops.domain.query.UserFilter;
 import com.flowops.api.dto.UserRequest;
 import com.flowops.api.dto.UserResponse;
@@ -27,7 +28,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -59,7 +59,7 @@ public class UserController {
                     - `sort=createdAt,desc&sort=username,asc`  (multi-sort)
 
                     **Pagination**:
-                    - `page` — zero-based page number (default 0)
+                    - `page` — one-based page number (default 1)
                     - `size` — page size (default 20, max 100)
                     """)
     @Parameters({
@@ -70,7 +70,7 @@ public class UserController {
             @Parameter(name = "roleCode", description = "Exact role code (ADMIN or MEMBER)"),
             @Parameter(name = "active", description = "Filter by active status"),
             @Parameter(name = "sort", description = "Sort field + direction: field,asc|desc. Repeatable for multi-sort."),
-            @Parameter(name = "page", description = "Zero-based page number (default 0)"),
+            @Parameter(name = "page", description = "One-based page number (default 1)"),
             @Parameter(name = "size", description = "Page size (default 20, max 100)")
     })
     @ApiResponses({
@@ -85,40 +85,13 @@ public class UserController {
             @RequestParam(required = false) String roleCode,
             @RequestParam(required = false) Boolean active,
             @RequestParam(required = false) List<String> sort,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal caller
     ) {
         UserFilter filter = new UserFilter(username, displayName, email, departmentCode, roleCode, active);
-        PageQuery pageQuery = buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        PageQuery pageQuery = Pagination.toPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
         return PageResponse.from(userService.list(filter, pageQuery, caller.toIdentity()).map(UserResponse::from));
-    }
-
-    /**
-     * Build a {@link PageQuery} from explicit page/size/sort params.
-     * Sort format: {@code field,asc} or {@code field,desc}.
-     * Unknown fields are silently ignored (prevents SQL injection via arbitrary column names).
-     */
-    static PageQuery buildPageQuery(int page, int size, List<String> sortParams, List<String> allowedFields) {
-        int safePage = Math.max(0, page);
-        int safeSize = Math.min(Math.max(1, size), 100);
-
-        List<PageQuery.Order> orders = new ArrayList<>();
-        if (sortParams != null) {
-            for (String s : sortParams) {
-                if (s == null || s.isBlank()) continue;
-                String[] parts = s.split(",", 2);
-                String field = parts[0].strip();
-                if (field.isEmpty()) continue;
-                if (!allowedFields.contains(field.toLowerCase())) continue;
-                boolean descending = parts.length > 1 && parts[1].strip().equalsIgnoreCase("desc");
-                orders.add(new PageQuery.Order(field, descending));
-            }
-        }
-        if (orders.isEmpty()) {
-            orders.add(new PageQuery.Order("id", false));
-        }
-        return new PageQuery(safePage, safeSize, orders);
     }
 
     /** Whitelist of sortable fields — prevents arbitrary column access. */

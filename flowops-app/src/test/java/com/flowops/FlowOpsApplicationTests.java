@@ -6,10 +6,19 @@ import com.flowops.domain.User;
 import com.flowops.domain.port.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.flowops.infra.worker.JobWorker;
+import com.flowops.infra.worker.OutboxDispatcher;
+import com.flowops.infra.worker.SlaScanner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FlowOpsApplicationTests extends AbstractIntegrationTest {
+    // Keep this cached context from polling the database used by manual worker tests.
+    @MockitoBean JobWorker backgroundJobs;
+    @MockitoBean OutboxDispatcher backgroundOutbox;
+    @MockitoBean SlaScanner backgroundSla;
+
 
     @Autowired
     private UserRepository userRepository;

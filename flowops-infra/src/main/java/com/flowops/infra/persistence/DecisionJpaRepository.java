@@ -10,5 +10,7 @@ public interface DecisionJpaRepository extends JpaRepository<DecisionEntity, Lon
 
     List<DecisionEntity> findByStepInstanceIdOrderById(Long stepInstanceId);
 
+    List<DecisionEntity> findByRequestIdOrderById(Long requestId);
+
     long countByStepInstanceIdAndAction(Long stepInstanceId, DecisionAction action);
 }

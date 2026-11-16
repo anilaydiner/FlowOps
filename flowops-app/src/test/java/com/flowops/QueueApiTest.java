@@ -182,9 +182,9 @@ class QueueApiTest extends AbstractIntegrationTest {
                         "{\"amount\":" + (i + 1) + ",\"description\":\"Item " + i + "\"}");
             }
 
-            // page=0, size=1 → first page has 1 element, totalElements >= 3
+            // page=1, size=1 → first page has 1 element, totalElements >= 3
             JsonNode page0 = mapper.readTree(mvc.perform(get("/api/v1/requests/queue")
-                            .param("page", "0").param("size", "1")
+                            .param("page", "1").param("size", "1")
                             .header("Authorization", "Bearer " + adminToken()))
                     .andExpect(status().isOk())
                     .andReturn().getResponse().getContentAsString());

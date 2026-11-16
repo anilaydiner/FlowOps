@@ -1,7 +1,5 @@
 package com.flowops.infra.persistence;
 
-import com.flowops.domain.DecisionAction;
-import com.flowops.domain.RequestStatus;
 import com.flowops.domain.StepInstance;
 import com.flowops.domain.StepState;
 import com.flowops.domain.port.StepInstanceRepository;
@@ -10,7 +8,6 @@ import com.flowops.infra.persistence.mapping.StepInstanceMappers;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,12 +51,6 @@ public class SpringStepInstanceRepository implements StepInstanceRepository {
     @Override
     public List<StepInstance> findByStateWithAssociations(StepState state) {
         return jpaRepository.findByStateWithAssociations(state).stream().map(StepInstanceMappers::fromEntity).toList();
-    }
-
-    @Override
-    public List<Long> findEligibleRequestIds(StepState state, RequestStatus status,
-                                             Collection<String> roles, Long userId) {
-        return jpaRepository.findEligibleRequestIds(state, status, roles, DecisionAction.DELEGATE, userId);
     }
 
     @Override

@@ -4,19 +4,22 @@ import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.InvalidStateTransitionException;
 
 import java.time.Instant;
+import java.util.Collections;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
 /**
- * A workflow request. Iteration 3 covers the draft lifecycle
- * (DRAFT → CANCELLED); submit/workflow lands in iteration 4.
+ * A workflow request with a guarded lifecycle.
  * Optimistic locking (the persistence entity's {@code @Version}) guards
  * concurrent transitions.
  *
  * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
  * lives in {@code infra.persistence.entity.RequestEntity}; the rehydration
- * constructor and setters exist solely for that mapper. Business behavior
+ * factory exists solely for that mapper. Business behavior
  * goes through the named methods ({@link #transitionTo}, {@link #replacePayload}, …).
  */
 public class Request {
@@ -32,8 +35,7 @@ public class Request {
     private Instant updatedAt;
     private Instant submittedAt;
 
-    public Request() {
-        // Rehydration only — used by the persistence mapper, not by business code.
+    private Request() {
     }
 
     public static Request newDraft(RequestType type, User requester,
@@ -42,7 +44,7 @@ public class Request {
         r.type = type;
         r.requester = requester;
         r.status = RequestStatus.DRAFT;
-        r.payload = payload != null ? new LinkedHashMap<>(payload) : new LinkedHashMap<>();
+        r.payload = copyPayload(payload);
         r.correlationId = correlationId;
         r.createdAt = Instant.now();
         r.updatedAt = r.createdAt;
@@ -68,7 +70,7 @@ public class Request {
         if (!isDraft()) {
             throw new ConflictException("Only DRAFT requests can be edited (current: " + status + ")");
         }
-        this.payload = newPayload != null ? new LinkedHashMap<>(newPayload) : new LinkedHashMap<>();
+        this.payload = copyPayload(newPayload);
         this.updatedAt = Instant.now();
     }
 
@@ -116,16 +118,59 @@ public class Request {
     public Instant getUpdatedAt() { return updatedAt; }
     public Instant getSubmittedAt() { return submittedAt; }
 
-    // ── Setters (persistence rehydration only) ─────────────────────────
+    /** Persisted state; restoration does not replay transitions or change timestamps. */
+    public record Snapshot(Long id, RequestType type, User requester, RequestStatus status,
+                           Map<String, Object> payload, Long version, String correlationId,
+                           Instant createdAt, Instant updatedAt, Instant submittedAt) {
+    }
 
-    public void setId(Long id) { this.id = id; }
-    public void setType(RequestType type) { this.type = type; }
-    public void setRequester(User requester) { this.requester = requester; }
-    public void setStatus(RequestStatus status) { this.status = status; }
-    public void setPayload(Map<String, Object> payload) { this.payload = payload; }
-    public void setVersion(Long version) { this.version = version; }
-    public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
-    public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }
+    /** Persistence adapter only; business code must use newDraft and lifecycle methods. */
+    public static Request restore(Snapshot state) {
+        Request r = new Request();
+        r.id = state.id();
+        r.type = state.type();
+        r.requester = state.requester();
+        r.status = Objects.requireNonNull(state.status(), "status");
+        r.payload = copyPayload(state.payload());
+        r.version = state.version();
+        r.correlationId = state.correlationId();
+        r.createdAt = state.createdAt();
+        r.updatedAt = state.updatedAt();
+        r.submittedAt = state.submittedAt();
+        return r;
+    }
+
+    /** Persistence adapter only: acknowledge the database-generated identity and lock version. */
+    public void recordPersistence(Long id, Long version) {
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(version, "version");
+        if (this.id != null && !this.id.equals(id)) {
+            throw new IllegalArgumentException("Cannot change a persisted request's identity");
+        }
+        this.id = id;
+        this.version = version;
+    }
+
+    private static Map<String, Object> copyPayload(Map<String, Object> source) {
+        Map<String, Object> copy = new LinkedHashMap<>();
+        if (source != null) {
+            source.forEach((key, value) -> copy.put(key, copyJsonValue(value)));
+        }
+        return Collections.unmodifiableMap(copy);
+    }
+
+    // JSON objects and arrays can nest. Preserve nulls, key order and scalar types.
+    private static Object copyJsonValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<Object, Object> copy = new LinkedHashMap<>();
+            map.forEach((key, nested) -> copy.put(key, copyJsonValue(nested)));
+            return Collections.unmodifiableMap(copy);
+        }
+        if (value instanceof List<?> list) {
+            List<Object> copy = new ArrayList<>(list.size());
+            list.forEach(nested -> copy.add(copyJsonValue(nested)));
+            return Collections.unmodifiableList(copy);
+        }
+        return value;
+    }
 }

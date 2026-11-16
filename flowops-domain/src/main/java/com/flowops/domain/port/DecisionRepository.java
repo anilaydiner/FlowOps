@@ -15,6 +15,8 @@ public interface DecisionRepository {
 
     List<Decision> findByStepInstanceIdOrderById(Long stepInstanceId);
 
+    List<Decision> findByRequestIdOrderById(Long requestId);
+
     long countByStepInstanceIdAndAction(Long stepInstanceId, DecisionAction action);
 
     List<Decision> findAll();

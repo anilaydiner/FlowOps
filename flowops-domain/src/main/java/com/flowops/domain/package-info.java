@@ -21,6 +21,8 @@
  * <p>
  * Aggregates therefore expose a public no-arg constructor and a
  * "rehydration only" setter section used exclusively by those mappers.
+ * Request instead uses an explicit restoration factory and persistence acknowledgement;
+ * ArchUnit confines these methods to persistence adapters.
  * Business behavior goes through the named methods
  * ({@code Request.transitionTo}, {@code ExecutionJob.markCompleted}, …);
  * business code should never construct an aggregate blank or use the

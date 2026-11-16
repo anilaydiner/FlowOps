@@ -293,7 +293,7 @@ class UsersApiTest extends AbstractIntegrationTest {
 
         @Test
         void list_pagination_sizeAndPage() throws Exception {
-            mvc.perform(get("/api/v1/users?page=0&size=1")
+            mvc.perform(get("/api/v1/users?page=1&size=1")
                             .header("Authorization", "Bearer " + adminToken()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content.length()").value(1))
@@ -301,7 +301,7 @@ class UsersApiTest extends AbstractIntegrationTest {
                     .andExpect(jsonPath("$.totalPages").isNumber())
                     .andExpect(jsonPath("$.first").value(true));
 
-            mvc.perform(get("/api/v1/users?page=1&size=1")
+            mvc.perform(get("/api/v1/users?page=2&size=1")
                             .header("Authorization", "Bearer " + adminToken()))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.content.length()").value(1))

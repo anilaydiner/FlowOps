@@ -5,6 +5,8 @@ import com.flowops.domain.Decision;
 import com.flowops.domain.ExecutionJob;
 import com.flowops.domain.Request;
 import com.flowops.application.model.RequestDetail;
+import com.flowops.application.model.RequestListItem;
+import com.flowops.application.model.RequestDetailView;
 import com.flowops.domain.StepInstance;
 
 import java.time.Instant;
@@ -63,6 +65,36 @@ public record RequestResponse(
                 r.getCreatedAt(),
                 r.getUpdatedAt(),
                 r.getSubmittedAt());
+    }
+
+    public static RequestResponse from(RequestListItem item) {
+        return new RequestResponse(item.id(), item.typeCode(), item.typeName(), item.departmentCode(),
+                item.status().name(), item.payload(), item.version() != null ? item.version() : 0L,
+                new RequesterDto(item.requesterId(), item.requesterUsername(), item.requesterDisplayName()),
+                item.correlationId(), List.of(), List.of(), List.of(),
+                item.createdAt(), item.updatedAt(), item.submittedAt());
+    }
+
+    public static RequestResponse from(RequestDetailView detail) {
+        RequestListItem item = detail.request();
+        return new RequestResponse(item.id(), item.typeCode(), item.typeName(), item.departmentCode(),
+                item.status().name(), item.payload(), item.version() != null ? item.version() : 0L,
+                new RequesterDto(item.requesterId(), item.requesterUsername(), item.requesterDisplayName()),
+                item.correlationId(),
+                detail.steps().stream().map(step -> new StepDto(
+                        step.id(), step.position(), step.code(), step.name(), step.requiredRole(),
+                        step.state().name(), step.rule().name(), step.requiredApprovals(), step.skipReason(),
+                        step.blockedReason(), step.satisfiedBy(), step.satisfiedAt(),
+                        detail.decisionsByStep().getOrDefault(step.id(), List.of()).stream()
+                                .map(decision -> new DecisionDto(decision.id(), decision.actorId(), decision.actorUsername(),
+                                        decision.action().name(), decision.justification(), decision.evidence(),
+                                        decision.delegatedTo(), decision.createdAt())).toList())).toList(),
+                detail.clarifications().stream().map(clarification -> new ClarificationDto(
+                        clarification.id(), clarification.askedBy(), clarification.question(), clarification.answer(),
+                        clarification.answeredBy(), clarification.answeredAt(), clarification.createdAt())).toList(),
+                detail.jobs().stream().map(job -> new ExecutionJobDto(job.id(), job.action(), job.status().name(),
+                        job.result(), job.lastError(), job.retryCount(), job.createdAt(), job.completedAt())).toList(),
+                item.createdAt(), item.updatedAt(), item.submittedAt());
     }
 
     private static StepDto toStepDto(StepInstance si, RequestDetail detail) {

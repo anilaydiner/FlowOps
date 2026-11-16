@@ -35,6 +35,14 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 @AnalyzeClasses(packages = "com.flowops", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
 
+    @ArchTest
+    static final ArchRule request_restoration_is_confined_to_persistence =
+            noClasses().that().resideOutsideOfPackage("com.flowops.infra.persistence..")
+                    .should().callMethod(com.flowops.domain.Request.class, "restore",
+                            com.flowops.domain.Request.Snapshot.class)
+                    .orShould().callMethod(com.flowops.domain.Request.class, "recordPersistence",
+                            Long.class, Long.class);
+
     /** The domain model is the core — it must not reach out to the API layer. */
     @ArchTest
     static final ArchRule domain_must_not_depend_on_api =

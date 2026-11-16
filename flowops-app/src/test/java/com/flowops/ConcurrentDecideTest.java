@@ -8,6 +8,10 @@ import com.flowops.application.usecase.DecideStep;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.flowops.infra.worker.JobWorker;
+import com.flowops.infra.worker.OutboxDispatcher;
+import com.flowops.infra.worker.SlaScanner;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -38,6 +42,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ConcurrentDecideTest extends AbstractIntegrationTest {
+    // Keep this cached context from polling the database used by manual worker tests.
+    @MockitoBean JobWorker backgroundJobs;
+    @MockitoBean OutboxDispatcher backgroundOutbox;
+    @MockitoBean SlaScanner backgroundSla;
+
 
     @LocalServerPort
     private int port;

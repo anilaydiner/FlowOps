@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import com.flowops.domain.paging.PageQuery;
+import com.flowops.api.web.Pagination;
 import com.flowops.domain.paging.PageResult;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -48,14 +49,14 @@ public class DepartmentController {
                     - `sort=name,desc&sort=code,asc`  (multi-sort)
 
                     **Pagination**:
-                    - `page` — zero-based page number (default 0)
+                    - `page` — one-based page number (default 1)
                     - `size` — page size (default 20, max 100)
                     """)
     @Parameters({
             @Parameter(name = "code", description = "Partial department code match (case-insensitive)"),
             @Parameter(name = "name", description = "Partial department name match (case-insensitive)"),
             @Parameter(name = "sort", description = "Sort field + direction: field,asc|desc. Repeatable for multi-sort."),
-            @Parameter(name = "page", description = "Zero-based page number (default 0)"),
+            @Parameter(name = "page", description = "One-based page number (default 1)"),
             @Parameter(name = "size", description = "Page size (default 20, max 100)")
     })
     @ApiResponses({
@@ -66,12 +67,12 @@ public class DepartmentController {
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) List<String> sort,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal caller
     ) {
         DepartmentFilter filter = new DepartmentFilter(code, name);
-        PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        PageQuery pageQuery = Pagination.toPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
         PageResult<Department> result = departments.list(filter, pageQuery, caller.toIdentity());
         return PageResponse.from(result);
     }

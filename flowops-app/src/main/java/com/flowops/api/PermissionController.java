@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import com.flowops.domain.paging.PageQuery;
+import com.flowops.api.web.Pagination;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -43,13 +44,13 @@ public class PermissionController {
                     - `name` — partial match
 
                     **Sorting** — repeatable `sort` param, format `field,asc|desc`
-                    **Pagination**: `page` (default 0), `size` (default 20, max 100)
+                    **Pagination**: `page` (default 1), `size` (default 20, max 100)
                     """)
     @Parameters({
             @Parameter(name = "code", description = "Partial permission code match (case-insensitive)"),
             @Parameter(name = "name", description = "Partial permission name match"),
             @Parameter(name = "sort", description = "Sort field + direction: field,asc|desc. Repeatable for multi-sort."),
-            @Parameter(name = "page", description = "Zero-based page number (default 0)"),
+            @Parameter(name = "page", description = "One-based page number (default 1)"),
             @Parameter(name = "size", description = "Page size (default 20, max 100)")
     })
     @ApiResponses({
@@ -61,12 +62,12 @@ public class PermissionController {
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) List<String> sort,
-            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal UserPrincipal caller
     ) {
         PermissionFilter filter = new PermissionFilter(code, name);
-        PageQuery pageQuery = UserController.buildPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
+        PageQuery pageQuery = Pagination.toPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
         return PageResponse.from(permissionService.list(filter, pageQuery, caller.toIdentity()).map(PermissionResponse::from));
     }
 

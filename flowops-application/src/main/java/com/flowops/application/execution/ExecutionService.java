@@ -17,8 +17,8 @@ import java.util.List;
  * <p>Idempotent: repeated calls for the same (request, action) pair are
  * silently skipped via the {@code idempotency_key} unique constraint.
  *
- * <p>Called from the {@code DecideStep} use case when the request
- * transitions to APPROVED.
+ * <p>Called by the synchronous {@code RequestApproved} event handler within
+ * the approval transaction.
  */
 @Service
 public class ExecutionService {

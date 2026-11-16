@@ -10,14 +10,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Application read model for a request: the aggregate plus its detail
+ * Command response model for a request: the aggregate plus its detail
  * collections (steps, per-step decisions, clarifications, execution jobs).
  *
- * <p>Returned by the application service in place of a {@link Request} carrying
+ * <p>Returned by lifecycle command handlers in place of a {@link Request} carrying
  * {@code @Transient} presentation fields, so the domain aggregate stays free of
  * read-model concerns. Mapped to the API's {@code RequestResponse} DTO by the
  * controller layer. Collections are never null — {@link #of(Request)} yields
- * empty collections for lightweight (list/queue) views.</p>
+ * empty collections for lightweight draft/cancel responses. GET reads use RequestDetailView.</p>
  *
  * @param request          the request aggregate
  * @param steps            ordered step instances (empty when not loaded)
@@ -32,12 +32,12 @@ public record RequestDetail(
         List<Clarification> clarifications,
         List<ExecutionJob> jobs
 ) {
-    /** Lightweight view (list / queue / draft operations): no detail collections. */
+    /** Lightweight view (draft operations / cancel): no detail collections. */
     public static RequestDetail of(Request request) {
         return new RequestDetail(request, List.of(), Map.of(), List.of(), List.of());
     }
 
-    /** Full detail view (get / submit / decide / close). */
+    /** Full detail view (submit / decide / close). */
     public static RequestDetail full(Request request,
                                      List<StepInstance> steps,
                                      Map<Long, List<Decision>> decisionsByStep,

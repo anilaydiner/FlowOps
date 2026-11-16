@@ -36,6 +36,12 @@ public record TargetContext(
         );
     }
 
+    /** Build request-read scope from scalar data without requiring an aggregate. */
+    public static TargetContext forRequest(Long requesterId, String typeCode, String departmentCode,
+                                           java.util.Map<String, Object> payload) {
+        return new TargetContext(requesterId, typeCode, departmentCode, extractAmount(payload), null);
+    }
+
     private static Double extractAmount(java.util.Map<String, Object> payload) {
         if (payload == null) return null;
         Object v = payload.get("amount");

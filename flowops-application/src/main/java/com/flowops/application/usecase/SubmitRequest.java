@@ -1,7 +1,5 @@
 package com.flowops.application.usecase;
 
-import com.flowops.domain.identity.CallerIdentity;
-
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.Request;
@@ -9,9 +7,8 @@ import com.flowops.domain.port.RequestRepository;
 import com.flowops.domain.RequestStatus;
 import com.flowops.domain.Workflow;
 import com.flowops.domain.identity.CallerIdentity;
-import com.flowops.application.notification.EmailComposer;
-import com.flowops.domain.OutboxEvents;
-import com.flowops.application.notification.OutboxService;
+import com.flowops.application.event.DomainEventPublisher;
+import com.flowops.domain.event.RequestSubmitted;
 import com.flowops.domain.policy.AuthorizationEvaluator;
 import com.flowops.domain.policy.PermissionCodes;
 import com.flowops.domain.policy.TargetContext;
@@ -33,23 +30,17 @@ public class SubmitRequest {
 
     private final RequestRepository requests;
     private final StepMaterializer materializer;
-    private final OutboxService outbox;
-    private final EmailComposer emailComposer;
+    private final DomainEventPublisher events;
     private final AuthorizationEvaluator authz;
-    private final ApproverNotifier approverNotifier;
 
     public SubmitRequest(RequestRepository requests,
                          StepMaterializer materializer,
-                         OutboxService outbox,
-                         EmailComposer emailComposer,
-                         AuthorizationEvaluator authz,
-                         ApproverNotifier approverNotifier) {
+                         DomainEventPublisher events,
+                         AuthorizationEvaluator authz) {
         this.requests = requests;
         this.materializer = materializer;
-        this.outbox = outbox;
-        this.emailComposer = emailComposer;
+        this.events = events;
         this.authz = authz;
-        this.approverNotifier = approverNotifier;
     }
 
     @Transactional
@@ -75,20 +66,8 @@ public class SubmitRequest {
             request.transitionTo(RequestStatus.IN_REVIEW);
         }
         Request saved = requests.save(request);
-        requests.flush(); // commit the state transition before touching the outbox
-
-        // ── Outbox trigger: notify on submit (PLAN §8.1) ──────────────────
-        Long requesterId = request.getRequester().getId();
-        EmailComposer.ComposedEmail submitEmail = emailComposer.submitted(request);
-        outbox.notifyFeed(requestId, requesterId, OutboxEvents.NOTIFY_SUBMIT,
-                submitEmail.subject(), submitEmail.text(), null);
-        outbox.notifyEmail(requestId, requesterId, OutboxEvents.SUBMITTED,
-                submitEmail.subject(), submitEmail.text(), submitEmail.html(), null);
-
-        // ── Phase 8: notify every eligible approver of the new request ─────
-        if (request.getStatus() == RequestStatus.IN_REVIEW) {
-            approverNotifier.notifyEligibleApprovers(request, null);
-        }
+        requests.flush(); // surface optimistic-lock conflicts before event subscribers write
+        events.publish(new RequestSubmitted(saved.getId()));
 
         return saved;
     }
