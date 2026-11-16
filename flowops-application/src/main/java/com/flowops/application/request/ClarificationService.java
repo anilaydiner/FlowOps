@@ -1,21 +1,17 @@
 package com.flowops.application.request;
 
-import com.flowops.domain.identity.CallerIdentity;
-import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.ConflictException;
-import com.flowops.domain.policy.AuthorizationEvaluator;
-import com.flowops.domain.policy.PermissionCodes;
-
-import com.flowops.domain.Clarification;
-import com.flowops.domain.port.ClarificationRepository;
-import com.flowops.domain.Request;
-import com.flowops.domain.port.RequestRepository;
-import com.flowops.domain.RequestStatus;
+import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.identity.CallerIdentity;
+import com.flowops.domain.identity.policy.AuthorizationEvaluator;
+import com.flowops.domain.identity.policy.PermissionCodes;
+import com.flowops.domain.request.Clarification;
+import com.flowops.domain.request.Request;
+import com.flowops.domain.request.port.ClarificationRepository;
+import com.flowops.domain.request.port.RequestRepository;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 /**
  * Clarification Q&A on a request (PLAN §8, iteration 7).

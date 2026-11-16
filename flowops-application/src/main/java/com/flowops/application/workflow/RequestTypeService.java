@@ -1,23 +1,23 @@
 package com.flowops.application.workflow;
-import com.flowops.domain.exception.NotFoundException;
-import com.flowops.domain.exception.ConflictException;
-import com.flowops.domain.identity.CallerIdentity;
-import com.flowops.domain.policy.AuthorizationEvaluator;
-import com.flowops.domain.policy.PermissionCodes;
 
+import com.flowops.domain.exception.ConflictException;
+import com.flowops.domain.exception.NotFoundException;
+import com.flowops.domain.identity.CallerIdentity;
+import com.flowops.domain.identity.policy.AuthorizationEvaluator;
+import com.flowops.domain.identity.policy.PermissionCodes;
+import com.flowops.domain.organization.Department;
+import com.flowops.domain.organization.port.DepartmentRepository;
 import com.flowops.domain.paging.PageQuery;
 import com.flowops.domain.paging.PageResult;
-import com.flowops.domain.query.RequestTypeFilter;
-import com.flowops.domain.RequestTypeSpec;
-import com.flowops.domain.Department;
-import com.flowops.domain.port.DepartmentRepository;
-import com.flowops.domain.RequestType;
-import com.flowops.domain.port.RequestTypeRepository;
-import com.flowops.domain.port.WorkflowRepository;
+import com.flowops.domain.workflow.RequestType;
+import com.flowops.domain.workflow.RequestTypeSpec;
+import com.flowops.domain.workflow.Workflow;
+import com.flowops.domain.workflow.port.RequestTypeRepository;
+import com.flowops.domain.workflow.port.WorkflowRepository;
+import com.flowops.domain.workflow.query.RequestTypeFilter;
+import java.util.Map;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Map;
 
 @Service
 public class RequestTypeService {
@@ -116,7 +116,7 @@ public class RequestTypeService {
         }
     }
 
-    private com.flowops.domain.Workflow resolveWorkflow(String code) {
+    private com.flowops.domain.workflow.Workflow resolveWorkflow(String code) {
         if (code == null || code.isBlank()) {
             return null;
         }

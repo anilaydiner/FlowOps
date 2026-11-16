@@ -1,31 +1,28 @@
 package com.flowops.application.identity;
 
 import com.flowops.application.notification.EmailComposer;
-import com.flowops.application.notification.OutboxService;
-import com.flowops.domain.identity.CallerIdentity;
-import com.flowops.domain.exception.NotFoundException;
+import com.flowops.application.notification.outbox.OutboxService;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.InvalidCredentialsException;
-import com.flowops.domain.policy.AuthorizationEvaluator;
-import com.flowops.domain.policy.PermissionCodes;
-
-import com.flowops.domain.query.UserFilter;
-import com.flowops.domain.Department;
-import com.flowops.domain.port.DepartmentRepository;
-import com.flowops.domain.Role;
-import com.flowops.domain.port.RoleRepository;
-import com.flowops.domain.User;
-import com.flowops.domain.port.UserRepository;
+import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.identity.CallerIdentity;
+import com.flowops.domain.identity.Role;
+import com.flowops.domain.identity.User;
+import com.flowops.domain.identity.policy.AuthorizationEvaluator;
+import com.flowops.domain.identity.policy.PermissionCodes;
+import com.flowops.domain.identity.port.RoleRepository;
+import com.flowops.domain.identity.port.UserRepository;
+import com.flowops.domain.identity.query.UserFilter;
+import com.flowops.domain.organization.Department;
+import com.flowops.domain.organization.port.DepartmentRepository;
 import com.flowops.domain.paging.PageQuery;
 import com.flowops.domain.paging.PageResult;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserService {

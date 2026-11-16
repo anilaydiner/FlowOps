@@ -1,15 +1,13 @@
 package com.flowops.application.execution;
 
-import com.flowops.domain.ExecutionJob;
-import com.flowops.domain.port.ExecutionJobRepository;
-import com.flowops.domain.OutboxMessage;
-import com.flowops.domain.Request;
-import com.flowops.domain.RequestType;
+import com.flowops.domain.execution.ExecutionJob;
+import com.flowops.domain.execution.port.ExecutionJobRepository;
+import com.flowops.domain.request.Request;
+import com.flowops.domain.workflow.RequestType;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 /**
  * Enqueues execution jobs when a request is fully approved (PLAN §8, iteration 7).
@@ -22,6 +20,8 @@ import java.util.List;
  */
 @Service
 public class ExecutionService {
+
+    private static final String JOB_KEY_FORMAT = "req:%d:%s";
 
     private static final Logger log = LoggerFactory.getLogger(ExecutionService.class);
 
@@ -45,7 +45,7 @@ public class ExecutionService {
 
         String correlationId = request.getCorrelationId();
         for (String action : actions) {
-            String key = String.format(OutboxMessage.KEY_FORMAT_JOB, request.getId(), action);
+            String key = String.format(JOB_KEY_FORMAT, request.getId(), action);
             jobs.saveIfAbsent(new ExecutionJob(key, request.getId(), action, correlationId))
                     .ifPresentOrElse(
                             saved -> log.info("EXEC ENQUEUED: key={} action={}", key, action),

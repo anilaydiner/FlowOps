@@ -18,8 +18,8 @@
     <modules>
         <module>flowops-domain</module>
         <module>flowops-application</module>
-        <module>flowops-infra</module>
-        <module>flowops-app</module>
+        <module>flowops-infrastructure</module>
+        <module>flowops-server</module>
     </modules>
 
     <properties>
@@ -47,12 +47,12 @@
             </dependency>
             <dependency>
                 <groupId>com.flowops</groupId>
-                <artifactId>flowops-infra</artifactId>
+                <artifactId>flowops-infrastructure</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.flowops</groupId>
-                <artifactId>flowops-app</artifactId>
+                <artifactId>flowops-server</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

@@ -1,21 +1,13 @@
 package com.flowops.application.identity;
 
 import com.flowops.application.notification.EmailComposer;
-import com.flowops.application.notification.OutboxService;
-import com.flowops.domain.PasswordResetToken;
-import com.flowops.domain.User;
-import com.flowops.domain.exception.RequestValidationException;
-import com.flowops.domain.port.PasswordResetTokenRepository;
-import com.flowops.domain.port.UserRepository;
+import com.flowops.application.notification.outbox.OutboxService;
 import com.flowops.domain.CorrelationId;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.slf4j.MDC;
-
+import com.flowops.domain.exception.RequestValidationException;
+import com.flowops.domain.identity.PasswordResetToken;
+import com.flowops.domain.identity.User;
+import com.flowops.domain.identity.port.PasswordResetTokenRepository;
+import com.flowops.domain.identity.port.UserRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -24,6 +16,13 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Forgot-password / password-reset use cases (PLAN §9).

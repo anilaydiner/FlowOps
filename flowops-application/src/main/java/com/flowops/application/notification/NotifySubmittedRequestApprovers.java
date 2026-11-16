@@ -1,12 +1,11 @@
 package com.flowops.application.notification;
 
 import com.flowops.application.event.DomainEventHandler;
-import com.flowops.application.usecase.ApproverNotifier;
-import com.flowops.domain.Request;
-import com.flowops.domain.RequestStatus;
-import com.flowops.domain.event.RequestSubmitted;
 import com.flowops.domain.exception.NotFoundException;
-import com.flowops.domain.port.RequestRepository;
+import com.flowops.domain.request.Request;
+import com.flowops.domain.request.RequestStatus;
+import com.flowops.domain.request.event.RequestSubmitted;
+import com.flowops.domain.request.port.RequestRepository;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 

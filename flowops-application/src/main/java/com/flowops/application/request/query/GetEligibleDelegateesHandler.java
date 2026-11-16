@@ -1,12 +1,11 @@
 package com.flowops.application.request.query;
 
 import com.flowops.application.mediator.MessageHandler;
-import com.flowops.application.usecase.EligibleDelegatees;
-import com.flowops.domain.User;
+import com.flowops.application.request.lifecycle.EligibleDelegatees;
+import com.flowops.domain.identity.User;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 public class GetEligibleDelegateesHandler implements MessageHandler<GetEligibleDelegatees, List<User>> {

@@ -1,11 +1,10 @@
 package com.flowops.application.mediator;
 
-import org.springframework.stereotype.Component;
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.springframework.stereotype.Component;
 
 /** Dispatches on the caller's thread, preserving handler proxies, transactions and exceptions. */
 @Component

@@ -1,20 +1,20 @@
 package com.flowops.application.request;
 
-import com.flowops.application.model.RequestDetail;
-import com.flowops.domain.Clarification;
-import com.flowops.domain.Decision;
-import com.flowops.domain.ExecutionJob;
-import com.flowops.domain.Request;
-import com.flowops.domain.StepInstance;
-import java.util.ArrayList;import com.flowops.domain.port.ClarificationRepository;
-import com.flowops.domain.port.DecisionRepository;
-import com.flowops.domain.port.ExecutionJobRepository;
-import com.flowops.domain.port.StepInstanceRepository;
-import org.springframework.stereotype.Component;
-
+import com.flowops.application.request.model.RequestDetail;
+import com.flowops.domain.execution.ExecutionJob;
+import com.flowops.domain.execution.port.ExecutionJobRepository;
+import com.flowops.domain.request.Clarification;
+import com.flowops.domain.request.Decision;
+import com.flowops.domain.request.Request;
+import com.flowops.domain.request.StepInstance;
+import com.flowops.domain.request.port.ClarificationRepository;
+import com.flowops.domain.request.port.DecisionRepository;
+import com.flowops.domain.request.port.StepInstanceRepository;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.stereotype.Component;
 
 /** Aggregate-based detail assembly for command responses; called within the write transaction. */
 @Component

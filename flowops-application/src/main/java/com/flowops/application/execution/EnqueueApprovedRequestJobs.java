@@ -1,10 +1,10 @@
 package com.flowops.application.execution;
 
 import com.flowops.application.event.DomainEventHandler;
-import com.flowops.domain.Request;
-import com.flowops.domain.event.RequestApproved;
 import com.flowops.domain.exception.NotFoundException;
-import com.flowops.domain.port.RequestRepository;
+import com.flowops.domain.request.Request;
+import com.flowops.domain.request.event.RequestApproved;
+import com.flowops.domain.request.port.RequestRepository;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 

@@ -1,8 +1,7 @@
 package com.flowops.application.request.port;
 
-import com.flowops.application.model.RequestDetailView;
-import com.flowops.application.model.RequestListItem;
-
+import com.flowops.application.request.model.RequestDetailView;
+import com.flowops.application.request.model.RequestListItem;
 import java.util.Optional;
 
 public interface RequestDetailQueries {

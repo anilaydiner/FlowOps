@@ -1,8 +1,8 @@
 package com.flowops.application.request.command;
 
 import com.flowops.application.mediator.MessageHandler;
-import com.flowops.application.model.RequestDetail;
-import com.flowops.application.usecase.CancelRequest;
+import com.flowops.application.request.lifecycle.CancelRequest;
+import com.flowops.application.request.model.RequestDetail;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

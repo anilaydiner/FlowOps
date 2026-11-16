@@ -1,16 +1,15 @@
 package com.flowops.application.notification;
 
-import com.flowops.application.port.FlowOpsUrls;
-import com.flowops.domain.Request;
-import com.flowops.domain.RequestType;
-import com.flowops.domain.User;
-import com.flowops.domain.WorkflowStep;
-import org.springframework.stereotype.Component;
-
+import com.flowops.application.config.FlowOpsUrls;
+import com.flowops.domain.identity.User;
+import com.flowops.domain.request.Request;
+import com.flowops.domain.workflow.RequestType;
+import com.flowops.domain.workflow.WorkflowStep;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import org.springframework.stereotype.Component;
 
 /**
  * Composes rich email content (subject + plain text + HTML) for workflow events.

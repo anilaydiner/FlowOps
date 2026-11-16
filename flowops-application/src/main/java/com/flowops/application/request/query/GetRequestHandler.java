@@ -1,13 +1,13 @@
 package com.flowops.application.request.query;
 
 import com.flowops.application.mediator.MessageHandler;
-import com.flowops.application.model.RequestDetailView;
-import com.flowops.application.model.RequestListItem;
-import com.flowops.domain.exception.NotFoundException;
+import com.flowops.application.request.model.RequestDetailView;
+import com.flowops.application.request.model.RequestListItem;
 import com.flowops.application.request.port.RequestDetailQueries;
-import com.flowops.domain.policy.AuthorizationEvaluator;
-import com.flowops.domain.policy.PermissionCodes;
-import com.flowops.domain.policy.TargetContext;
+import com.flowops.domain.exception.NotFoundException;
+import com.flowops.domain.identity.policy.AuthorizationEvaluator;
+import com.flowops.domain.identity.policy.PermissionCodes;
+import com.flowops.domain.identity.policy.TargetContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

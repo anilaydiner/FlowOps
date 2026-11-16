@@ -1,15 +1,14 @@
 package com.flowops.application.event;
 
 import com.flowops.domain.event.DomainEvent;
-import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Explicit synchronous fan-out, independent of Spring's configurable event multicaster. */
 @Component
