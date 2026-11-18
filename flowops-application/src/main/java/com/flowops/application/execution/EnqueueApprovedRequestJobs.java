@@ -26,8 +26,9 @@ public class EnqueueApprovedRequestJobs implements DomainEventHandler<RequestApp
 
     @Override
     public void handle(RequestApproved event) {
-        Request request = requests.findById(event.requestId())
+        Request request = requests.findByIdForUpdate(event.requestId())
                 .orElseThrow(() -> new NotFoundException("Request not found: " + event.requestId()));
+        if(!event.executionPlanId().equals(request.getExecutionPlanId()))throw new com.flowops.domain.exception.ConflictException("approval-event-mismatch","Approval plan identity differs");
         execution.enqueueJobs(request);
     }
 }

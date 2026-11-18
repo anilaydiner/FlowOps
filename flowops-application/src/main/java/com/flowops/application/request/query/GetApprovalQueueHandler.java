@@ -6,7 +6,8 @@ import com.flowops.application.request.port.ApprovalQueueQueries;
 import com.flowops.domain.identity.policy.AuthorizationEvaluator;
 import com.flowops.domain.identity.policy.PermissionCodes;
 import com.flowops.domain.paging.PageResult;
-import java.util.Set;
+import com.flowops.application.request.ApprovalEligibilityService;
+import com.flowops.domain.request.DecisionAction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,10 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class GetApprovalQueueHandler implements MessageHandler<GetApprovalQueue, PageResult<RequestListItem>> {
     private final ApprovalQueueQueries queue;
     private final AuthorizationEvaluator authz;
+    private final ApprovalEligibilityService eligibility;
 
-    public GetApprovalQueueHandler(ApprovalQueueQueries queue, AuthorizationEvaluator authz) {
+    public GetApprovalQueueHandler(ApprovalQueueQueries queue, AuthorizationEvaluator authz, ApprovalEligibilityService eligibility) {
         this.queue = queue;
         this.authz = authz;
+        this.eligibility = eligibility;
     }
 
     @Override
@@ -26,13 +29,9 @@ public class GetApprovalQueueHandler implements MessageHandler<GetApprovalQueue,
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true,isolation=org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public PageResult<RequestListItem> handle(GetApprovalQueue query) {
         authz.require(query.caller(), PermissionCodes.REQUEST_QUEUE);
-        Set<String> roles = query.caller().roles();
-        if (roles.isEmpty()) {
-            return PageResult.empty(query.page().page(), query.page().size());
-        }
-        return queue.findPage(query.page(), query.caller().id(), roles);
+        return queue.findPage(query.page(), eligibility.authority(query.caller().id(), DecisionAction.APPROVE));
     }
 }

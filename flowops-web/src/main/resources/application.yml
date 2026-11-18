@@ -1,0 +1,114 @@
+spring:
+  application:
+    name: flowops
+  autoconfigure:
+    # We manage users ourselves (JWT + our own users table); no in-memory user
+    exclude:
+      - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/flowops}
+    username: ${DB_USER:flowops}
+    password: ${DB_PASSWORD:flowops}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+  mail:
+    # SMTP endpoint for flowops.email.gateway=smtp (Mailpit defaults in dev)
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USER:}
+    password: ${MAIL_PASS:}
+    protocol: smtp
+  mvc:
+    problemdetails:
+      enabled: true
+      include-cause: false
+
+server:
+  port: 8080
+  error:
+    include-stacktrace: never
+
+flowops:
+  execution:
+    worker-enabled: ${FLOWOPS_EXECUTION_WORKER_ENABLED:true}
+    completion-reconciliation-enabled: ${FLOWOPS_COMPLETION_RECONCILIATION_ENABLED:${flowops.execution.worker-enabled:true}}
+    completion-batch-size: ${FLOWOPS_COMPLETION_BATCH_SIZE:50}
+    completion-tick-delay-millis: ${FLOWOPS_COMPLETION_TICK_DELAY_MILLIS:30000}
+    provider-execution-slots: ${FLOWOPS_PROVIDER_EXECUTION_SLOTS:8}
+    provider-lookup-slots: ${FLOWOPS_PROVIDER_LOOKUP_SLOTS:4}
+    rollout-require-live-provider: ${FLOWOPS_ROLLOUT_REQUIRE_LIVE_PROVIDER:false}
+    simulated:
+      provisioning-timeout-seconds: ${FLOWOPS_SIMULATED_PROVISIONING_TIMEOUT_SECONDS:30}
+      purchase-timeout-seconds: ${FLOWOPS_SIMULATED_PURCHASE_TIMEOUT_SECONDS:20}
+      accounting-timeout-seconds: ${FLOWOPS_SIMULATED_ACCOUNTING_TIMEOUT_SECONDS:15}
+      lookup-timeout-seconds: ${FLOWOPS_SIMULATED_LOOKUP_TIMEOUT_SECONDS:10}
+    lease-seconds: ${FLOWOPS_EXECUTION_LEASE_SECONDS:300}
+    heartbeat-seconds: ${FLOWOPS_EXECUTION_HEARTBEAT_SECONDS:30}
+    max-attempt-seconds: ${FLOWOPS_EXECUTION_MAX_ATTEMPT_SECONDS:1800}
+    reconciliation-lease-seconds: ${FLOWOPS_RECONCILIATION_LEASE_SECONDS:60}
+  sla:
+    batch-size: ${FLOWOPS_SLA_BATCH_SIZE:50}
+  recovery:
+    batch-size: ${FLOWOPS_RECOVERY_BATCH_SIZE:50}
+    tick-delay-millis: ${FLOWOPS_RECOVERY_TICK_DELAY_MILLIS:30000}
+    identity-tick-delay-millis: ${FLOWOPS_RECOVERY_IDENTITY_TICK_DELAY_MILLIS:1000}
+    team-role: ${FLOWOPS_RECOVERY_TEAM_ROLE:WORKFLOW_OPERATIONS}
+    fallback-username: ${FLOWOPS_RECOVERY_FALLBACK_USERNAME:admin}
+  request:
+    lock-timeout-millis: ${FLOWOPS_REQUEST_LOCK_TIMEOUT_MILLIS:5000}
+  jwt:
+    # Must be overridden via FLOWOPS_JWT_SECRET in any real environment
+    secret: ${FLOWOPS_JWT_SECRET:dev-only-secret-please-override-0123456789abcdef-0123456789abcdef}
+    expiration-seconds: ${FLOWOPS_JWT_EXPIRY:900}
+  auth:
+    refresh-token-lifetime: ${FLOWOPS_REFRESH_TOKEN_LIFETIME:7d}
+    maximum-session-lifetime: ${FLOWOPS_MAXIMUM_SESSION_LIFETIME:30d}
+  # Training seed credentials (see db/migration/V3__seed_reference_data.sql)
+  seed:
+    admin-password: ${FLOWOPS_ADMIN_PASSWORD:admin123}
+  email:
+    # simulated (default; tests + failure injection) | smtp (Mailpit in dev, relay in prod)
+    gateway: ${FLOWOPS_EMAIL_GATEWAY:simulated}
+    from: ${FLOWOPS_EMAIL_FROM:flowops@localhost}
+  base-url: ${FLOWOPS_BASE_URL:http://localhost:8080}
+  # Front-end host for links embedded in emails (reset password, etc.)
+  fe-base-url: ${FLOWOPS_FE_BASE_URL:http://localhost:5173}
+  # Forgot-password / reset token settings
+  password-reset:
+    path: ${FLOWOPS_RESET_PATH:/reset-password}
+    expire-minutes: ${FLOWOPS_RESET_EXPIRE_MINUTES:30}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+
+logging:
+  level:
+    root: INFO
+    com.flowops: DEBUG
+  # Structured JSON logging (Boot 4.1: logging.structured.format.*; "logstash" = JSON)
+  structured:
+    format:
+      console: logstash
+      file: logstash
+
+# Swagger UI / OpenAPI (springdoc-openapi 3.x)
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    display-request-duration: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs

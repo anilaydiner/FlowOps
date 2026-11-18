@@ -1,55 +1,33 @@
 package com.flowops.application.execution;
 
-import com.flowops.domain.execution.ExecutionJob;
-import com.flowops.domain.execution.port.ExecutionJobRepository;
+import com.flowops.domain.exception.ConflictException;
+import com.flowops.domain.execution.port.ExecutionPlanRepository;
 import com.flowops.domain.request.Request;
-import com.flowops.domain.workflow.RequestType;
-import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.flowops.domain.request.port.RequestRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.*;
 
-/**
- * Enqueues execution jobs when a request is fully approved (PLAN §8, iteration 7).
- *
- * <p>Idempotent: repeated calls for the same (request, action) pair are
- * silently skipped via the {@code idempotency_key} unique constraint.
- *
- * <p>Called by the synchronous {@code RequestApproved} event handler within
- * the approval transaction.
- */
+/** Initial approval and event replay share the same evidence-based materialization protocol. */
 @Service
 public class ExecutionService {
-
-    private static final String JOB_KEY_FORMAT = "req:%d:%s";
-
-    private static final Logger log = LoggerFactory.getLogger(ExecutionService.class);
-
-    private final ExecutionJobRepository jobs;
-
-    public ExecutionService(ExecutionJobRepository jobs) {
-        this.jobs = jobs;
+    private final ExecutionPlanRepository plans;
+    private final RequestRepository requests;
+    private final RecoverFrozenPlanJobs recovery;
+    public ExecutionService(ExecutionPlanRepository plans,RequestRepository requests,RecoverFrozenPlanJobs recovery){this.plans=plans;this.requests=requests;this.recovery=recovery;}
+    @Transactional(propagation=Propagation.MANDATORY)
+    public void enqueueJobs(Request observed){
+        materialize(observed,RecoverFrozenPlanJobs.Mode.EXISTING_PLAN);
     }
-
-    /**
-     * Create execution jobs for every action declared on the request's type.
-     * No-op if the type has no execution actions (e.g. POLICY_EXCEPTION).
-     */
-    public void enqueueJobs(Request request) {
-        RequestType type = request.getType();
-        List<String> actions = type.getExecutionActions();
-        if (actions == null || actions.isEmpty()) {
-            log.debug("EXEC SKIP (no actions): request={}", request.getId());
-            return;
-        }
-
-        String correlationId = request.getCorrelationId();
-        for (String action : actions) {
-            String key = String.format(JOB_KEY_FORMAT, request.getId(), action);
-            jobs.saveIfAbsent(new ExecutionJob(key, request.getId(), action, correlationId))
-                    .ifPresentOrElse(
-                            saved -> log.info("EXEC ENQUEUED: key={} action={}", key, action),
-                            () -> log.debug("EXEC SKIP (duplicate): {}", key));
-        }
+    /** Only called by FinalizeApproval in the transaction that creates the manifest. */
+    @Transactional(propagation=Propagation.MANDATORY)
+    public void materializeNewPlan(Request observed){
+        materialize(observed,RecoverFrozenPlanJobs.Mode.NEW_PLAN);
+    }
+    private void materialize(Request observed,RecoverFrozenPlanJobs.Mode mode){
+        var request=requests.findByIdForUpdate(observed.getId()).orElseThrow();
+        var plan=plans.findByRequestId(request.getId()).orElseThrow(()->new ConflictException("execution-plan-unknown","Approval has no frozen execution manifest"));
+        var result=recovery.recoverLocked(request,plan,mode,"Approval finalization or replay");
+        if(!result.issues().isEmpty())throw new ConflictException("execution-plan-mismatch","Frozen work requires reconciliation: "+result.issues().getFirst().code());
+        if(result.changed()){request.recordActivity();requests.save(request);}
     }
 }

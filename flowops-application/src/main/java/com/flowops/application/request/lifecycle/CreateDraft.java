@@ -1,5 +1,6 @@
 package com.flowops.application.request.lifecycle;
 
+import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.domain.CorrelationId;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.NotFoundException;
@@ -30,6 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CreateDraft {
 
+    private final LifecycleAuditRecorder audit;
+
     private final RequestTypeRepository requestTypes;
     private final UserRepository users;
     private final RequestRepository requests;
@@ -40,7 +43,8 @@ public class CreateDraft {
                        UserRepository users,
                        RequestRepository requests,
                        PayloadValidator validator,
-                       AuthorizationEvaluator authz) {
+                       AuthorizationEvaluator authz, LifecycleAuditRecorder audit) {
+        this.audit = audit;
         this.requestTypes = requestTypes;
         this.users = users;
         this.requests = requests;
@@ -77,6 +81,8 @@ public class CreateDraft {
 
         String correlationId = MDC.get(CorrelationId.MDC_KEY);
         Request draft = Request.newDraft(type, requester, payload, correlationId);
-        return requests.save(draft);
+        Request saved = requests.save(draft);
+        audit.created(saved, caller);
+        return saved;
     }
 }

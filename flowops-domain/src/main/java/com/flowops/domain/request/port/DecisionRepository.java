@@ -18,6 +18,8 @@ public interface DecisionRepository {
 
     long countByStepInstanceIdAndAction(Long stepInstanceId, DecisionAction action);
 
+    long countDistinctApprovers(Long stepInstanceId);
+
     List<Decision> findAll();
 
     Optional<Decision> findById(Long id);

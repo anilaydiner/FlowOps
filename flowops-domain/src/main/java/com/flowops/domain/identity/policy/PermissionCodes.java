@@ -68,11 +68,19 @@ public final class PermissionCodes {
     public static final String REQUEST_SUBMIT       = "request:submit";
     public static final String REQUEST_SUBMIT_OWN   = "request:submit:own";
     public static final String REQUEST_QUEUE        = "request:queue";
+    public static final String REQUEST_RECOVER      = "request:recover";
+    public static final String REQUEST_BLOCKED_READ = "request:blocked:read";
     public static final String REQUEST_APPROVE      = "request:approve";
     public static final String REQUEST_REJECT       = "request:reject";
     public static final String REQUEST_CLOSE        = "request:close";
     public static final String REQUEST_CLOSE_OWN    = "request:close:own";
     public static final String REQUEST_OVERRIDE_SOD = "request:override:sod";
+
+    public static final String EXECUTION_ROLLOUT_READ = "execution:rollout:read";
+    public static final String EXECUTION_READ      = "execution:read";
+    public static final String EXECUTION_RECONCILE = "execution:reconcile";
+    public static final String EXECUTION_RETRY     = "execution:retry";
+    public static final String EXECUTION_PLAN_DISPOSE = "execution:plan:dispose";
 
     // ── Clarifications ─────────────────────────────────────────────────
     public static final String CLARIFICATIONS_ASK        = "clarifications:ask";

@@ -11,15 +11,19 @@ import java.util.Optional;
  */
 public interface RequestRepository {
 
+    /** Save and check the request version before returning. */
     Request save(Request request);
 
     Optional<Request> findById(Long id);
 
     /**
-     * Flush pending writes of the persistence context.
-     * Used to surface optimistic-lock conflicts before side-effect writes
-     * (outbox/audit) are issued.
+     * Lock the parent row until transaction completion and reload its current state.
+     * Requires an existing write transaction. Call before modifying the request or its children;
+     * reloading may discard cached entity state. Acquire multiple request locks in ascending id order.
      */
-    void flush();
+    Optional<Request> findByIdForUpdate(Long id);
+
+    /** Nonblocking parent-first acquisition for background work. Requires a write transaction. */
+    Optional<Request> tryFindByIdForUpdate(Long id);
 
 }

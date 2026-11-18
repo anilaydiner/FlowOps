@@ -22,17 +22,6 @@ public interface ExecutionJobJpaRepository extends JpaRepository<ExecutionJobEnt
 
     long countByStatus(JobStatus status);
 
-    @Query(value = """
-            SELECT * FROM execution_jobs
-            WHERE status IN ('PLANNED', 'FAILED')
-              AND (next_retry_at IS NULL OR next_retry_at <= :now)
-              AND retry_count < max_retries
-            ORDER BY created_at ASC
-            LIMIT :limit
-            FOR UPDATE SKIP LOCKED
-            """, nativeQuery = true)
-    List<ExecutionJobEntity> claimBatch(@Param("now") Instant now, @Param("limit") int limit);
-
     List<ExecutionJobEntity> findByRequestIdIn(List<Long> requestIds);
 
     @Modifying

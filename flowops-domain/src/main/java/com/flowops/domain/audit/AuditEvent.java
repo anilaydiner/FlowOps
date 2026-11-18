@@ -11,9 +11,10 @@ import java.util.Map;
  * application service and mapped straight to the API response.</p>
  *
  * @param type      one of {@code STATUS}, {@code SUBMITTED}, {@code DECISION},
- *                  {@code JOB}, {@code SLA}
+ *                  {@code JOB}, {@code SLA}, {@code REQUEST}, {@code STEP}, {@code PARTICIPANT}, {@code CLARIFICATION},
+ *                  {@code APPROVAL}, {@code EXECUTION}, {@code EXECUTION_PLAN}
  * @param at        when the event happened (UTC)
- * @param actor     username of the human who caused the event (null for system)
+ * @param actor     stored human username, system, or null when legacy attribution is unknown
  * @param summary   one-line human-readable description
  * @param details   structured payload (action, step, job status, …)
  */
@@ -22,8 +23,15 @@ public record AuditEvent(
         Instant at,
         String actor,
         String summary,
-        Map<String, Object> details
+        Map<String, Object> details,
+        java.util.UUID eventId,
+        Long sequence,
+        String provenance
 ) {
+    public AuditEvent(String type, Instant at, String actor, String summary, Map<String, Object> details) {
+        this(type, at, actor, summary, details, null, null, "LEGACY_RECONSTRUCTED");
+    }
+
     public static AuditEvent of(String type, Instant at, String actor, String summary, Map<String, Object> details) {
         return new AuditEvent(type, at, actor, summary,
                 details == null ? null : new LinkedHashMap<>(details));

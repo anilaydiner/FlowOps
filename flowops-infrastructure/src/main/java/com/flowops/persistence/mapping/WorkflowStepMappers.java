@@ -32,6 +32,9 @@ public final class WorkflowStepMappers {
         e.setRequiredApprovals(d.getRequiredApprovals());
         e.setCondition(d.getCondition());
         e.setSlaMinutes(d.getSlaMinutes());
+        e.setEscalationIntervalMinutes(d.getEscalationIntervalMinutes());
+        e.setMaxEscalationLevels(d.getMaxEscalationLevels());
+        e.setExpiryMinutes(d.getExpiryMinutes());
         e.setEscalationRole(d.getEscalationRole());
         e.setTerminal(d.isTerminal());
         e.setCreatedAt(d.getCreatedAt());
@@ -43,20 +46,10 @@ public final class WorkflowStepMappers {
         if (e == null) {
             return null;
         }
-        WorkflowStep d = new WorkflowStep();
-        d.setId(e.getId());
-        d.setWorkflow(WorkflowMappers.fromEntity(e.getWorkflow()));
-        d.setPosition(e.getPosition());
-        d.setCode(e.getCode());
-        d.setName(e.getName());
-        d.setRequiredRole(e.getRequiredRole());
-        d.setCompletionRule(e.getCompletionRule());
-        d.setRequiredApprovals(e.getRequiredApprovals());
-        d.setCondition(e.getCondition());
-        d.setSlaMinutes(e.getSlaMinutes());
-        d.setEscalationRole(e.getEscalationRole());
-        d.setTerminal(e.isTerminal());
-        d.setCreatedAt(e.getCreatedAt());
-        return d;
+        return WorkflowStep.restore(new WorkflowStep.Snapshot(e.getId(), WorkflowMappers.fromEntity(e.getWorkflow()),
+                e.getPosition(), e.getCode(), e.getName(), e.getRequiredRole(), e.getCompletionRule(),
+                e.getRequiredApprovals(), e.getCondition(), e.getSlaMinutes(), e.getExpiryMinutes(),
+                e.getEscalationIntervalMinutes(), e.getMaxEscalationLevels(), e.getEscalationRole(),
+                e.isTerminal(), e.getCreatedAt()));
     }
 }

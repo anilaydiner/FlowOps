@@ -9,9 +9,11 @@ public enum JobStatus {
     STARTED,
     COMPLETED,
     FAILED,
+    CANCELLED,
+    RECONCILIATION_REQUIRED,
     DEAD_LETTER;
 
     public boolean isTerminal() {
-        return this == COMPLETED || this == DEAD_LETTER;
+        return this == COMPLETED || this == DEAD_LETTER || this == CANCELLED || this == RECONCILIATION_REQUIRED;
     }
 }

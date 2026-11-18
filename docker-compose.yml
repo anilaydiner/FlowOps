@@ -1,5 +1,5 @@
 # FlowOps local dev — one-command infrastructure
-# Usage: docker compose up -d && FLOWOPS_EMAIL_GATEWAY=smtp ./mvnw spring-boot:run
+# Start PostgreSQL and Mailpit with docker compose up -d. See README.md to run FlowOps.
 #
 # Services:
 #   postgres  → app database (Flyway migrations auto-run on first boot)

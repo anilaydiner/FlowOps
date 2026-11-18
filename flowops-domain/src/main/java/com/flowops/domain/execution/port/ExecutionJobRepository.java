@@ -16,6 +16,9 @@ public interface ExecutionJobRepository {
 
     ExecutionJob save(ExecutionJob job);
 
+    /** Insert only, preserving a recorded original identity. Never overwrites an existing row. */
+    boolean restoreUnstarted(ExecutionJob job);
+
     /**
      * Save unless a job with the same idempotency key already exists.
      * Returns the saved job, or empty when the write was skipped
@@ -35,12 +38,13 @@ public interface ExecutionJobRepository {
 
     long countByStatus(JobStatus status);
 
-    /** Claim a batch of processable jobs (FOR UPDATE SKIP LOCKED). */
-    List<ExecutionJob> claimBatch(Instant now, int limit);
+    record Candidate(Long jobId,Long requestId) {}
+    /** Discovery only, never authorization for an external action. */
+    List<Candidate> findCandidates(Instant now,int limit);
+    Optional<ExecutionJob> findForLockedRequest(Long jobId,Long requestId);
+    List<ExecutionJob> findAllForLockedRequest(Long requestId);
 
     List<ExecutionJob> findByRequestIdIn(List<Long> requestIds);
-
-    void resetNextRetryAt(Long id, Instant ts);
 
     Optional<ExecutionJob> findById(Long id);
 }

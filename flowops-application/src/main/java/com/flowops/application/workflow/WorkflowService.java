@@ -3,24 +3,18 @@ package com.flowops.application.workflow;
 import com.flowops.application.workflow.model.WorkflowView;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.NotFoundException;
-import com.flowops.domain.exception.RequestValidationException;
 import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.domain.identity.policy.AuthorizationEvaluator;
 import com.flowops.domain.identity.policy.PermissionCodes;
 import com.flowops.domain.paging.PageQuery;
 import com.flowops.domain.paging.PageResult;
-import com.flowops.domain.workflow.CompletionRule;
+import com.flowops.domain.request.port.StepInstanceRepository;
 import com.flowops.domain.workflow.StepSpec;
 import com.flowops.domain.workflow.Workflow;
-import com.flowops.domain.workflow.WorkflowStep;
 import com.flowops.domain.workflow.port.WorkflowRepository;
 import com.flowops.domain.workflow.port.WorkflowStepRepository;
 import com.flowops.domain.workflow.query.WorkflowFilter;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,11 +24,16 @@ public class WorkflowService {
     private final WorkflowRepository workflows;
     private final WorkflowStepRepository steps;
     private final AuthorizationEvaluator authz;
+    private final StepInstanceRepository instances;
+    private final com.flowops.application.request.recovery.RecoveryOperations recoveryOperations;
 
-    public WorkflowService(WorkflowRepository workflows, WorkflowStepRepository steps, AuthorizationEvaluator authz) {
+    public WorkflowService(WorkflowRepository workflows, WorkflowStepRepository steps, AuthorizationEvaluator authz, StepInstanceRepository instances,
+                           com.flowops.application.request.recovery.RecoveryOperations recoveryOperations) {
+        this.recoveryOperations = recoveryOperations;
         this.workflows = workflows;
         this.steps = steps;
         this.authz = authz;
+        this.instances = instances;
     }
 
     @Transactional(readOnly = true)
@@ -64,8 +63,9 @@ public class WorkflowService {
         if (active != null) {
             workflow.setActive(active);
         }
+        if (workflow.isActive()) recoveryOperations.validateConfiguration();
         Workflow saved = workflows.save(workflow);
-        replaceSteps(saved, stepSpecs);
+        steps.replaceDefinitions(saved.getId(), saved.defineSteps(stepSpecs));
         return new WorkflowView(saved, steps.findByWorkflowIdOrderById(saved.getId()));
     }
 
@@ -75,53 +75,20 @@ public class WorkflowService {
         authz.require(caller, PermissionCodes.WORKFLOWS_UPDATE);
         Workflow workflow = workflows.findById(id)
                 .orElseThrow(() -> new NotFoundException("Workflow not found: " + id));
+        if (instances.existsByWorkflowId(id)) {
+            throw new ConflictException("Workflow is already in use; create a new definition instead");
+        }
         workflow.updateProfile(name.strip(), blankToNull(description));
         if (active != null) {
             workflow.setActive(active);
         }
-        replaceSteps(workflow, stepSpecs);
+        steps.replaceDefinitions(workflow.getId(), workflow.defineSteps(stepSpecs));
+        if (workflow.isActive()) recoveryOperations.validateConfiguration();
         Workflow saved = workflows.save(workflow);
         return new WorkflowView(saved, steps.findByWorkflowIdOrderById(saved.getId()));
     }
 
     // ── helpers ────────────────────────────────────────────────────
-
-    private void replaceSteps(Workflow workflow, List<StepSpec> definitions) {
-        steps.deleteAll(steps.findByWorkflowIdOrderById(workflow.getId()));
-        steps.flush();
-        List<StepSpec> sorted = definitions.stream()
-                .sorted(Comparator.comparingInt(d -> d.position() == null ? 0 : d.position()))
-                .toList();
-        Set<Integer> taken = new HashSet<>();
-        for (StepSpec d : definitions) {
-            if (d.position() != null) {
-                taken.add(d.position());
-            }
-        }
-        int nextAuto = 1;
-        for (StepSpec def : sorted) {
-            Integer position = def.position();
-            if (position == null) {
-                while (taken.contains(nextAuto)) {
-                    nextAuto++;
-                }
-                position = nextAuto++;
-            }
-            WorkflowStep step = new WorkflowStep(workflow, position,
-                    def.code().strip().toUpperCase(), def.name().strip(), def.requiredRole().strip().toUpperCase());
-            CompletionRule rule = def.completionRule() == null ? CompletionRule.ANY_OF : def.completionRule();
-            int approvals = def.requiredApprovals() == null ? 1 : def.requiredApprovals();
-            if (rule == CompletionRule.ANY_OF) {
-                approvals = 1;
-            } else if (approvals < 1) {
-                throw new RequestValidationException(Map.of("requiredApprovals",
-                        "requiredApprovals must be >= 1 for rule " + rule));
-            }
-            step.configure(rule, approvals, def.condition(), def.slaMinutes(), def.escalationRole(),
-                    Boolean.TRUE.equals(def.terminal()));
-            steps.save(step);
-        }
-    }
 
     private String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s.strip();

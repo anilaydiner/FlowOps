@@ -25,22 +25,25 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class JpaRequestDetailQueries implements RequestDetailQueries {
     private final EntityManager entityManager;
+    private final com.flowops.application.request.port.RequestExecutionQueries execution;
 
-    public JpaRequestDetailQueries(EntityManager entityManager) {
-        this.entityManager = entityManager;
+    public JpaRequestDetailQueries(EntityManager entityManager,com.flowops.application.request.port.RequestExecutionQueries execution) {
+        this.entityManager = entityManager;this.execution=execution;
     }
 
     @Override
     public Optional<RequestListItem> findRequest(Long id) {
-        return RequestListProjection.findById(entityManager, id);
+        return RequestListProjection.findById(entityManager, id,execution);
     }
 
     @Override
     public RequestDetailView load(RequestListItem request) {
         Long id = request.id();
         List<StepView> steps = project(StepView.class, StepInstanceEntity.class, id, "request.id", "id", false,
-                "id", "position", "step.code", "step.name", "step.requiredRole", "state", "rule",
-                "requiredApprovals", "skipReason", "blockedReason", "satisfiedBy", "satisfiedAt");
+                "id", "position", "stepCode", "stepName", "requiredRole", "state", "rule",
+                "requiredApprovals", "skipReason", "blockedReason", "satisfiedBy", "satisfiedAt", "rosterSnapshotted", "rosterSize",
+                "blockReasonCode", "blockedAt", "blockEpisode", "recoveryOwnerId", "recoveryTeam", "recoveredAt",
+                "activatedAt", "reviewDueAt", "nextEscalationAt", "expiresAt", "escalationLevel", "recoveryOwnerRevision", "recoveryOwnerUnavailable", "escalationIntervalMinutes", "maxEscalationLevels");
         Map<Long, List<DecisionView>> byStep = new LinkedHashMap<>();
         steps.forEach(step -> byStep.put(step.id(), new ArrayList<>()));
         if (!steps.isEmpty()) {
@@ -56,7 +59,8 @@ public class JpaRequestDetailQueries implements RequestDetailQueries {
         List<ClarificationView> clarifications = project(ClarificationView.class, ClarificationEntity.class,
                 id, "requestId", "createdAt", true, "id", "askedBy", "question", "answer", "answeredBy", "answeredAt", "createdAt");
         List<JobView> jobs = project(JobView.class, ExecutionJobEntity.class, id, "requestId", "createdAt", false,
-                "id", "action", "status", "result", "lastError", "retryCount", "createdAt", "completedAt");
+                "id", "action", "status", "result", "lastError", "retryCount", "createdAt", "completedAt", "startedAt", "cancelledAt", "cancelledBy",
+                "attemptCount", "leaseExpiresAt", "startInferred");
         return new RequestDetailView(request, steps, Map.copyOf(byStep), clarifications, jobs);
     }
 

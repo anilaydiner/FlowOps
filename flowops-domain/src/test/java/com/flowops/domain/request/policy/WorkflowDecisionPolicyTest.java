@@ -20,15 +20,17 @@ import static org.junit.jupiter.api.Assertions.*;
 class WorkflowDecisionPolicyTest {
     private Request inReview() {
         Request request = Request.newDraft(null, null, Map.of(), "correlation");
-        request.transitionTo(RequestStatus.SUBMITTED);
-        request.transitionTo(RequestStatus.IN_REVIEW);
+        request.markSubmitted(java.time.Instant.now());
+        request.beginReview(java.time.Instant.now());
         return request;
     }
 
     private StepInstance step(Request request, CompletionRule rule, int threshold) {
         WorkflowStep definition = new WorkflowStep(null, 1, "REVIEW", "Review", "APPROVER");
-        definition.configure(rule, threshold, null, null, null, false);
-        return new StepInstance(request, definition);
+        definition.configure(rule, rule == CompletionRule.ALL_OF ? 1 : threshold, null, null, null, false);
+        var instance = new StepInstance(request, definition);
+        if (rule == CompletionRule.ALL_OF) instance.snapshotRoster(threshold);
+        return instance;
     }
 
     @ParameterizedTest
@@ -37,7 +39,7 @@ class WorkflowDecisionPolicyTest {
         Request request = inReview();
         int threshold = rule == CompletionRule.ANY_OF ? 1 : 3;
         StepInstance current = step(request, rule, threshold);
-        current.getStep().configure(rule, 10, null, null, null, false);
+        current.getStep().configure(CompletionRule.K_OF_N, 10, null, null, null, false);
 
         assertEquals(APPROVAL_RECORDED,
                 WorkflowDecisionPolicy.apply(request, current, DecisionAction.APPROVE, threshold - 1, 42L));
@@ -74,13 +76,13 @@ class WorkflowDecisionPolicyTest {
     }
 
     @Test
-    void rejectionEndsRequestAndPreservesPendingStepForAudit() {
+    void rejectionEndsRequestAndStopsTheActiveStep() {
         Request request = inReview();
         StepInstance current = step(request, CompletionRule.ANY_OF, 1);
         assertEquals(REJECTED,
                 WorkflowDecisionPolicy.apply(request, current, DecisionAction.REJECT, 1, 42L));
         assertEquals(RequestStatus.REJECTED, request.getStatus());
-        assertEquals(StepState.PENDING, current.getState());
+        assertEquals(StepState.REJECTED, current.getState());
         assertNull(current.getSatisfiedBy());
     }
 

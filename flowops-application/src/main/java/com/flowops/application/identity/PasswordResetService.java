@@ -1,5 +1,6 @@
 package com.flowops.application.identity;
 
+import com.flowops.application.identity.port.PasswordHasher;
 import com.flowops.application.notification.EmailComposer;
 import com.flowops.application.notification.outbox.OutboxService;
 import com.flowops.domain.CorrelationId;
@@ -20,7 +21,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +52,7 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository tokens;
     private final EmailComposer emailComposer;
     private final OutboxService outbox;
-    private final PasswordEncoder passwordEncoder;
+    private final PasswordHasher passwordHasher;
 
     private final String feBaseUrl;
     private final String resetPath;
@@ -62,7 +62,7 @@ public class PasswordResetService {
                                 PasswordResetTokenRepository tokens,
                                 EmailComposer emailComposer,
                                 OutboxService outbox,
-                                PasswordEncoder passwordEncoder,
+                                PasswordHasher passwordHasher,
                                 @Value("${flowops.fe-base-url:http://localhost:5173}") String feBaseUrl,
                                 @Value("${flowops.password-reset.path:/reset-password}") String resetPath,
                                 @Value("${flowops.password-reset.expire-minutes:30}") long expireMinutes) {
@@ -70,7 +70,7 @@ public class PasswordResetService {
         this.tokens = tokens;
         this.emailComposer = emailComposer;
         this.outbox = outbox;
-        this.passwordEncoder = passwordEncoder;
+        this.passwordHasher = passwordHasher;
         this.feBaseUrl = stripTrailingSlash(feBaseUrl);
         this.resetPath = resetPath;
         this.expireMinutes = expireMinutes;
@@ -139,7 +139,7 @@ public class PasswordResetService {
         User user = users.findById(token.getUserId())
                 .orElseThrow(() -> new IllegalStateException("User not found: " + token.getUserId()));
 
-        user.changePasswordHash(passwordEncoder.encode(newPassword));
+        user.changePasswordHash(passwordHasher.hash(newPassword));
         users.save(user);
 
         token.markUsed();

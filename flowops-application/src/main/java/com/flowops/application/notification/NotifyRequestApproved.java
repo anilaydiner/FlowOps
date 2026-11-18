@@ -16,9 +16,10 @@ public class NotifyRequestApproved implements DomainEventHandler<RequestApproved
     private final RequestRepository requests;
     private final EmailComposer emails;
     private final OutboxService outbox;
+    private final com.flowops.domain.execution.port.ExecutionPlanRepository plans;
 
-    public NotifyRequestApproved(RequestRepository requests, EmailComposer emails, OutboxService outbox) {
-        this.requests = requests;
+    public NotifyRequestApproved(RequestRepository requests, EmailComposer emails, OutboxService outbox,com.flowops.domain.execution.port.ExecutionPlanRepository plans) {
+        this.requests = requests;this.plans=plans;
         this.emails = emails;
         this.outbox = outbox;
     }
@@ -30,10 +31,13 @@ public class NotifyRequestApproved implements DomainEventHandler<RequestApproved
 
     @Override
     public void handle(RequestApproved event) {
-        Request request = requests.findById(event.requestId())
+        Request request = requests.findByIdForUpdate(event.requestId())
                 .orElseThrow(() -> new NotFoundException("Request not found: " + event.requestId()));
+        var plan=plans.findByRequestId(request.getId()).orElseThrow(()->new com.flowops.domain.exception.ConflictException("Approval has no frozen plan"));
+        if(!plan.id().equals(event.executionPlanId()) || !plan.id().equals(request.getExecutionPlanId()) || !plan.approval().equals(event.approval()))
+            throw new com.flowops.domain.exception.ConflictException("approval-event-mismatch","Approval event differs from its frozen fact");
         Long requesterId = request.getRequester().getId();
-        EmailComposer.ComposedEmail email = emails.approved(request, event.approverUsername());
+        EmailComposer.ComposedEmail email = emails.approved(request, plan.approval(),plan.actions().size());
         outbox.notifyFeed(event.requestId(), requesterId, OutboxEvents.NOTIFY_APPROVE,
                 email.subject(), email.text(), null);
         outbox.notifyEmail(event.requestId(), requesterId, OutboxEvents.APPROVED,

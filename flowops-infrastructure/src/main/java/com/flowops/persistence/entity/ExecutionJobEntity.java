@@ -24,6 +24,40 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "execution_jobs")
 public class ExecutionJobEntity {
 
+    @Column(name="started_at")
+    private Instant startedAt;
+    public Instant getStartedAt() { return startedAt; }
+    public void setStartedAt(Instant value) { this.startedAt=value; }
+    @Column(name="start_inferred")
+    private boolean startInferred;
+    public boolean isStartInferred() { return startInferred; }
+    public void setStartInferred(boolean value) { this.startInferred=value; }
+    @Column(name="cancelled_at")
+    private Instant cancelledAt;
+    public Instant getCancelledAt() { return cancelledAt; }
+    public void setCancelledAt(Instant value) { this.cancelledAt=value; }
+    @Column(name="cancelled_by")
+    private Long cancelledBy;
+    public Long getCancelledBy() { return cancelledBy; }
+    public void setCancelledBy(Long value) { this.cancelledBy=value; }
+    @Column(name="attempt_count")
+    private int attemptCount;
+    public int getAttemptCount() { return attemptCount; }
+    public void setAttemptCount(int value) { this.attemptCount=value; }
+    @Column(name="claim_token")
+    private java.util.UUID claimToken;
+    public java.util.UUID getClaimToken() { return claimToken; }
+    public void setClaimToken(java.util.UUID value) { this.claimToken=value; }
+    @Column(name="lease_expires_at")
+    private Instant leaseExpiresAt;
+    public Instant getLeaseExpiresAt() { return leaseExpiresAt; }
+    public void setLeaseExpiresAt(Instant value) { this.leaseExpiresAt=value; }
+    @Column(name="input_payload")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String,Object> inputPayload;
+    public Map<String,Object> getInputPayload() { return inputPayload; }
+    public void setInputPayload(Map<String,Object> value) { this.inputPayload=value; }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -39,7 +73,7 @@ public class ExecutionJobEntity {
     private String action;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
+    @Column(nullable = false, length = 32)
     private JobStatus status = JobStatus.PLANNED;
 
     @Column(name = "retry_count", nullable = false)

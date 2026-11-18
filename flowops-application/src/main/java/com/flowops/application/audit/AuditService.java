@@ -1,6 +1,8 @@
 package com.flowops.application.audit;
 
 import com.flowops.application.notification.outbox.OutboxMessage;
+import com.flowops.application.audit.port.LifecycleAuditRepository;
+import com.flowops.application.audit.model.LifecycleAuditRecord;
 import com.flowops.application.notification.outbox.port.OutboxMessageRepository;
 import com.flowops.domain.audit.AuditEvent;
 import com.flowops.domain.exception.NotFoundException;
@@ -27,23 +29,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Queryable audit timeline for a request (PLAN §8, iteration 8).
- *
- * <p>Aggregates every auditable event into one chronological list:
- * <ul>
- *   <li>{@code STATUS} — created and terminal transitions</li>
- *   <li>{@code SUBMITTED} — entered the workflow</li>
- *   <li>{@code DECISION} — APPROVE / REJECT / DELEGATE with actor + evidence</li>
- *   <li>{@code JOB} — execution job created, then finished (status + result)</li>
- *   <li>{@code SLA} — SLA breach escalations (from the outbox)</li>
- * </ul>
- *
- * <p>Filters: {@code from}/{@code to} (time window) and {@code type}
- * (entity filter). Access: owner or admin — same rules as the request API,
- * 404 for everyone else (no existence leak).
- *
- * <p>Read-only: the underlying tables are append-only (V9 triggers), so the
- * timeline is a faithful history, not a mutable view.
+ * Stored lifecycle facts are authoritative for requests with audit coverage. Untracked
+ * database imports have an explicitly labeled reconstructed fallback. Participant-based
+ * request read access never grants the independent audit permissions required here.
  */
 @Service
 public class AuditService {
@@ -60,19 +48,21 @@ public class AuditService {
     private final ExecutionJobRepository executionJobs;
     private final OutboxMessageRepository outbox;
     private final AuthorizationEvaluator authz;
+    private final LifecycleAuditRepository recorded;
 
     public AuditService(RequestRepository requests,
                         StepInstanceRepository stepInstances,
                         DecisionRepository decisions,
                         ExecutionJobRepository executionJobs,
                         OutboxMessageRepository outbox,
-                        AuthorizationEvaluator authz) {
+                        AuthorizationEvaluator authz, LifecycleAuditRepository recorded) {
         this.requests = requests;
         this.stepInstances = stepInstances;
         this.decisions = decisions;
         this.executionJobs = executionJobs;
         this.outbox = outbox;
         this.authz = authz;
+        this.recorded = recorded;
     }
 
     @Transactional(readOnly = true)
@@ -86,19 +76,30 @@ public class AuditService {
             authz.require(caller, PermissionCodes.AUDIT_READ_ANY);
         }
 
+        String normalized = type == null ? null : type.strip().toUpperCase(java.util.Locale.ROOT);
+        if (normalized != null && !isValidType(normalized)) {
+            throw new RequestValidationException(Map.of("type", "Unknown audit event type: " + normalized));
+        }
+        if (recorded.hasCoverage(requestId)) {
+            return recorded.findByRequestId(requestId).stream().map(AuditService::toView)
+                    .filter(e -> normalized == null || normalized.equals(e.type()))
+                    .filter(e -> from == null || !e.at().isBefore(from))
+                    .filter(e -> to == null || !e.at().isAfter(to)).toList();
+        }
+        // Only untracked database imports use this explicitly reconstructed fallback.
         List<AuditEvent> events = new ArrayList<>();
 
         // ── STATUS: creation ──────────────────────────────────────────
         events.add(AuditEvent.of(TYPE_STATUS, request.getCreatedAt(),
-                request.getRequester().getUsername(),
-                "Request created as " + request.getStatus(),
+                null,
+                "Legacy request creation record",
                 Map.of("type", request.getType().getCode())));
 
         // ── SUBMITTED ─────────────────────────────────────────────────
         if (request.getSubmittedAt() != null) {
             events.add(AuditEvent.of(TYPE_SUBMITTED, request.getSubmittedAt(),
-                    request.getRequester().getUsername(),
-                    "Request submitted into workflow",
+                    null,
+                    "Legacy submission record; original submitter unavailable",
                     null));
         }
 
@@ -106,13 +107,13 @@ public class AuditService {
         for (StepInstance si : stepInstances.findByRequestIdOrderById(requestId)) {
             for (Decision d : decisions.findByStepInstanceIdOrderById(si.getId())) {
                 Map<String, Object> details = new LinkedHashMap<>();
-                details.put("step", si.getStep().getCode());
+                details.put("step", si.getStepCode());
                 details.put("action", d.getAction().name());
                 if (d.getJustification() != null) details.put("justification", d.getJustification());
                 if (d.getDelegatedTo() != null) details.put("delegatedTo", d.getDelegatedTo());
                 details.put("evidence", d.getEvidence());
                 events.add(AuditEvent.of(TYPE_DECISION, d.getCreatedAt(), d.getActorUsername(),
-                        d.getAction().name() + " on step " + si.getStep().getCode(), details));
+                        d.getAction().name() + " on step " + si.getStepCode(), details));
             }
         }
 
@@ -153,7 +154,7 @@ public class AuditService {
                     "Request is " + status, null));
         } else if (status == RequestStatus.CANCELLED) {
             events.add(AuditEvent.of(TYPE_STATUS, request.getUpdatedAt(),
-                    request.getRequester().getUsername(), "Request cancelled", null));
+                    null, "Legacy cancellation observation", null));
         }
 
         // ── filters ───────────────────────────────────────────────────
@@ -171,8 +172,26 @@ public class AuditService {
                 .toList();
     }
 
+    private static AuditEvent toView(LifecycleAuditRecord record) {
+        Map<String, Object> details = new LinkedHashMap<>(record.details());
+        details.putIfAbsent("action", record.action());
+        details.put("eventAction", record.action());
+        details.put("before", record.before());
+        details.put("after", record.after());
+        details.put("actorKind", record.actorKind());
+        if (record.actorId() != null) details.put("actorId", record.actorId());
+        if (record.correlationId() != null) details.put("correlationId", record.correlationId());
+        if (record.remoteAddress() != null) details.put("remoteAddress", record.remoteAddress());
+        if (record.userAgent() != null) details.put("userAgent", record.userAgent());
+        if (record.reason() != null) details.put("reason", record.reason());
+        return new AuditEvent(record.type(), record.at(), record.actor(), record.summary(), details,
+                record.id(), record.sequence(), record.provenance());
+    }
+
     private static boolean isValidType(String t) {
         return t.equals(TYPE_STATUS) || t.equals(TYPE_SUBMITTED) || t.equals(TYPE_DECISION)
-                || t.equals(TYPE_JOB) || t.equals(TYPE_SLA);
+                || t.equals(TYPE_JOB) || t.equals(TYPE_SLA) || t.equals("REQUEST") || t.equals("STEP")
+                || t.equals("PARTICIPANT") || t.equals("CLARIFICATION") || t.equals("APPROVAL")
+                || t.equals("EXECUTION") || t.equals("EXECUTION_PLAN");
     }
 }

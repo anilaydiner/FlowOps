@@ -15,12 +15,13 @@ import org.springframework.stereotype.Component;
  * cadence and the test {@code running} flag.
  */
 @Component
-public class JobWorker {
+public class JobWorker implements com.flowops.application.execution.port.ExecutionWorkerStatus {
 
     private final ProcessExecutionJobs process;
+    private final CompletionReconciler completion;
 
-    public JobWorker(ProcessExecutionJobs process) {
-        this.process = process;
+    public JobWorker(ProcessExecutionJobs process,CompletionReconciler completion,@org.springframework.beans.factory.annotation.Value("${flowops.execution.worker-enabled:true}") boolean enabled) {
+        this.process = process;this.completion=completion;this.running=enabled;
     }
 
     /**
@@ -32,6 +33,8 @@ public class JobWorker {
     public void setRunning(boolean running) {
         this.running = running;
     }
+
+    @Override public boolean isCompletionReconciliationRunning(){return completion.isRunning();}
 
     public boolean isRunning() {
         return running;

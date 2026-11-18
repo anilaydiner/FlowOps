@@ -4,6 +4,7 @@ import com.flowops.domain.request.Clarification;
 import com.flowops.domain.request.port.ClarificationRepository;
 import com.flowops.persistence.entity.ClarificationEntity;
 import com.flowops.persistence.mapping.ClarificationMappers;
+import jakarta.persistence.EntityManager;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
@@ -13,9 +14,11 @@ import org.springframework.stereotype.Repository;
 public class SpringClarificationRepository implements ClarificationRepository {
 
     private final ClarificationJpaRepository jpaRepository;
+    private final EntityManager entities;
 
-    public SpringClarificationRepository(ClarificationJpaRepository jpaRepository) {
+    public SpringClarificationRepository(ClarificationJpaRepository jpaRepository, EntityManager entities) {
         this.jpaRepository = jpaRepository;
+        this.entities = entities;
     }
 
     @Override
@@ -33,7 +36,10 @@ public class SpringClarificationRepository implements ClarificationRepository {
 
     @Override
     public Optional<Clarification> findByIdAndRequestId(Long id, Long requestId) {
-        return jpaRepository.findByIdAndRequestId(id, requestId).map(ClarificationMappers::fromEntity);
+        return jpaRepository.findByIdAndRequestId(id, requestId).map(entity -> {
+            entities.refresh(entity);
+            return ClarificationMappers.fromEntity(entity);
+        });
     }
 
     @Override

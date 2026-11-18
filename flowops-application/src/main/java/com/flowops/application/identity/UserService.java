@@ -1,5 +1,6 @@
 package com.flowops.application.identity;
 
+import com.flowops.application.identity.port.PasswordHasher;
 import com.flowops.application.notification.EmailComposer;
 import com.flowops.application.notification.outbox.OutboxService;
 import com.flowops.domain.exception.ConflictException;
@@ -20,17 +21,17 @@ import com.flowops.domain.paging.PageResult;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UserService {
 
+    private final IdentityReconciliationSignals reconciliation;
     private final UserRepository users;
     private final DepartmentRepository departments;
     private final RoleRepository roles;
-    private final PasswordEncoder passwordEncoder;
+    private final PasswordHasher passwordHasher;
     private final EmailComposer emailComposer;
     private final OutboxService outbox;
     private final AuthorizationEvaluator authz;
@@ -38,14 +39,15 @@ public class UserService {
     public UserService(UserRepository users,
                        DepartmentRepository departments,
                        RoleRepository roles,
-                       PasswordEncoder passwordEncoder,
+                       PasswordHasher passwordHasher,
                        EmailComposer emailComposer,
                        OutboxService outbox,
-                       AuthorizationEvaluator authz) {
+                       AuthorizationEvaluator authz, IdentityReconciliationSignals reconciliation) {
+        this.reconciliation=reconciliation;
         this.users = users;
         this.departments = departments;
         this.roles = roles;
-        this.passwordEncoder = passwordEncoder;
+        this.passwordHasher = passwordHasher;
         this.emailComposer = emailComposer;
         this.outbox = outbox;
         this.authz = authz;
@@ -58,7 +60,7 @@ public class UserService {
         if (!user.isActive()) {
             throw new InvalidCredentialsException("User account is disabled");
         }
-        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+        if (!passwordHasher.matches(password, user.getPasswordHash())) {
             throw new InvalidCredentialsException("Invalid username or password");
         }
         return user;
@@ -68,6 +70,12 @@ public class UserService {
     public User create(String username, String displayName, String email,
                        String departmentCode, List<String> roleCodes, String password,
                        CallerIdentity caller) {
+        return create(username,displayName,email,departmentCode,roleCodes,password,null,caller);
+    }
+
+    @Transactional
+    public User create(String username, String displayName, String email, String departmentCode,
+                       List<String> roleCodes, String password, Boolean active, CallerIdentity caller) {
         authz.require(caller, PermissionCodes.USERS_CREATE);
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("username is required");
@@ -82,12 +90,14 @@ public class UserService {
                 blankToNull(email),
                 resolveDepartment(departmentCode),
                 roleSet,
-                passwordEncoder.encode(password));
+                passwordHasher.hash(password));
+        if(active != null) user.setActive(active);
         User saved = users.save(user);
         // ── Welcome email: deliver the initial credentials (outbox pattern) ─
         EmailComposer.ComposedEmail welcome = emailComposer.welcome(user, password);
         outbox.welcomeEmail(saved.getId(), welcome.subject(), welcome.text(),
                 welcome.html(), null);
+        reconciliation.userChanged(saved.getId());
         return saved;
     }
 
@@ -119,19 +129,35 @@ public class UserService {
     public User update(Long id, String displayName, String email,
                        String departmentCode, List<String> roleCodes, String newPassword,
                        CallerIdentity caller) {
+        return update(id,displayName,email,departmentCode,roleCodes,newPassword,null,caller);
+    }
+
+    @Transactional
+    public User update(Long id, String displayName, String email, String departmentCode,
+                       List<String> roleCodes, String newPassword, Boolean active, CallerIdentity caller) {
         authz.require(caller, PermissionCodes.USERS_UPDATE);
         User user = users.findByIdWithDepartment(id)
                 .orElseThrow(() -> new NotFoundException("User not found: " + id));
-        if (displayName != null) {
-            user.updateProfile(displayName, blankToNull(email), resolveDepartment(departmentCode));
+        var previousRoles=user.roleCodes();
+        var previousDepartment=user.getDepartment()==null?null:user.getDepartment().getCode();
+        boolean previousActive=user.isActive();
+        if (active != null) user.setActive(active);
+        if (displayName != null || email != null || departmentCode != null) {
+            user.updateProfile(displayName == null ? user.getDisplayName() : displayName,
+                    email == null ? user.getEmail() : blankToNull(email),
+                    departmentCode == null ? user.getDepartment() : resolveDepartment(departmentCode));
         }
         if (roleCodes != null) {
             user.setRoles(resolveRoles(roleCodes));
         }
         if (newPassword != null && !newPassword.isBlank()) {
-            user.changePasswordHash(passwordEncoder.encode(newPassword));
+            user.changePasswordHash(passwordHasher.hash(newPassword));
         }
-        return users.save(user);
+        User saved=users.save(user);
+        var department=saved.getDepartment()==null?null:saved.getDepartment().getCode();
+        if(previousActive!=saved.isActive() || !previousRoles.equals(saved.roleCodes())
+                || !java.util.Objects.equals(previousDepartment,department)) reconciliation.userChanged(id);
+        return saved;
     }
 
     @Transactional
@@ -142,6 +168,7 @@ public class UserService {
         }
         User user = users.findById(id)
                 .orElseThrow(() -> new NotFoundException("User not found: " + id));
+        reconciliation.userChanged(id);
         users.delete(user);
     }
 

@@ -1,7 +1,7 @@
 package com.flowops.domain.workflow;
 
 import java.time.Instant;
-import java.util.LinkedHashMap;
+import com.flowops.domain.JsonObjects;
 import java.util.Map;
 
 /**
@@ -11,7 +11,7 @@ import java.util.Map;
  *
  * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
  * lives in {@code persistence.entity.WorkflowStepEntity}; the
- * rehydration constructor and setters exist solely for that mapper.
+ * restoration factory exists for that mapper.
  */
 public class WorkflowStep {
 
@@ -32,9 +32,12 @@ public class WorkflowStep {
     private int requiredApprovals = 1;
 
     /** JSONB condition, e.g. {"field":"amount","op":">","value":5000}; null = always applies. */
-    private Map<String, Object> condition = new LinkedHashMap<>();
+    private Map<String, Object> condition = Map.of();
 
     private Integer slaMinutes;
+    private Integer expiryMinutes;
+    private int escalationIntervalMinutes = 60;
+    private Integer maxEscalationLevels;
 
     private String escalationRole;
 
@@ -42,11 +45,10 @@ public class WorkflowStep {
 
     private Instant createdAt;
 
-    public WorkflowStep() {
-        // Rehydration only — used by the persistence mapper, not by business code.
-    }
+    private WorkflowStep() {}
 
     public WorkflowStep(Workflow workflow, int position, String code, String name, String requiredRole) {
+        if (position < 1) throw new IllegalArgumentException("Step position must be positive");
         this.workflow = workflow;
         this.position = position;
         this.code = code;
@@ -57,10 +59,14 @@ public class WorkflowStep {
 
     public void configure(CompletionRule rule, int requiredApprovals, Map<String, Object> condition,
                           Integer slaMinutes, String escalationRole, boolean terminal) {
-        if (rule != null) this.completionRule = rule;
-        if (requiredApprovals > 0) this.requiredApprovals = requiredApprovals;
-        if (condition != null) this.condition = new LinkedHashMap<>(condition);
-        if (slaMinutes != null) this.slaMinutes = slaMinutes;
+        CompletionRule configuredRule = rule == null ? completionRule : rule;
+        if (requiredApprovals < 1 || (configuredRule != CompletionRule.K_OF_N && requiredApprovals != 1)) {
+            throw new IllegalArgumentException("Invalid approval threshold for " + configuredRule);
+        }
+        this.completionRule = configuredRule;
+        this.requiredApprovals = requiredApprovals;
+        if (condition != null) this.condition = JsonObjects.immutableCopy(condition);
+        if (slaMinutes != null) changeReviewSla(slaMinutes);
         if (escalationRole != null && !escalationRole.isBlank()) this.escalationRole = escalationRole;
         this.terminal = terminal;
     }
@@ -76,24 +82,60 @@ public class WorkflowStep {
     public CompletionRule getCompletionRule() { return completionRule; }
     public int getRequiredApprovals() { return requiredApprovals; }
     public Map<String, Object> getCondition() { return condition; }
+    public int getEscalationIntervalMinutes() { return escalationIntervalMinutes; }
+    public void setEscalationIntervalMinutes(int value) {
+        if(value<1) throw new IllegalArgumentException("escalationIntervalMinutes must be positive");
+        this.escalationIntervalMinutes=value;
+    }
+    public Integer getMaxEscalationLevels() { return maxEscalationLevels; }
+    public void setMaxEscalationLevels(Integer value) {
+        if(value!=null && value<1) throw new IllegalArgumentException("maxEscalationLevels must be positive");
+        this.maxEscalationLevels=value;
+    }
+    public Integer getExpiryMinutes() { return expiryMinutes; }
+    public void setExpiryMinutes(Integer value) {
+        if (value != null && value < 1) throw new IllegalArgumentException("expiryMinutes must be positive");
+        this.expiryMinutes = value;
+    }
     public Integer getSlaMinutes() { return slaMinutes; }
+    public void changeReviewSla(Integer minutes) { this.slaMinutes = minutes; }
     public String getEscalationRole() { return escalationRole; }
     public boolean isTerminal() { return terminal; }
     public Instant getCreatedAt() { return createdAt; }
 
-    // ── Setters (persistence rehydration only) ─────────────────────────
 
-    public void setId(Long id) { this.id = id; }
-    public void setWorkflow(Workflow workflow) { this.workflow = workflow; }
-    public void setPosition(int position) { this.position = position; }
-    public void setCode(String code) { this.code = code; }
-    public void setName(String name) { this.name = name; }
-    public void setRequiredRole(String requiredRole) { this.requiredRole = requiredRole; }
-    public void setCompletionRule(CompletionRule completionRule) { this.completionRule = completionRule; }
-    public void setRequiredApprovals(int requiredApprovals) { this.requiredApprovals = requiredApprovals; }
-    public void setCondition(Map<String, Object> condition) { this.condition = condition; }
-    public void setSlaMinutes(Integer slaMinutes) { this.slaMinutes = slaMinutes; }
-    public void setEscalationRole(String escalationRole) { this.escalationRole = escalationRole; }
-    public void setTerminal(boolean terminal) { this.terminal = terminal; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public record Snapshot(Long id, Workflow workflow, int position, String code, String name,
+                           String requiredRole, CompletionRule rule, int requiredApprovals,
+                           Map<String, Object> condition, Integer slaMinutes, Integer expiryMinutes,
+                           int escalationIntervalMinutes, Integer maxEscalationLevels,
+                           String escalationRole, boolean terminal, Instant createdAt) {}
+
+    /** Restore stored definitions without reinterpreting historical policy. */
+    public static WorkflowStep restore(Snapshot state) {
+        var step = new WorkflowStep();
+        step.id = state.id();
+        step.workflow = state.workflow();
+        step.position = state.position();
+        step.code = state.code();
+        step.name = state.name();
+        step.requiredRole = state.requiredRole();
+        step.completionRule = state.rule();
+        step.requiredApprovals = state.requiredApprovals();
+        step.condition = state.condition() == null ? null : JsonObjects.immutableCopy(state.condition());
+        step.slaMinutes = state.slaMinutes();
+        step.expiryMinutes = state.expiryMinutes();
+        step.escalationIntervalMinutes = state.escalationIntervalMinutes();
+        step.maxEscalationLevels = state.maxEscalationLevels();
+        step.escalationRole = state.escalationRole();
+        step.terminal = state.terminal();
+        step.createdAt = state.createdAt();
+        return step;
+    }
+
+    public void recordPersistence(Long savedId) {
+        if (savedId == null || id != null && !id.equals(savedId)) {
+            throw new IllegalArgumentException("Workflow step identity cannot change");
+        }
+        id = savedId;
+    }
 }

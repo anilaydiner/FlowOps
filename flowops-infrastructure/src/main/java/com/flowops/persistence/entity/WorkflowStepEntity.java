@@ -27,6 +27,15 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "workflow_steps")
 public class WorkflowStepEntity {
 
+    @Column(name="escalation_interval_minutes",nullable=false)
+    private int escalationIntervalMinutes=60;
+    @Column(name="max_escalation_levels")
+    private Integer maxEscalationLevels;
+    public int getEscalationIntervalMinutes() { return escalationIntervalMinutes; }
+    public void setEscalationIntervalMinutes(int value) { this.escalationIntervalMinutes=value; }
+    public Integer getMaxEscalationLevels() { return maxEscalationLevels; }
+    public void setMaxEscalationLevels(Integer value) { this.maxEscalationLevels=value; }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -61,6 +70,9 @@ public class WorkflowStepEntity {
 
     @Column(name = "sla_minutes")
     private Integer slaMinutes;
+
+    @Column(name = "expiry_minutes")
+    private Integer expiryMinutes;
 
     @Column(name = "escalation_role", length = 64)
     private String escalationRole;
@@ -104,6 +116,8 @@ public class WorkflowStepEntity {
     public Map<String, Object> getCondition() { return condition; }
     public void setCondition(Map<String, Object> condition) { this.condition = condition; }
 
+    public Integer getExpiryMinutes() { return expiryMinutes; }
+    public void setExpiryMinutes(Integer value) { this.expiryMinutes = value; }
     public Integer getSlaMinutes() { return slaMinutes; }
     public void setSlaMinutes(Integer slaMinutes) { this.slaMinutes = slaMinutes; }
 

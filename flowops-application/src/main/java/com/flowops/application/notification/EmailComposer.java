@@ -87,50 +87,23 @@ public class EmailComposer {
         return new ComposedEmail(subject, text, html);
     }
 
-    public ComposedEmail approved(Request request, String approverUsername) {
-        String subject = "Request #" + request.getId() + " has been approved";
-        String link = baseUrl + "/requests/" + request.getId();
-
-        String text = """
-                Hi %s,
-
-                Great news — your request has been fully approved!
-
-                  Request:   #%d — %s
-                  Approved by:  %s
-
-                Next steps will be handled by the operations team.
-
-                %s
-
-                — FlowOps
-                """.formatted(
-                displayName(request),
-                request.getId(),
-                describeRequest(request),
-                approverUsername,
-                link
-        );
-
-        String html = """
-                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width:560px; margin:0 auto; padding:24px;">
-                  <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:16px; margin-bottom:16px;">
-                    <h2 style="margin:0; font-size:18px; color:#166534;">&#10003; Request Approved</h2>
-                  </div>
-                  <p style="margin:0 0 16px 0; color:#555;">Hi %s, great news — your request has been fully approved!</p>
-                  %s
-                  <p style="margin:16px 0 0 0; font-size:14px; color:#555;">Approved by <strong>%s</strong>. Next steps will be handled by the operations team.</p>
-                  <a href="%s" style="display:inline-block; margin-top:16px; padding:10px 24px; background:#16a34a; color:#fff; text-decoration:none; border-radius:6px; font-size:14px;">View request</a>
-                  <p style="margin-top:24px; font-size:12px; color:#999;">— FlowOps Request &amp; Approval</p>
-                </div>
-                """.formatted(
-                displayName(request),
-                requestDetailTable(request, "APPROVED", "#dcfce7", "#166534"),
-                approverUsername,
-                link
-        );
-
-        return new ComposedEmail(subject, text, html);
+    public ComposedEmail approved(Request request,com.flowops.domain.request.ApprovalEvidence approval,int expectedActions) {
+        String subject="Request #"+request.getId()+" has been approved";
+        String actor=approval.actorKind()==com.flowops.domain.request.ApprovalEvidence.ActorKind.SYSTEM
+                ?"Automatically approved because no review step applied.":"Approved by "+approval.actorName()+".";
+        String next=expectedActions==0?"No execution actions are required.":"The actions in your approved execution plan will now be processed.";
+        String link=baseUrl+"/requests/"+request.getId();
+        String text="Hi "+displayName(request)+",\n\nYour request #"+request.getId()+" has been fully approved.\n"+actor+"\n"+next+"\n\n"+link+"\n\n— FlowOps";
+        String html="<h2>Request Approved</h2><p>"+escapeHtml(actor)+"</p>"+requestDetailTable(request,"APPROVED","#dcfce7","#166534")
+                +"<p>"+escapeHtml(next)+"</p><a href=\""+escapeHtml(link)+"\">View request</a>";
+        return new ComposedEmail(subject,text,html);
+    }
+    public ComposedEmail executed(Request request,int completedActions) {
+        String subject="Request #"+request.getId()+" execution is complete";
+        String result=completedActions==0?"No execution actions were required. Your approved request is complete.":"Every action in your approved execution plan has completed.";
+        String link=baseUrl+"/requests/"+request.getId();
+        String text="Hi "+displayName(request)+",\n\nRequest #"+request.getId()+": "+result+"\n\n"+link+"\n\n— FlowOps";
+        return new ComposedEmail(subject,text,"<h2>Request execution complete</h2><p>"+escapeHtml(result)+"</p><a href=\""+escapeHtml(link)+"\">View request</a>");
     }
 
     public ComposedEmail rejected(Request request, String rejectorUsername, String justification) {

@@ -2,8 +2,8 @@ package com.flowops.domain.workflow;
 
 /**
  * Step completion rules (PLAN §6.2).
- * {@code required_approvals} carries the parameter:
- * ANY_OF(1) — one approval suffices; ALL_OF(n) — n distinct approvals; K_OF_N(k) — k of n.
+ * ANY_OF needs one recorded slot; ALL_OF needs every slot frozen at activation;
+ * K_OF_N needs k distinct recorded slots. Legacy ALL_OF instances retain their numeric threshold.
  */
 public enum CompletionRule {
     ANY_OF,

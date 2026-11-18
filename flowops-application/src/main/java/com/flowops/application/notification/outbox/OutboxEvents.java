@@ -30,6 +30,9 @@ public final class OutboxEvents {
     public static final String REJECTED        = "REJECTED";
     public static final String NOTIFY_REJECT   = "NOTIFY_REJECT";
 
+    public static final String EXECUTED = "EXECUTED";
+    public static final String NOTIFY_EXECUTED = "NOTIFY_EXECUTED";
+
     public static final String APPROVED        = "APPROVED";
     public static final String NOTIFY_APPROVE  = "NOTIFY_APPROVE";
 

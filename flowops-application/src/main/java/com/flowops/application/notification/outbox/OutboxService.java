@@ -72,7 +72,13 @@ public class OutboxService {
      */
     public void notifyStepFeed(Long requestId, Long stepInstanceId, Long recipientId,
                                String type, String title, String body, String correlationId) {
-        String key = String.format(OutboxMessage.KEY_FORMAT_STEP_NOTIFICATION, requestId, type, stepInstanceId, recipientId);
+        notifyStepFeed(requestId, stepInstanceId, recipientId, type, title, body, correlationId, "");
+    }
+
+    /** Event identity can vary by recovery episode while the delivery type stays stable. */
+    public void notifyStepFeed(Long requestId, Long stepInstanceId, Long recipientId,
+                               String type, String title, String body, String correlationId, String eventSuffix) {
+        String key = String.format(OutboxMessage.KEY_FORMAT_STEP_NOTIFICATION, requestId, type, stepInstanceId, recipientId) + eventSuffix;
         enqueue(key, OutboxMessage.CHANNEL_FEED, recipientId,
                 OutboxPayload.feed(requestId, type, title, body), correlationId);
     }
@@ -82,7 +88,12 @@ public class OutboxService {
      */
     public void notifyStepEmail(Long requestId, Long stepInstanceId, Long recipientId,
                                 String type, String subject, String body, String html, String correlationId) {
-        String key = String.format(OutboxMessage.KEY_FORMAT_STEP_NOTIFICATION, requestId, type, stepInstanceId, recipientId);
+        notifyStepEmail(requestId, stepInstanceId, recipientId, type, subject, body, html, correlationId, "");
+    }
+
+    public void notifyStepEmail(Long requestId, Long stepInstanceId, Long recipientId,
+                                String type, String subject, String body, String html, String correlationId, String eventSuffix) {
+        String key = String.format(OutboxMessage.KEY_FORMAT_STEP_NOTIFICATION, requestId, type, stepInstanceId, recipientId) + eventSuffix;
         enqueue(key, OutboxMessage.CHANNEL_EMAIL, recipientId,
                 OutboxPayload.email(requestId, type, subject, body, html), correlationId);
     }
@@ -124,6 +135,11 @@ public class OutboxService {
         enqueue(key, OutboxMessage.CHANNEL_EMAIL, recipientId, payload, correlationId);
         // Also add to feed
         enqueue(key + ":feed", OutboxMessage.CHANNEL_FEED, recipientId, payload, correlationId);
+    }
+
+    public void notifyRequesterExpiry(Long requestId, Long requesterId, String correlationId) {
+        notifyFeed(requestId, requesterId, "NOTIFY_EXPIRED", "Request expired", "The business review deadline elapsed", correlationId);
+        notifyEmail(requestId, requesterId, "EXPIRED", "Request expired", "The business review deadline elapsed", correlationId);
     }
 
     // ── internal ─────────────────────────────────────────────────────────

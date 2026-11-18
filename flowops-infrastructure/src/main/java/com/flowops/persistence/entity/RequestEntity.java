@@ -28,6 +28,62 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "requests")
 public class RequestEntity {
 
+    @Column(name="legacy_plan_disposition_id")
+    private java.util.UUID legacyPlanDispositionId;
+    public java.util.UUID getLegacyPlanDispositionId(){return legacyPlanDispositionId;}
+    public void setLegacyPlanDispositionId(java.util.UUID value){legacyPlanDispositionId=value;}
+
+    @Column(name="execution_plan_id")
+    private java.util.UUID executionPlanId;
+    public java.util.UUID getExecutionPlanId(){return executionPlanId;}
+    public void setExecutionPlanId(java.util.UUID value){executionPlanId=value;}
+    @Column(name="execution_planned_at")
+    private Instant executionPlannedAt;
+    public Instant getExecutionPlannedAt() { return executionPlannedAt; }
+    public void setExecutionPlannedAt(Instant value) { this.executionPlannedAt=value; }
+    @Column(name="execution_started_at")
+    private Instant executionStartedAt;
+    public Instant getExecutionStartedAt() { return executionStartedAt; }
+    public void setExecutionStartedAt(Instant value) { this.executionStartedAt=value; }
+    @Column(name="execution_start_unknown")
+    private boolean executionStartUnknown;
+    public boolean isExecutionStartUnknown() { return executionStartUnknown; }
+    public void setExecutionStartUnknown(boolean value) { this.executionStartUnknown=value; }
+    @Column(name="execution_start_inferred")
+    private boolean executionStartInferred;
+    public boolean isExecutionStartInferred() { return executionStartInferred; }
+    public void setExecutionStartInferred(boolean value) { this.executionStartInferred=value; }
+
+    @Enumerated(EnumType.STRING)
+    @Column(name="outcome")
+    private com.flowops.domain.request.RequestOutcome outcome;
+    public com.flowops.domain.request.RequestOutcome getOutcome(){return outcome;}
+    public void setOutcome(com.flowops.domain.request.RequestOutcome value){outcome=value;}
+    @Column(name="approved_at")
+    private Instant approvedAt;
+    public Instant getApprovedAt(){return approvedAt;}
+    public void setApprovedAt(Instant value){approvedAt=value;}
+    @Column(name="rejected_at")
+    private Instant rejectedAt;
+    public Instant getRejectedAt(){return rejectedAt;}
+    public void setRejectedAt(Instant value){rejectedAt=value;}
+    @Column(name="executed_at")
+    private Instant executedAt;
+    public Instant getExecutedAt(){return executedAt;}
+    public void setExecutedAt(Instant value){executedAt=value;}
+    @Column(name="cancelled_at")
+    private Instant cancelledAt;
+    public Instant getCancelledAt(){return cancelledAt;}
+    public void setCancelledAt(Instant value){cancelledAt=value;}
+    @Column(name="expired_at")
+    private Instant expiredAt;
+    public Instant getExpiredAt(){return expiredAt;}
+    public void setExpiredAt(Instant value){expiredAt=value;}
+    @Column(name="closed_at")
+    private Instant closedAt;
+    public Instant getClosedAt(){return closedAt;}
+    public void setClosedAt(Instant value){closedAt=value;}
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

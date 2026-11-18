@@ -32,6 +32,16 @@ public final class RequestMappers {
         e.setCreatedAt(d.getCreatedAt());
         e.setUpdatedAt(d.getUpdatedAt());
         e.setSubmittedAt(d.getSubmittedAt());
+        e.setLegacyPlanDispositionId(d.getLegacyPlanDispositionId());
+        e.setExecutionPlanId(d.getExecutionPlanId());e.setExecutionPlannedAt(d.getExecutionPlannedAt()); e.setExecutionStartedAt(d.getExecutionStartedAt());
+        e.setExecutionStartUnknown(d.isExecutionStartUnknown()); e.setExecutionStartInferred(d.isExecutionStartInferred());
+        e.setOutcome(d.getOutcome());
+        e.setApprovedAt(d.getApprovedAt());
+        e.setRejectedAt(d.getRejectedAt());
+        e.setExecutedAt(d.getExecutedAt());
+        e.setCancelledAt(d.getCancelledAt());
+        e.setExpiredAt(d.getExpiredAt());
+        e.setClosedAt(d.getClosedAt());
         return e;
     }
 
@@ -44,6 +54,8 @@ public final class RequestMappers {
                 e.getId(), RequestTypeMappers.fromEntity(e.getType()),
                 UserMappers.fromEntity(e.getRequester()), e.getStatus(), e.getPayload(),
                 e.getVersion(), e.getCorrelationId(), e.getCreatedAt(),
-                e.getUpdatedAt(), e.getSubmittedAt()));
+                e.getUpdatedAt(), e.getSubmittedAt(), e.getExecutionPlannedAt(), e.getExecutionStartedAt(),
+                e.isExecutionStartUnknown(),e.isExecutionStartInferred(),e.getExecutionPlanId(),e.getOutcome(),
+                e.getApprovedAt(),e.getRejectedAt(),e.getExecutedAt(),e.getCancelledAt(),e.getExpiredAt(),e.getClosedAt(),e.getLegacyPlanDispositionId()));
     }
 }

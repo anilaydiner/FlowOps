@@ -1,7 +1,6 @@
 package com.flowops.domain.workflow.port;
 
 import com.flowops.domain.workflow.WorkflowStep;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -14,12 +13,12 @@ public interface WorkflowStepRepository {
 
     WorkflowStep save(WorkflowStep step);
 
-    /** Delete all given step definitions. */
-    void deleteAll(Collection<WorkflowStep> steps);
+    /** Replace the definitions for this workflow in the current transaction. */
+    void replaceDefinitions(Long workflowId, List<WorkflowStep> definitions);
 
-    /** Flush pending writes of the persistence context. */
-    void flush();
-
-    /** Steps of a workflow in execution order. */
+    /** Steps of a workflow in catalog order. */
     List<WorkflowStep> findByWorkflowIdOrderById(Long workflowId);
+
+    /** Steps of a workflow in configured execution order. */
+    List<WorkflowStep> findInExecutionOrder(Long workflowId);
 }

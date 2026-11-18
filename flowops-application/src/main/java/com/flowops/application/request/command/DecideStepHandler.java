@@ -31,7 +31,7 @@ public class DecideStepHandler implements MessageHandler<DecideStepCommand, Requ
     @Transactional
     public RequestDetail handle(DecideStepCommand command) {
         Request result = observability.decide(command.id(), command.caller().username(), command.action(),
-                () -> useCase.execute(command.id(), command.action(), command.justification(), command.caller(), command.delegatedTo()));
+                () -> useCase.execute(command.id(), command.action(), command.justification(), command.caller(), command.delegatedTo(), command.stepInstanceId(), command.expectedVersion()));
         return details.load(result);
     }
 }

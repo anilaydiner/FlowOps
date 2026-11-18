@@ -35,6 +35,14 @@ public final class ExecutionJobMappers {
         e.setCorrelationId(d.getCorrelationId());
         e.setCreatedAt(d.getCreatedAt());
         e.setCompletedAt(d.getCompletedAt());
+        e.setStartedAt(d.getStartedAt());
+        e.setStartInferred(d.isStartInferred());
+        e.setCancelledAt(d.getCancelledAt());
+        e.setCancelledBy(d.getCancelledBy());
+        e.setAttemptCount(d.getAttemptCount());
+        e.setClaimToken(d.getClaimToken());
+        e.setLeaseExpiresAt(d.getLeaseExpiresAt());
+        e.setInputPayload(d.getInputPayload());
         return e;
     }
 
@@ -57,6 +65,14 @@ public final class ExecutionJobMappers {
         d.setCorrelationId(e.getCorrelationId());
         d.setCreatedAt(e.getCreatedAt());
         d.setCompletedAt(e.getCompletedAt());
+        d.setStartedAt(e.getStartedAt());
+        d.setStartInferred(e.isStartInferred());
+        d.setCancelledAt(e.getCancelledAt());
+        d.setCancelledBy(e.getCancelledBy());
+        d.setAttemptCount(e.getAttemptCount());
+        d.setClaimToken(e.getClaimToken());
+        d.setLeaseExpiresAt(e.getLeaseExpiresAt());
+        d.setInputPayload(e.getInputPayload());
         return d;
     }
 }

@@ -29,23 +29,56 @@ class RequestTest {
 
     private Request restored(RequestStatus status, Map<String, Object> payload) {
         return Request.restore(new Request.Snapshot(12L, null, null, status, payload, 3L,
-                "correlation", CREATED, SUBMITTED, SUBMITTED));
+                "correlation", CREATED, SUBMITTED, SUBMITTED, status==RequestStatus.APPROVED?SUBMITTED:null,null,false,false,status==RequestStatus.APPROVED?java.util.UUID.randomUUID():null));
     }
 
     @ParameterizedTest
     @EnumSource(RequestStatus.class)
     void preservesLifecycleTransitions(RequestStatus from) {
         for (RequestStatus to : RequestStatus.values()) {
+            if (to == RequestStatus.DRAFT || to == RequestStatus.APPROVED || to == RequestStatus.EXECUTED) continue;
+            if (from == RequestStatus.CANCELLED && to == RequestStatus.CANCELLED) continue;
             Request request = restored(from, Map.of());
             if (EDGES.getOrDefault(from, Set.of()).contains(to)) {
-                request.transitionTo(to);
+                apply(request, to);
                 assertEquals(to, request.getStatus());
             } else {
-                assertThrows(InvalidStateTransitionException.class, () -> request.transitionTo(to));
+                assertThrows(InvalidStateTransitionException.class, () -> apply(request, to));
                 assertEquals(from, request.getStatus());
                 assertEquals(SUBMITTED, request.getUpdatedAt());
             }
         }
+    }
+
+    private static void apply(Request request, RequestStatus to) {
+        switch (to) {
+            case SUBMITTED -> request.markSubmitted(SUBMITTED);
+            case IN_REVIEW -> request.beginReview(SUBMITTED);
+            case REJECTED -> request.reject(SUBMITTED);
+            case CANCELLED -> request.cancel(SUBMITTED);
+            case EXPIRED -> request.expire(SUBMITTED);
+            case CLOSED -> request.close(SUBMITTED);
+            default -> throw new AssertionError(to);
+        }
+    }
+
+    @Test
+    void approvalAndExecutionRequireEvidenceForThisRequest() {
+        var request = restored(RequestStatus.SUBMITTED, Map.of());
+        var planId = java.util.UUID.randomUUID();
+        var evidence = ApprovalEvidence.allSkipped(1L, "requester");
+        var wrongPlan = new com.flowops.domain.execution.ExecutionPlan(planId, 99L, 1L, "TYPE",
+                CREATED, SUBMITTED, evidence, List.of());
+        assertThrows(ConflictException.class, () -> request.approve(wrongPlan.approvalPlan(), List.of(), List.of()));
+
+        var plan = new com.flowops.domain.execution.ExecutionPlan(planId, request.getId(), 1L, "TYPE",
+                CREATED, SUBMITTED, evidence, List.of());
+        request.approve(plan.approvalPlan(), List.of(), List.of());
+        assertEquals(planId, request.getExecutionPlanId());
+        assertThrows(ConflictException.class, () -> request.completeExecution(
+                new Request.ExecutionCompletion(java.util.UUID.randomUUID(), request.getId()), SUBMITTED));
+        request.completeExecution(new Request.ExecutionCompletion(planId, request.getId()), SUBMITTED);
+        assertEquals(RequestStatus.EXECUTED, request.getStatus());
     }
 
     @ParameterizedTest

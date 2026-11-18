@@ -19,7 +19,7 @@
         <module>flowops-domain</module>
         <module>flowops-application</module>
         <module>flowops-infrastructure</module>
-        <module>flowops-server</module>
+        <module>flowops-web</module>
     </modules>
 
     <properties>
@@ -52,7 +52,7 @@
             </dependency>
             <dependency>
                 <groupId>com.flowops</groupId>
-                <artifactId>flowops-server</artifactId>
+                <artifactId>flowops-web</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

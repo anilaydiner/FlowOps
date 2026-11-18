@@ -43,6 +43,11 @@ public class SpringDecisionRepository implements DecisionRepository {
     }
 
     @Override
+    public long countDistinctApprovers(Long stepInstanceId) {
+        return jpaRepository.countDistinctApprovers(stepInstanceId);
+    }
+
+    @Override
     public List<Decision> findAll() {
         return jpaRepository.findAll().stream().map(DecisionMappers::fromEntity).toList();
     }

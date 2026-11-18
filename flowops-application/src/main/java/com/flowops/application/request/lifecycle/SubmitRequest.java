@@ -1,5 +1,7 @@
 package com.flowops.application.request.lifecycle;
 
+import com.flowops.application.request.RequestTargets;
+import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.application.event.DomainEventPublisher;
 import com.flowops.application.request.workflow.StepMaterializer;
 import com.flowops.domain.exception.ConflictException;
@@ -8,6 +10,7 @@ import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.domain.identity.policy.AuthorizationEvaluator;
 import com.flowops.domain.identity.policy.PermissionCodes;
 import com.flowops.domain.identity.policy.TargetContext;
+import com.flowops.domain.request.ApprovalEvidence;
 import com.flowops.domain.request.Request;
 import com.flowops.domain.request.RequestStatus;
 import com.flowops.domain.request.event.RequestSubmitted;
@@ -28,15 +31,20 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class SubmitRequest {
 
+    private final LifecycleAuditRecorder audit;
+
     private final RequestRepository requests;
     private final StepMaterializer materializer;
     private final DomainEventPublisher events;
     private final AuthorizationEvaluator authz;
+    private final FinalizeApproval finalization;
+    private final java.time.Clock clock;
 
     public SubmitRequest(RequestRepository requests,
                          StepMaterializer materializer,
                          DomainEventPublisher events,
-                         AuthorizationEvaluator authz) {
+                         AuthorizationEvaluator authz, LifecycleAuditRecorder audit,FinalizeApproval finalization,java.time.Clock clock) {
+        this.audit = audit;this.finalization=finalization;this.clock=clock;
         this.requests = requests;
         this.materializer = materializer;
         this.events = events;
@@ -47,7 +55,7 @@ public class SubmitRequest {
     public Request execute(Long requestId, CallerIdentity caller) {
         Request request = load(requestId);
         boolean isOwn = caller.id().equals(request.getRequester().getId());
-        TargetContext target = TargetContext.from(request, null);
+        TargetContext target = RequestTargets.from(request, null);
         authz.require(caller, isOwn ? PermissionCodes.REQUEST_SUBMIT_OWN : PermissionCodes.REQUEST_SUBMIT, target, isOwn);
         if (!request.isDraft()) {
             throw new ConflictException("Only DRAFT requests can be submitted (current: " + request.getStatus() + ")");
@@ -60,20 +68,24 @@ public class SubmitRequest {
             throw new ConflictException("Workflow is inactive: " + workflow.getCode());
         }
 
-        request.markSubmitted(Instant.now());
-        materializer.materializeNext(request, workflow, 0);
-        if (request.getStatus() != RequestStatus.APPROVED) {
-            request.transitionTo(RequestStatus.IN_REVIEW);
-        }
+        var beforeSubmit = LifecycleAuditRecorder.state(request);
+        request.markSubmitted(clock.instant());
+        requests.save(request);
+        audit.transition(request, caller, beforeSubmit, null);
+        var submittedState = LifecycleAuditRecorder.state(request);
+        boolean active = materializer.materializeNext(request, workflow, caller);
+        if (active) request.beginReview(clock.instant());
         Request saved = requests.save(request);
-        requests.flush(); // surface optimistic-lock conflicts before event subscribers write
+        audit.transition(saved, caller, submittedState, null);
         events.publish(new RequestSubmitted(saved.getId()));
-
-        return saved;
+        if (!active) {
+            return finalization.execute(saved.getId(), ApprovalEvidence.allSkipped(caller.id(), caller.username()));
+        }
+        return requests.findById(saved.getId()).orElseThrow();
     }
 
     private Request load(Long id) {
-        return requests.findById(id)
+        return requests.findByIdForUpdate(id)
                 .orElseThrow(() -> new NotFoundException("Request not found: " + id));
     }
 }

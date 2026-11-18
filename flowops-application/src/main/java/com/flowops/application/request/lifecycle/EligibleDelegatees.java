@@ -1,12 +1,11 @@
 package com.flowops.application.request.lifecycle;
 
 import com.flowops.domain.exception.ConflictException;
+import com.flowops.application.request.ApprovalEligibilityService;
+import com.flowops.domain.request.DecisionAction;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.domain.identity.User;
-import com.flowops.domain.identity.policy.AuthorizationEvaluator;
-import com.flowops.domain.identity.policy.PermissionCodes;
-import com.flowops.domain.identity.policy.TargetContext;
 import com.flowops.domain.identity.port.UserRepository;
 import com.flowops.domain.request.Request;
 import com.flowops.domain.request.RequestStatus;
@@ -14,7 +13,6 @@ import com.flowops.domain.request.StepInstance;
 import com.flowops.domain.request.StepState;
 import com.flowops.domain.request.port.RequestRepository;
 import com.flowops.domain.request.port.StepInstanceRepository;
-import com.flowops.domain.workflow.WorkflowStep;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -39,16 +37,16 @@ public class EligibleDelegatees {
     private final RequestRepository requests;
     private final StepInstanceRepository stepInstances;
     private final UserRepository users;
-    private final AuthorizationEvaluator authz;
+    private final ApprovalEligibilityService eligibility;
 
     public EligibleDelegatees(RequestRepository requests,
                               StepInstanceRepository stepInstances,
                               UserRepository users,
-                              AuthorizationEvaluator authz) {
+                              ApprovalEligibilityService eligibility) {
         this.requests = requests;
         this.stepInstances = stepInstances;
         this.users = users;
-        this.authz = authz;
+        this.eligibility = eligibility;
     }
 
     /**
@@ -67,19 +65,18 @@ public class EligibleDelegatees {
         }
         StepInstance current = stepInstances.findTopByRequestIdAndStateOrderById(requestId, StepState.PENDING)
                 .orElseThrow(() -> new ConflictException("No active step to delegate on request " + requestId));
-        WorkflowStep step = current.getStep();
-
-        TargetContext target = TargetContext.from(request, step);
 
         // Only the current approver may see (or perform) a delegation.
-        authz.require(caller, PermissionCodes.REQUEST_APPROVE, target);
+        eligibility.require(caller.id(), request, current, DecisionAction.DELEGATE);
+        var history = eligibility.history(current);
+        var roster = eligibility.roster(current);
 
         Long requesterId = request.getRequester().getId();
         return users.findAllWithDepartment().stream()
                 .filter(User::isActive)
                 .filter(u -> !u.getId().equals(caller.id()))
                 .filter(u -> !u.getId().equals(requesterId))
-                .filter(u -> authz.evaluate(u, PermissionCodes.REQUEST_APPROVE, target).allowed())
+                .filter(u -> eligibility.evaluate(u, request, current, DecisionAction.APPROVE, history, true, roster).allowed())
                 .sorted(Comparator.comparing(User::getUsername))
                 .toList();
     }

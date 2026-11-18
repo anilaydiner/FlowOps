@@ -22,11 +22,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class RoleService {
 
+    private final com.flowops.application.identity.IdentityReconciliationSignals reconciliation;
     private final RoleRepository roles;
     private final PermissionRepository permissions;
     private final AuthorizationEvaluator authz;
 
-    public RoleService(RoleRepository roles, PermissionRepository permissions, AuthorizationEvaluator authz) {
+    public RoleService(RoleRepository roles, PermissionRepository permissions, AuthorizationEvaluator authz, com.flowops.application.identity.IdentityReconciliationSignals reconciliation) {
+        this.reconciliation=reconciliation;
         this.roles = roles;
         this.permissions = permissions;
         this.authz = authz;
@@ -75,6 +77,7 @@ public class RoleService {
         authz.require(caller, PermissionCodes.ROLES_UPDATE);
         Role role = roles.findById(id)
                 .orElseThrow(() -> new NotFoundException("Role not found: " + id));
+        var previousPermissions=role.getPermissions().stream().map(Permission::getId).collect(java.util.stream.Collectors.toSet());
         if (request.name() != null && !request.name().isBlank()) {
             role.setName(request.name().strip());
         }
@@ -85,6 +88,8 @@ public class RoleService {
         }
         Role saved = roles.save(role);
         saved.getPermissions().size();
+        var currentPermissions=saved.getPermissions().stream().map(Permission::getId).collect(java.util.stream.Collectors.toSet());
+        if(!previousPermissions.equals(currentPermissions)) reconciliation.roleChanged(id);
         return saved;
     }
 
@@ -97,6 +102,7 @@ public class RoleService {
         if ("ADMIN".equals(role.getCode()) || "MEMBER".equals(role.getCode())) {
             throw new ConflictException("Cannot delete built-in role: " + role.getCode());
         }
+        reconciliation.roleChanged(id);
         roles.delete(role);
     }
 

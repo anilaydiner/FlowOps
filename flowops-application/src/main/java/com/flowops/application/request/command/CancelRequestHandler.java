@@ -9,9 +9,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CancelRequestHandler implements MessageHandler<CancelRequestCommand, RequestDetail> {
     private final CancelRequest useCase;
+    private final com.flowops.application.request.RequestDetailReader details;
 
-    public CancelRequestHandler(CancelRequest useCase) {
+    public CancelRequestHandler(CancelRequest useCase,com.flowops.application.request.RequestDetailReader details) {
         this.useCase = useCase;
+        this.details=details;
     }
 
     @Override
@@ -22,6 +24,6 @@ public class CancelRequestHandler implements MessageHandler<CancelRequestCommand
     @Override
     @Transactional
     public RequestDetail handle(CancelRequestCommand command) {
-        return RequestDetail.of(useCase.execute(command.id(), command.caller()));
+        return details.summary(useCase.execute(command.id(), command.caller()));
     }
 }

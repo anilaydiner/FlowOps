@@ -23,13 +23,16 @@ public class RequestDetailReader {
     private final DecisionRepository decisions;
     private final ClarificationRepository clarifications;
     private final ExecutionJobRepository executionJobs;
+    private final com.flowops.application.request.port.RequestExecutionQueries execution;
 
     public RequestDetailReader(StepInstanceRepository stepInstances, DecisionRepository decisions,
-                               ClarificationRepository clarifications, ExecutionJobRepository executionJobs) {
+                               ClarificationRepository clarifications, ExecutionJobRepository executionJobs,
+                               com.flowops.application.request.port.RequestExecutionQueries execution) {
         this.stepInstances = stepInstances;
         this.decisions = decisions;
         this.clarifications = clarifications;
         this.executionJobs = executionJobs;
+        this.execution=execution;
     }
 
     public RequestDetail load(Request r) {
@@ -44,6 +47,10 @@ public class RequestDetailReader {
         }
         List<Clarification> clari = clarifications.findByRequestIdOrderByCreatedAtDesc(r.getId());
         List<ExecutionJob> jobs = executionJobs.findByRequestIdOrderByCreatedAtAsc(r.getId());
-        return RequestDetail.full(r, steps, byStep, clari, jobs);
+        return RequestDetail.full(r, steps, byStep, clari, jobs).withExecutionProgress(progress(r));
+    }
+    public RequestDetail summary(Request r){return RequestDetail.of(r).withExecutionProgress(progress(r));}
+    private com.flowops.application.request.model.ExecutionProgress progress(Request r){
+        return java.util.Objects.requireNonNull(execution.findByRequestIds(List.of(r.getId())).get(r.getId()));
     }
 }

@@ -10,9 +10,9 @@ package com.flowops.application.request.port;
  */
 public interface SlaMetrics {
 
-    /** Record an SLA breach escalation notification for the given step code. */
+    /** Record a committed review escalation recipient intent (overdue or blocked) for the given step code. */
     void recordBreach(String stepCode);
 
-    /** Record a request expiry (SLA window exceeded) for the given step code. */
+    /** Record a request expiry (independent business deadline elapsed) for the given step code. */
     void recordExpiry(String stepCode);
 }

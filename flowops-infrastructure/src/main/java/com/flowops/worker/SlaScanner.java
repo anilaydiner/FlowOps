@@ -7,22 +7,7 @@ import java.util.Map;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * SLA scanner (PLAN §8, iteration 7).
- *
- * <p>Thin scheduling shell: the breach/expiry policy and escalation
- * notification live in the {@link ScanSla} use case, and the breach /
- * expiry counters in the {@code SlaMetrics} adapter. The worker only owns
- * the tick cadence, the test {@code running} flag, and the
- * {@code sla.scan} span wrapping each scan (with breach/expiry counts).
- *
- * <ul>
- *   <li><b>Breach</b> (now &gt; createdAt + slaMinutes): escalation
- *       notification via the outbox, idempotent per recipient.</li>
- *   <li><b>Expiry</b> (now &gt; createdAt + slaMinutes × 2): request
- *       transitions to the terminal EXPIRED state.</li>
- * </ul>
- */
+/** Thin scheduling shell for bounded pending/blocked review escalation and independent business expiry. */
 @Component
 public class SlaScanner {
 
@@ -53,7 +38,7 @@ public class SlaScanner {
     }
 
     /**
-     * Scan all PENDING step instances for SLA breach / expiry.
+     * Scan a bounded batch of due PENDING/BLOCKED review work.
      * Called by the scheduler (when running) or directly by tests.
      */
     public void scan() {

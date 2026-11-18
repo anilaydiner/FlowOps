@@ -29,8 +29,16 @@ public record RequestDetail(
         List<StepInstance> steps,
         Map<Long, List<Decision>> decisionsByStep,
         List<Clarification> clarifications,
-        List<ExecutionJob> jobs
+        List<ExecutionJob> jobs,
+        ExecutionProgress executionProgress
 ) {
+    public RequestDetail(Request request,List<StepInstance> steps,Map<Long,List<Decision>> decisionsByStep,
+                         List<Clarification> clarifications,List<ExecutionJob> jobs){
+        this(request,steps,decisionsByStep,clarifications,jobs,ExecutionProgress.unplanned(request.getStatus(),request.getOutcome()));
+    }
+    public RequestDetail withExecutionProgress(ExecutionProgress progress){
+        return new RequestDetail(request,steps,decisionsByStep,clarifications,jobs,progress);
+    }
     /** Lightweight view (draft operations / cancel): no detail collections. */
     public static RequestDetail of(Request request) {
         return new RequestDetail(request, List.of(), Map.of(), List.of(), List.of());

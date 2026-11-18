@@ -1,5 +1,7 @@
 package com.flowops.application.request.lifecycle;
 
+import com.flowops.application.request.RequestTargets;
+import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.identity.CallerIdentity;
@@ -21,32 +23,40 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CloseRequest {
 
+    private final LifecycleAuditRecorder audit;
+
     private final RequestRepository requests;
     private final AuthorizationEvaluator authz;
+    private final java.time.Clock clock;
 
-    public CloseRequest(RequestRepository requests, AuthorizationEvaluator authz) {
+    public CloseRequest(RequestRepository requests, AuthorizationEvaluator authz, LifecycleAuditRecorder audit,java.time.Clock clock) {
+        this.audit = audit;
         this.requests = requests;
         this.authz = authz;
+        this.clock = clock;
     }
 
     @Transactional
     public Request execute(Long requestId, CallerIdentity caller) {
         Request request = load(requestId);
-        if (request.getStatus() != RequestStatus.EXECUTED && request.getStatus() != RequestStatus.REJECTED) {
+        if (!request.getStatus().canClose()) {
             throw new ConflictException("Only EXECUTED or REJECTED requests can be closed (current: "
                     + request.getStatus() + ")");
         }
 
         boolean isOwn = caller.id().equals(request.getRequester().getId());
-        TargetContext target = TargetContext.from(request, null);
+        TargetContext target = RequestTargets.from(request, null);
         authz.require(caller, isOwn ? PermissionCodes.REQUEST_CLOSE_OWN : PermissionCodes.REQUEST_CLOSE, target, isOwn);
 
-        request.transitionTo(RequestStatus.CLOSED);
-        return requests.save(request);
+        var before = LifecycleAuditRecorder.state(request);
+        request.close(clock.instant());
+        Request saved = requests.save(request);
+        audit.transition(saved, caller, before, null);
+        return saved;
     }
 
     private Request load(Long id) {
-        return requests.findById(id)
+        return requests.findByIdForUpdate(id)
                 .orElseThrow(() -> new NotFoundException("Request not found: " + id));
     }
 }

@@ -21,7 +21,7 @@ final class RequestListProjection {
     private RequestListProjection() {}
 
     static PageResult<RequestListItem> findPage(EntityManager entityManager, PageQuery page,
-                                               Specification<RequestEntity> spec) {
+                                               Specification<RequestEntity> spec,com.flowops.application.request.port.RequestExecutionQueries execution) {
         Pageable pageable = Paging.toPageable(page);
         for (PageQuery.Order order : page.orders()) {
             if (!SORT_FIELDS.contains(order.field())) {
@@ -44,14 +44,16 @@ final class RequestListProjection {
         countQuery.select(cb.count(countRoot));
         if (spec != null) countQuery.where(spec.toPredicate(countRoot, countQuery, cb));
         long total = entityManager.createQuery(countQuery).getSingleResult();
-        return new PageResult<>(content, page.page(), page.size(), total);
+        var progress=execution.findByRequestIds(content.stream().map(RequestListItem::id).toList());
+        return new PageResult<>(content.stream().map(item->item.withExecutionProgress(progress.get(item.id()))).toList(), page.page(), page.size(), total);
     }
-    static Optional<RequestListItem> findById(EntityManager entityManager, Long id) {
+    static Optional<RequestListItem> findById(EntityManager entityManager, Long id,com.flowops.application.request.port.RequestExecutionQueries execution) {
         var cb = entityManager.getCriteriaBuilder();
         var query = cb.createQuery(RequestListItem.class);
         var root = query.from(RequestEntity.class);
         query.select(selection(cb, root)).where(cb.equal(root.get("id"), id));
-        return entityManager.createQuery(query).getResultList().stream().findFirst();
+        return entityManager.createQuery(query).getResultList().stream().findFirst()
+                .map(item->item.withExecutionProgress(execution.findByRequestIds(java.util.List.of(id)).get(id)));
     }
 
     private static CompoundSelection<RequestListItem> selection(CriteriaBuilder cb, Root<RequestEntity> root) {
@@ -62,7 +64,9 @@ final class RequestListProjection {
                 root.get("id"), type.get("code"), type.get("name"), department.get("code"),
                 root.get("status"), root.get("payload"), root.get("version"),
                 requester.get("id"), requester.get("username"), requester.get("displayName"),
-                root.get("correlationId"), root.get("createdAt"), root.get("updatedAt"), root.get("submittedAt"));
+                root.get("correlationId"), root.get("createdAt"), root.get("updatedAt"), root.get("submittedAt"),
+                root.get("executionPlannedAt"),root.get("executionStartedAt"),root.get("executionStartUnknown"),root.get("executionStartInferred"),root.get("executionPlanId"),root.get("outcome"),
+                root.get("approvedAt"),root.get("rejectedAt"),root.get("executedAt"),root.get("cancelledAt"),root.get("expiredAt"),root.get("closedAt"));
     }
 
 }

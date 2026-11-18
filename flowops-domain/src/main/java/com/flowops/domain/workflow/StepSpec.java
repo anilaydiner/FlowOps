@@ -19,5 +19,18 @@ public record StepSpec(
         Map<String, Object> condition,
         Integer slaMinutes,
         String escalationRole,
-        Boolean terminal
-) {}
+        Boolean terminal,
+        Integer expiryMinutes,
+        Integer escalationIntervalMinutes,
+        Integer maxEscalationLevels
+) {
+    public StepSpec(Integer position, String code, String name, String requiredRole, CompletionRule rule,
+                    Integer approvals, Map<String,Object> condition, Integer sla, String escalation, Boolean terminal) {
+        this(position, code, name, requiredRole, rule, approvals, condition, sla, escalation, terminal, null, null, null);
+    }
+    public StepSpec(Integer position, String code, String name, String requiredRole, CompletionRule rule,
+                    Integer approvals, Map<String,Object> condition, Integer sla, String escalation, Boolean terminal, Integer expiry) {
+        this(position,code,name,requiredRole,rule,approvals,condition,sla,escalation,terminal,expiry,null,null);
+    }
+
+}

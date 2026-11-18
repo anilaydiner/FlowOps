@@ -1,11 +1,10 @@
 package com.flowops.application.notification;
 
 import com.flowops.application.notification.outbox.OutboxEvents;
+import com.flowops.application.request.ApprovalEligibilityService;
+import com.flowops.domain.request.DecisionAction;
 import com.flowops.application.notification.outbox.OutboxService;
 import com.flowops.domain.identity.User;
-import com.flowops.domain.identity.policy.AuthorizationEvaluator;
-import com.flowops.domain.identity.policy.PermissionCodes;
-import com.flowops.domain.identity.policy.TargetContext;
 import com.flowops.domain.identity.port.UserRepository;
 import com.flowops.domain.request.Request;
 import com.flowops.domain.request.StepInstance;
@@ -20,10 +19,9 @@ import org.springframework.stereotype.Component;
  *
  * <p>Eligibility is the <b>same gate</b> the approver will face in
  * {@code DecideStep} (permission + scope + SoD via
- * {@link AuthorizationEvaluator#evaluate}), so nobody is emailed unless they
+ * {@link ApprovalEligibilityService}), so nobody is emailed unless they
  * can actually act on the request — and no one who cannot act is. The
- * requester is only notified when they legitimately pass the gate (e.g. they
- * hold the SoD override).</p>
+ * requester is always excluded from ordinary decisions.</p>
  *
  * <p>Delivery goes through the transactional outbox (FEED + EMAIL), keyed per
  * workflow step so an approver eligible at several steps of one request is
@@ -39,18 +37,18 @@ public class ApproverNotifier {
 
     private final StepInstanceRepository stepInstances;
     private final UserRepository users;
-    private final AuthorizationEvaluator authz;
+    private final ApprovalEligibilityService eligibility;
     private final OutboxService outbox;
     private final EmailComposer emailComposer;
 
     public ApproverNotifier(StepInstanceRepository stepInstances,
                             UserRepository users,
-                            AuthorizationEvaluator authz,
+                            ApprovalEligibilityService eligibility,
                             OutboxService outbox,
                             EmailComposer emailComposer) {
         this.stepInstances = stepInstances;
         this.users = users;
-        this.authz = authz;
+        this.eligibility = eligibility;
         this.outbox = outbox;
         this.emailComposer = emailComposer;
     }
@@ -65,6 +63,14 @@ public class ApproverNotifier {
      * @return the number of users notified
      */
     public int notifyEligibleApprovers(Request request, Long excludeUserId) {
+        return notifyEligibleApprovers(request, excludeUserId, "");
+    }
+
+    public int notifyRecoveredApprovers(Request request, int episode) {
+        return notifyEligibleApprovers(request, null, ":RECOVERED:" + episode);
+    }
+
+    private int notifyEligibleApprovers(Request request, Long excludeUserId, String eventSuffix) {
         StepInstance current = stepInstances.findTopByRequestIdAndStateOrderById(request.getId(), StepState.PENDING)
                 .orElse(null);
         if (current == null) {
@@ -72,19 +78,20 @@ public class ApproverNotifier {
             return 0;
         }
 
-        TargetContext target = TargetContext.from(request, current.getStep());
+        var history = eligibility.history(current);
+        var roster = eligibility.roster(current);
         EmailComposer.ComposedEmail email = emailComposer.approverRequested(request, current.getStep());
 
         int notified = 0;
         for (User user : users.findAllWithDepartment()) {
             if (!user.isActive()) continue;
             if (excludeUserId != null && excludeUserId.equals(user.getId())) continue;
-            if (!authz.evaluate(user, PermissionCodes.REQUEST_APPROVE, target).allowed()) continue;
+            if (!eligibility.evaluate(user, request, current, DecisionAction.APPROVE, history, false, roster).allowed()) continue;
 
             outbox.notifyStepFeed(request.getId(), current.getId(), user.getId(),
-                    OutboxEvents.NOTIFY_APPROVER_REQUEST, email.subject(), email.text(), null);
+                    OutboxEvents.NOTIFY_APPROVER_REQUEST, email.subject(), email.text(), null, eventSuffix);
             outbox.notifyStepEmail(request.getId(), current.getId(), user.getId(),
-                    OutboxEvents.APPROVER_REQUEST, email.subject(), email.text(), email.html(), null);
+                    OutboxEvents.APPROVER_REQUEST, email.subject(), email.text(), email.html(), null, eventSuffix);
             notified++;
         }
         log.info("APPROVER NOTIFY: request={} step={} notified={}", request.getId(), current.getId(), notified);

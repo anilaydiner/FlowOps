@@ -6,7 +6,6 @@ import com.flowops.domain.identity.Permission;
 import com.flowops.domain.identity.Role;
 import com.flowops.domain.identity.User;
 import com.flowops.domain.identity.port.UserRepository;
-import com.flowops.domain.organization.Department;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -226,52 +225,11 @@ public class AuthorizationEvaluator {
 
     private boolean checkScope(User user, Permission perm, TargetContext target,
                                List<String> evidence) {
-        return switch (perm.getScopeType()) {
-            case SELF -> {
-                boolean ok = target.requesterId() != null
-                        && target.requesterId().equals(user.getId());
-                evidence.add("scope_check=SELF " + (ok ? "match" : "mismatch (target.requester="
-                        + target.requesterId() + ", user=" + user.getId() + ")"));
-                yield ok;
-            }
-            case DEPARTMENT -> {
-                com.flowops.domain.organization.Department userDept = user.getDepartment();
-                if (userDept == null) {
-                    evidence.add("scope_check=DEPARTMENT deny (user has no department)");
-                    yield false;
-                }
-                boolean ok = userDept.getCode().equalsIgnoreCase(target.departmentCode());
-                evidence.add("scope_check=DEPARTMENT user=" + userDept.getCode()
-                        + " target=" + target.departmentCode()
-                        + " " + (ok ? "match" : "mismatch"));
-                yield ok;
-            }
-            case REQUEST_TYPE -> {
-                boolean ok = perm.getScopeValue() != null
-                        && perm.getScopeValue().equalsIgnoreCase(target.typeCode());
-                evidence.add("scope_check=REQUEST_TYPE scope=" + perm.getScopeValue()
-                        + " target=" + target.typeCode()
-                        + " " + (ok ? "match" : "mismatch"));
-                yield ok;
-            }
-            case STEP -> {
-                boolean ok = perm.getScopeValue() != null
-                        && perm.getScopeValue().equalsIgnoreCase(target.stepCode());
-                evidence.add("scope_check=STEP scope=" + perm.getScopeValue()
-                        + " target=" + target.stepCode()
-                        + " " + (ok ? "match" : "mismatch"));
-                yield ok;
-            }
-            case THRESHOLD -> {
-                double max = parseDouble(perm.getScopeValue(), 0);
-                double amount = target.amount() != null ? target.amount() : 0;
-                boolean ok = amount <= max;
-                evidence.add("scope_check=THRESHOLD max=" + max
-                        + " amount=" + amount
-                        + " " + (ok ? "within" : "exceeded"));
-                yield ok;
-            }
-        };
+        boolean allowed = new PermissionScope(perm.getScopeType(), perm.getScopeValue()).matches(
+                user.getId(), user.getDepartment() == null ? null : user.getDepartment().getCode(), target);
+        evidence.add("scope_check=" + perm.getScopeType() + " target.type=" + target.typeCode()
+                + " target.department=" + target.departmentCode() + " " + (allowed ? "match" : "mismatch"));
+        return allowed;
     }
 
     private boolean hasPermission(User user, String code) {
@@ -298,8 +256,4 @@ public class AuthorizationEvaluator {
         return "unknown";
     }
 
-    private static double parseDouble(String s, double fallback) {
-        if (s == null || s.isBlank()) return fallback;
-        try { return Double.parseDouble(s); } catch (NumberFormatException e) { return fallback; }
-    }
 }

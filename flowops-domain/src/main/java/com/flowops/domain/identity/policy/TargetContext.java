@@ -1,7 +1,5 @@
 package com.flowops.domain.identity.policy;
 
-import com.flowops.domain.request.Request;
-import com.flowops.domain.workflow.WorkflowStep;
 
 /**
  * The target context for an authorization check (PLAN §7).
@@ -21,37 +19,21 @@ public record TargetContext(
         Double amount,
         String stepCode
 ) {
-    /** Build from a request + step (the common case in the engine). */
-    public static TargetContext from(com.flowops.domain.request.Request request,
-                                     com.flowops.domain.workflow.WorkflowStep step) {
-        String typeCode = request.getType().getCode();
-        String deptCode = request.getType().getOwningDepartment() != null
-                ? request.getType().getOwningDepartment().getCode()
-                : null;
-        Double amount = extractAmount(request.getPayload());
-        String stepCode = step != null ? step.getCode() : null;
-        return new TargetContext(
-                request.getRequester().getId(),
-                typeCode,
-                deptCode,
-                amount,
-                stepCode
-        );
-    }
-
     /** Build request-read scope from scalar data without requiring an aggregate. */
     public static TargetContext forRequest(Long requesterId, String typeCode, String departmentCode,
                                            java.util.Map<String, Object> payload) {
-        return new TargetContext(requesterId, typeCode, departmentCode, extractAmount(payload), null);
+        return forRequest(requesterId, typeCode, departmentCode, payload, null);
+    }
+
+    public static TargetContext forRequest(Long requesterId, String typeCode, String departmentCode,
+                                           java.util.Map<String, Object> payload, String stepCode) {
+        return new TargetContext(requesterId, typeCode, departmentCode, extractAmount(payload), stepCode);
     }
 
     private static Double extractAmount(java.util.Map<String, Object> payload) {
         if (payload == null) return null;
         Object v = payload.get("amount");
-        if (v instanceof Number n) return n.doubleValue();
-        if (v instanceof String s) {
-            try { return Double.parseDouble(s); } catch (NumberFormatException ignored) {}
-        }
+        if (v instanceof Number || v instanceof String) return PermissionScope.decimalNumber(v.toString());
         return null;
     }
 }

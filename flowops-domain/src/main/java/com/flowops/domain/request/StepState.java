@@ -8,5 +8,7 @@ public enum StepState {
     PENDING,
     SATISFIED,
     SKIPPED,
-    BLOCKED
+    BLOCKED,
+    REJECTED,
+    CANCELLED
 }

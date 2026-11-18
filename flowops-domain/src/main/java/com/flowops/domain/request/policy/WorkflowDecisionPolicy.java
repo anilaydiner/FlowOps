@@ -31,19 +31,22 @@ public final class WorkflowDecisionPolicy {
     }
 
     public static void requireInReview(Request request) {
-        if (request.getStatus() != RequestStatus.IN_REVIEW) {
+        if (!request.getStatus().acceptsReviewDecisions()) {
             throw new ConflictException("Request is not in review (current: " + request.getStatus() + ")");
         }
     }
 
     /**
-     * approvalsIncludingDecision is the persisted APPROVE count for this step, including
+     * approvalsIncludingDecision is the effective distinct-person vote count for this step, including
      * the decision just recorded. The materialized step's threshold is authoritative for
      * ANY_OF, ALL_OF and K_OF_N; later definition edits must not change that threshold.
-     * Rejection deliberately leaves the step pending, matching the existing audit history.
      */
     public static Outcome apply(Request request, StepInstance current, DecisionAction action,
                                 long approvalsIncludingDecision, Long actorId) {
+        return apply(request,current,action,approvalsIncludingDecision,actorId,java.time.Instant.now());
+    }
+    public static Outcome apply(Request request, StepInstance current, DecisionAction action,
+                                long approvalsIncludingDecision, Long actorId,java.time.Instant at) {
         requireInReview(request);
         if (current.getState() != StepState.PENDING) {
             throw new InvalidStateTransitionException("step instance", current.getState(), "decide");
@@ -51,7 +54,8 @@ public final class WorkflowDecisionPolicy {
         return switch (action) {
             case DELEGATE -> Outcome.DELEGATED;
             case REJECT -> {
-                request.transitionTo(RequestStatus.REJECTED);
+                current.reject();
+                request.reject(at);
                 yield Outcome.REJECTED;
             }
             case APPROVE -> {

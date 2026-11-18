@@ -1,5 +1,6 @@
 package com.flowops.application.request;
 
+import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.identity.CallerIdentity;
@@ -26,13 +27,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ClarificationService {
 
+    private final LifecycleAuditRecorder audit;
+
     private final ClarificationRepository clarifications;
     private final RequestRepository requests;
     private final AuthorizationEvaluator authz;
 
     public ClarificationService(ClarificationRepository clarifications,
                                 RequestRepository requests,
-                                AuthorizationEvaluator authz) {
+                                AuthorizationEvaluator authz, LifecycleAuditRecorder audit) {
+        this.audit = audit;
         this.clarifications = clarifications;
         this.requests = requests;
         this.authz = authz;
@@ -40,22 +44,28 @@ public class ClarificationService {
 
     @Transactional
     public Clarification ask(Long requestId, String question, CallerIdentity caller) {
-        Request request = loadRequest(requestId);
+        Request request = loadRequestForUpdate(requestId);
         boolean isOwn = caller.id().equals(request.getRequester().getId());
         authz.require(caller, isOwn ? PermissionCodes.CLARIFICATIONS_ASK_OWN : PermissionCodes.CLARIFICATIONS_ASK);
-        if (request.getStatus().isTerminal()) {
+        if (request.getStatus().isFinalized()) {
             throw new ConflictException("Cannot add clarifications to a terminal request: " + request.getStatus());
         }
         Clarification c = new Clarification(request.getId(), caller.id(), question);
-        return clarifications.save(c);
+        request.recordActivity();
+        requests.save(request);
+        Clarification saved = clarifications.save(c);
+        audit.record(request, caller, "CLARIFICATION", "ASKED", "clarification:" + saved.getId() + ":asked",
+                "Clarification requested", java.util.Map.of(), java.util.Map.of("answered", false),
+                java.util.Map.of("clarificationId", saved.getId()), null);
+        return saved;
     }
 
     @Transactional
     public Clarification answer(Long clarificationId, Long requestId, String answer, CallerIdentity caller) {
-        Request request = loadRequest(requestId);
+        Request request = loadRequestForUpdate(requestId);
         boolean isOwn = caller.id().equals(request.getRequester().getId());
         authz.require(caller, isOwn ? PermissionCodes.CLARIFICATIONS_ANSWER_OWN : PermissionCodes.CLARIFICATIONS_ANSWER);
-        if (request.getStatus().isTerminal()) {
+        if (request.getStatus().isFinalized()) {
             throw new ConflictException("Cannot answer clarifications on a terminal request: " + request.getStatus());
         }
         Clarification c = clarifications.findByIdAndRequestId(clarificationId, requestId)
@@ -64,7 +74,13 @@ public class ClarificationService {
             throw new ConflictException("Clarification already answered");
         }
         c.answer(answer, caller.id());
-        return clarifications.save(c);
+        request.recordActivity();
+        requests.save(request);
+        Clarification saved = clarifications.save(c);
+        audit.record(request, caller, "CLARIFICATION", "ANSWERED", "clarification:" + saved.getId() + ":answered",
+                "Clarification answered", java.util.Map.of("answered", false), java.util.Map.of("answered", true),
+                java.util.Map.of("clarificationId", saved.getId()), null);
+        return saved;
     }
 
     @Transactional(readOnly = true)
@@ -76,6 +92,10 @@ public class ClarificationService {
     }
 
     // ── helpers ──────────────────────────────────────────────────────────
+
+    private Request loadRequestForUpdate(Long requestId) {
+        return requests.findByIdForUpdate(requestId).orElseThrow(() -> new NotFoundException("Request not found: " + requestId));
+    }
 
     private Request loadRequest(Long requestId) {
         return requests.findById(requestId)
