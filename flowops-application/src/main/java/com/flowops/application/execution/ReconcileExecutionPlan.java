@@ -3,6 +3,7 @@ package com.flowops.application.execution;
 import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.application.execution.model.ExecutionPlanRecovery.Issue;
 import com.flowops.application.execution.port.ExecutionPlanReconciliationRepository;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.domain.execution.port.ExecutionPlanRepository;
 import com.flowops.domain.request.*;
 import com.flowops.domain.request.port.RequestRepository;
@@ -15,18 +16,21 @@ public class ReconcileExecutionPlan {
     public enum Outcome { SKIPPED, BUSY, UNCHANGED, REPAIRED, COMPLETED, ATTENTION }
     public record Result(Outcome outcome,int created,int restored,int rebound,List<Issue> issues) {}
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final ExecutionPlanRepository plans;
     private final ExecutionPlanReconciliationRepository evidence;
     private final RecoverFrozenPlanJobs recovery;
     private final CompleteRequestExecution completion;
     private final LifecycleAuditRecorder audit;
-    public ReconcileExecutionPlan(RequestRepository requests,ExecutionPlanRepository plans,ExecutionPlanReconciliationRepository evidence,
+    public ReconcileExecutionPlan(RequestRepository requests,RequestWriteLock requestWriteLock,ExecutionPlanRepository plans,ExecutionPlanReconciliationRepository evidence,
                                   RecoverFrozenPlanJobs recovery,CompleteRequestExecution completion,LifecycleAuditRecorder audit){
-        this.requests=requests;this.plans=plans;this.evidence=evidence;this.recovery=recovery;this.completion=completion;this.audit=audit;
+        this.requests=requests;
+        this.requestWriteLock = requestWriteLock;
+        this.plans=plans;this.evidence=evidence;this.recovery=recovery;this.completion=completion;this.audit=audit;
     }
     @Transactional(propagation=Propagation.REQUIRES_NEW)
     public Result process(Long requestId){
-        var request=requests.tryFindByIdForUpdate(requestId).orElse(null);
+        var request=requestWriteLock.tryFindByIdForUpdate(requestId).orElse(null);
         if(request==null)return new Result(Outcome.BUSY,0,0,0,List.of());
         if(request.getStatus()!=RequestStatus.APPROVED || request.getExecutionPlanId()==null || request.hasUnresolvedExecutionHistory())return new Result(Outcome.SKIPPED,0,0,0,List.of());
         var plan=plans.findByRequestId(requestId).orElse(null);

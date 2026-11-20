@@ -2,6 +2,7 @@ package com.flowops.application.request.sla;
 
 import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.application.notification.outbox.OutboxService;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.application.request.port.SlaMetrics;
 import com.flowops.application.request.recovery.RecoverBlockedRequest;
 import com.flowops.application.request.recovery.RecoveryOperations;
@@ -19,6 +20,7 @@ import org.springframework.transaction.support.*;
 @Service
 public class ReconcileReviewRequest {
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final StepInstanceRepository steps;
     private final RecoverBlockedRequest recovery;
     private final RecoveryOperations operations;
@@ -30,13 +32,15 @@ public class ReconcileReviewRequest {
     private final com.flowops.application.request.port.EligibilityReconciliationQueue queue;
     private final com.flowops.application.request.recovery.ReassignRecoveryOwner ownership;
 
-    public ReconcileReviewRequest(RequestRepository requests, StepInstanceRepository steps, RecoverBlockedRequest recovery,
+    public ReconcileReviewRequest(RequestRepository requests, RequestWriteLock requestWriteLock, StepInstanceRepository steps, RecoverBlockedRequest recovery,
                                   RecoveryOperations operations, UserRepository users, LifecycleAuditRecorder audit,
                                   OutboxService outbox, SlaMetrics metrics, Clock clock,
                                   com.flowops.application.request.port.EligibilityReconciliationQueue queue,
                                   com.flowops.application.request.recovery.ReassignRecoveryOwner ownership) {
         this.queue=queue; this.ownership=ownership;
-        this.requests=requests; this.steps=steps; this.recovery=recovery; this.operations=operations;
+        this.requests=requests;
+        this.requestWriteLock = requestWriteLock;
+        this.steps=steps; this.recovery=recovery; this.operations=operations;
         this.users=users; this.audit=audit; this.outbox=outbox; this.metrics=metrics; this.clock=clock;
     }
 
@@ -44,13 +48,13 @@ public class ReconcileReviewRequest {
 
     @Transactional(propagation=Propagation.REQUIRES_NEW)
     public Result process(Long id, boolean checkEligibility) {
-        var request=requests.tryFindByIdForUpdate(id).orElse(null);
+        var request=requestWriteLock.tryFindByIdForUpdate(id).orElse(null);
         return processLocked(request,checkEligibility);
     }
 
     @Transactional(propagation=Propagation.REQUIRES_NEW)
     public boolean processQueued(com.flowops.application.request.port.EligibilityReconciliationQueue.Ticket ticket) {
-        var request=requests.tryFindByIdForUpdate(ticket.requestId()).orElse(null);
+        var request=requestWriteLock.tryFindByIdForUpdate(ticket.requestId()).orElse(null);
         if(request==null) {
             if(requests.findById(ticket.requestId()).isPresent()) return false;
         } else processLocked(request,true);

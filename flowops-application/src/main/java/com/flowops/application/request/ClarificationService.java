@@ -1,6 +1,7 @@
 package com.flowops.application.request;
 
 import com.flowops.application.audit.LifecycleAuditRecorder;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.identity.CallerIdentity;
@@ -31,14 +32,17 @@ public class ClarificationService {
 
     private final ClarificationRepository clarifications;
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final AuthorizationEvaluator authz;
 
     public ClarificationService(ClarificationRepository clarifications,
                                 RequestRepository requests,
+                                RequestWriteLock requestWriteLock,
                                 AuthorizationEvaluator authz, LifecycleAuditRecorder audit) {
         this.audit = audit;
         this.clarifications = clarifications;
         this.requests = requests;
+        this.requestWriteLock = requestWriteLock;
         this.authz = authz;
     }
 
@@ -94,7 +98,7 @@ public class ClarificationService {
     // ── helpers ──────────────────────────────────────────────────────────
 
     private Request loadRequestForUpdate(Long requestId) {
-        return requests.findByIdForUpdate(requestId).orElseThrow(() -> new NotFoundException("Request not found: " + requestId));
+        return requestWriteLock.findByIdForUpdate(requestId).orElseThrow(() -> new NotFoundException("Request not found: " + requestId));
     }
 
     private Request loadRequest(Long requestId) {

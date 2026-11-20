@@ -4,6 +4,7 @@ import com.flowops.application.request.port.ApprovalStore;
 import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.application.event.DomainEventPublisher;
 import com.flowops.application.execution.*;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.domain.exception.*;
 import com.flowops.domain.execution.*;
 import com.flowops.domain.execution.port.*;
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.*;
 @Service
 public class FinalizeApproval {
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final StepInstanceRepository steps;
     private final DecisionRepository decisions;
     private final ExecutionPlanRepository plans;
@@ -30,15 +32,17 @@ public class FinalizeApproval {
     private final DomainEventPublisher events;
     private final Clock clock;
     private final ApprovalStore approvals;
-    public FinalizeApproval(RequestRepository requests,StepInstanceRepository steps,DecisionRepository decisions,ExecutionPlanRepository plans,ExecutionJobRepository jobs,
+    public FinalizeApproval(RequestRepository requests,RequestWriteLock requestWriteLock,StepInstanceRepository steps,DecisionRepository decisions,ExecutionPlanRepository plans,ExecutionJobRepository jobs,
             ExecutionService execution,CompleteRequestExecution completion,LifecycleAuditRecorder audit,DomainEventPublisher events,Clock clock,ApprovalStore approvals){
-        this.requests=requests;this.steps=steps;this.decisions=decisions;this.plans=plans;this.jobs=jobs;this.execution=execution;this.completion=completion;this.audit=audit;this.events=events;this.clock=clock;this.approvals=approvals;
+        this.requests=requests;
+        this.requestWriteLock = requestWriteLock;
+        this.steps=steps;this.decisions=decisions;this.plans=plans;this.jobs=jobs;this.execution=execution;this.completion=completion;this.audit=audit;this.events=events;this.clock=clock;this.approvals=approvals;
     }
     @Transactional(propagation=Propagation.MANDATORY)
     public Request execute(Long requestId,ApprovalEvidence evidence){
         if(evidence.trigger()==ApprovalEvidence.Trigger.LEGACY_PLAN_DISPOSITION)
             throw new ConflictException("legacy-plan-state","Historical planning uses the reviewed disposition operation, not approval finalization");
-        var request=requests.findByIdForUpdate(requestId).orElseThrow(()->new NotFoundException("Request not found: "+requestId));
+        var request=requestWriteLock.findByIdForUpdate(requestId).orElseThrow(()->new NotFoundException("Request not found: "+requestId));
         var existing=plans.findByRequestId(requestId).orElse(null);
         if(existing!=null){
             if(!existing.id().equals(request.getExecutionPlanId()) || !existing.approval().equals(evidence))
@@ -62,13 +66,13 @@ public class FinalizeApproval {
         approvals.saveApproval(request, plan);
         // Materialize before fan-out, so every subscriber observes the recorded complete job set.
         execution.materializeNewPlan(request);
-        request=requests.findByIdForUpdate(requestId).orElseThrow();
+        request=requestWriteLock.findByIdForUpdate(requestId).orElseThrow();
         CallerIdentity actor=evidence.actorKind()==ApprovalEvidence.ActorKind.HUMAN?new CallerIdentity(evidence.actorId(),evidence.actorName()):null;
         audit.transition(request,actor,before,evidence.trigger().name());
         audit.record(request,actor,"APPROVAL","FINALIZED","approval:"+plan.id(),"Approval finalized with a frozen execution plan",before,
                 LifecycleAuditRecorder.state(request),Map.of("executionPlanId",plan.id().toString(),"expectedActions",actions.size(),"approval",evidence.snapshot()),evidence.trigger().name());
         events.publish(new RequestApproved(requestId,plan.id(),evidence));
-        request=requests.findByIdForUpdate(requestId).orElseThrow();completion.completeLocked(request,actor);
+        request=requestWriteLock.findByIdForUpdate(requestId).orElseThrow();completion.completeLocked(request,actor);
         return requests.findById(requestId).orElseThrow();
     }
 }

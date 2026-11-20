@@ -3,6 +3,7 @@ package com.flowops.application.request.lifecycle;
 import com.flowops.application.request.RequestTargets;
 import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.application.event.DomainEventPublisher;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.application.request.workflow.StepMaterializer;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.NotFoundException;
@@ -34,6 +35,7 @@ public class SubmitRequest {
     private final LifecycleAuditRecorder audit;
 
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final StepMaterializer materializer;
     private final DomainEventPublisher events;
     private final AuthorizationEvaluator authz;
@@ -41,11 +43,13 @@ public class SubmitRequest {
     private final java.time.Clock clock;
 
     public SubmitRequest(RequestRepository requests,
+                         RequestWriteLock requestWriteLock,
                          StepMaterializer materializer,
                          DomainEventPublisher events,
                          AuthorizationEvaluator authz, LifecycleAuditRecorder audit,FinalizeApproval finalization,java.time.Clock clock) {
         this.audit = audit;this.finalization=finalization;this.clock=clock;
         this.requests = requests;
+        this.requestWriteLock = requestWriteLock;
         this.materializer = materializer;
         this.events = events;
         this.authz = authz;
@@ -85,7 +89,7 @@ public class SubmitRequest {
     }
 
     private Request load(Long id) {
-        return requests.findByIdForUpdate(id)
+        return requestWriteLock.findByIdForUpdate(id)
                 .orElseThrow(() -> new NotFoundException("Request not found: " + id));
     }
 }

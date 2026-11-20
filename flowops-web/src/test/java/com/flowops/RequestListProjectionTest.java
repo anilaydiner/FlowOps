@@ -1,5 +1,6 @@
 package com.flowops;
 
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.api.dto.RequestResponse;
 import com.flowops.domain.request.policy.ApprovalEligibilityPolicy.Authority;
 import com.flowops.domain.request.policy.ApprovalEligibilityPolicy.Grant;
@@ -81,6 +82,7 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
     @Autowired DecisionRepository decisions;
     @Autowired RequestListQueries lists;
     @Autowired RequestRepository requests;
+    @Autowired RequestWriteLock requestWriteLock;
     @Autowired RequestTypeRepository types;
     @Autowired UserRepository users;
     @Autowired Mediator mediator;
@@ -277,7 +279,7 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
             ExecutionJob completed = new ExecutionJob("detail:" + request.getId() + ":one", request.getId(), "EXPORT", "detail-correlation");
             completed.setCreatedAt(earlier);
             LegacyRequestFixtures.approveWithoutManifest(jdbc, request.getId(), Instant.now(), true);
-            var legacy = requests.findByIdForUpdate(request.getId()).orElseThrow();
+            var legacy = requestWriteLock.findByIdForUpdate(request.getId()).orElseThrow();
             legacy.observeReconciledExecutionStart(Instant.now());
             requests.save(legacy);
             completed.freezeInput(request.getPayload());

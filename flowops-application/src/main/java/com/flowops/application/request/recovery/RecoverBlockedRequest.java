@@ -4,6 +4,7 @@ import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.application.notification.ApproverNotifier;
 import com.flowops.application.notification.outbox.OutboxService;
 import com.flowops.application.request.ApprovalEligibilityService;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.domain.exception.*;
 import com.flowops.domain.identity.CallerIdentity;
 import com.flowops.domain.identity.policy.AuthorizationEvaluator;
@@ -23,6 +24,7 @@ public class RecoverBlockedRequest {
     private final java.time.Clock clock;
     private final ReassignRecoveryOwner ownership;
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final StepInstanceRepository steps;
     private final StepParticipantRepository participants;
     private final ApprovalEligibilityService eligibility;
@@ -32,13 +34,14 @@ public class RecoverBlockedRequest {
     private final ApproverNotifier notifier;
     private final OutboxService outbox;
 
-    public RecoverBlockedRequest(RequestRepository requests, StepInstanceRepository steps,
+    public RecoverBlockedRequest(RequestRepository requests, RequestWriteLock requestWriteLock, StepInstanceRepository steps,
                                   StepParticipantRepository participants, ApprovalEligibilityService eligibility,
                                   AuthorizationEvaluator authz, BlockedStepLifecycle blocking,
                                   LifecycleAuditRecorder audit, ApproverNotifier notifier, OutboxService outbox, java.time.Clock clock, ReassignRecoveryOwner ownership) {
         this.ownership=ownership;
         this.clock = clock;
         this.requests = requests;
+        this.requestWriteLock = requestWriteLock;
         this.steps = steps;
         this.participants = participants;
         this.eligibility = eligibility;
@@ -85,7 +88,7 @@ public class RecoverBlockedRequest {
         if (version == null || reason == null || reason.isBlank() || reason.length() > 1000) {
             throw new RequestValidationException(Map.of("recovery", "expectedVersion and a reason of 1–1000 characters are required"));
         }
-        Request request = requests.findByIdForUpdate(id).orElseThrow(() -> new NotFoundException("Request not found: " + id));
+        Request request = requestWriteLock.findByIdForUpdate(id).orElseThrow(() -> new NotFoundException("Request not found: " + id));
         if (!eligibility.user(caller.id()).isActive()) throw new ForbiddenException("Inactive recovery operator");
         authz.require(caller, PermissionCodes.REQUEST_RECOVER, ApprovalEligibilityService.target(request, active(request, stepId)), true);
         if (!version.equals(request.getVersion())) throw new ConflictException("Stale recovery command; reload the request");

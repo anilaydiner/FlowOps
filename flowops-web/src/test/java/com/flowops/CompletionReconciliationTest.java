@@ -1,5 +1,6 @@
 package com.flowops;
 
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.application.execution.*;
 import com.flowops.application.execution.port.*;
 import com.flowops.application.mediator.Mediator;
@@ -38,6 +39,7 @@ class CompletionReconciliationTest extends AbstractIntegrationTest {
     @Autowired Mediator mediator;
     @Autowired UserRepository users;
     @Autowired RequestRepository requests;
+    @Autowired RequestWriteLock requestWriteLock;
     @Autowired ExecutionJobRepository jobs;
     @Autowired ExecutionPlanRepository plans;
     @Autowired WorkflowRepository workflows;
@@ -144,7 +146,7 @@ class CompletionReconciliationTest extends AbstractIntegrationTest {
     @Test void busyParentIsSkippedAndTheSameWorkCanBeRecoveredOnTheNextSweep()throws Exception{
         var r=approved(List.of(JobActions.ACCOUNTING_EXPORT));var p=plans.findByRequestId(r.getId()).orElseThrow();var original=rows(r.getId()).getFirst();lose(p,original,false,true);
         try(var pool=Executors.newSingleThreadExecutor()){
-            tx().executeWithoutResult(s->{requests.findByIdForUpdate(r.getId()).orElseThrow();try{assertEquals(BUSY,pool.submit(()->processor.process(r.getId())).get(3,TimeUnit.SECONDS).outcome());}catch(Exception e){throw new AssertionError(e);}});
+            tx().executeWithoutResult(s->{requestWriteLock.findByIdForUpdate(r.getId()).orElseThrow();try{assertEquals(BUSY,pool.submit(()->processor.process(r.getId())).get(3,TimeUnit.SECONDS).outcome());}catch(Exception e){throw new AssertionError(e);}});
         }
         assertEquals(REPAIRED,processor.process(r.getId()).outcome());
     }
@@ -198,7 +200,7 @@ class CompletionReconciliationTest extends AbstractIntegrationTest {
     }
     @Test void legacyApprovalWithoutManifestIsSkippedAndReceiptsAreImmutable(){
         var legacy=mediator.send(new CreateDraftCommand("EXPENSE",Map.of("amount",100,"description","Legacy"),caller("alice"))).request();
-        tx().executeWithoutResult(s->{var r=requests.findByIdForUpdate(legacy.getId()).orElseThrow();r.markSubmitted(now);requests.save(r);LegacyRequestFixtures.approveWithoutManifest(jdbc,r.getId(),now,true);});
+        tx().executeWithoutResult(s->{var r=requestWriteLock.findByIdForUpdate(legacy.getId()).orElseThrow();r.markSubmitted(now);requests.save(r);LegacyRequestFixtures.approveWithoutManifest(jdbc,r.getId(),now,true);});
         assertEquals(SKIPPED,processor.process(legacy.getId()).outcome());assertEquals(RequestStatus.APPROVED,request(legacy.getId()).getStatus());assertTrue(plans.findByRequestId(legacy.getId()).isEmpty());
         var r=approved(List.of(JobActions.ACCOUNTING_EXPORT));
         assertThrows(org.springframework.dao.DataAccessException.class,()->jdbc.update("DELETE FROM execution_plan_materializations WHERE plan_id=?",r.getExecutionPlanId()));

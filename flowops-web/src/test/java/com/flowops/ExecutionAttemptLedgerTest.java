@@ -1,5 +1,6 @@
 package com.flowops;
 
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.application.execution.*;
 import com.flowops.application.execution.model.ExecutionAttempt;
 import com.flowops.application.execution.port.*;
@@ -50,6 +51,7 @@ class ExecutionAttemptLedgerTest extends AbstractIntegrationTest {
     @Autowired Mediator mediator;
     @Autowired UserRepository users;
     @Autowired RequestRepository requests;
+    @Autowired RequestWriteLock requestWriteLock;
     @Autowired ExecutionJobRepository jobs;
     @Autowired CancelRequest cancel;
     @Autowired JdbcTemplate jdbc;
@@ -153,7 +155,7 @@ class ExecutionAttemptLedgerTest extends AbstractIntegrationTest {
         var f=approved();var claim=start.start(f.candidate()).orElseThrow();time.set(now.plusSeconds(100));
         try(var pool=Executors.newSingleThreadExecutor()) {
             new TransactionTemplate(transactions).executeWithoutResult(status->{
-                requests.findByIdForUpdate(f.requestId()).orElseThrow();
+                requestWriteLock.findByIdForUpdate(f.requestId()).orElseThrow();
                 try {assertEquals(BUSY,pool.submit(()->heartbeat.renew(lease(claim))).get(3,TimeUnit.SECONDS));}
                 catch(Exception e) {throw new AssertionError(e);}
             });

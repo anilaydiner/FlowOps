@@ -176,6 +176,13 @@ public record RequestResponse(
             int escalationIntervalMinutes,
             Integer maxEscalationLevels
     ) {
+        public StepDto {
+            // Stored reasons describe the last block episode; expose them as current only while blocked.
+            if (!"BLOCKED".equals(state)) {
+                blockedReason = null;
+                blockReasonCode = null;
+            }
+        }
     }
 
     public record DecisionDto(

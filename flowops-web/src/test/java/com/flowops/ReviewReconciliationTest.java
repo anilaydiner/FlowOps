@@ -1,5 +1,6 @@
 package com.flowops;
 
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.application.request.lifecycle.*;
 import com.flowops.application.request.recovery.*;
 import com.flowops.application.request.sla.*;
@@ -35,6 +36,7 @@ class ReviewReconciliationTest extends AbstractIntegrationTest {
     @Autowired WorkflowStepRepository definitions;
     @Autowired RequestTypeRepository types;
     @Autowired RequestRepository requests;
+    @Autowired RequestWriteLock requestWriteLock;
     @Autowired StepInstanceRepository steps;
     @Autowired StepParticipantRepository participants;
     @Autowired DecisionRepository decisions;
@@ -148,7 +150,7 @@ class ReviewReconciliationTest extends AbstractIntegrationTest {
         var f=fixture(1,2); now(start.plusSeconds(120));
         try(var pool=Executors.newSingleThreadExecutor()) {
             tx().executeWithoutResult(s->{
-                requests.findByIdForUpdate(f.requestId()).orElseThrow();
+                requestWriteLock.findByIdForUpdate(f.requestId()).orElseThrow();
                 try { assertFalse(pool.submit(()->processor.process(f.requestId(),true)).get(3,TimeUnit.SECONDS).processed()); }
                 catch(Exception e) { throw new AssertionError(e); }
                 cancel.execute(f.requestId(),caller("alice"));

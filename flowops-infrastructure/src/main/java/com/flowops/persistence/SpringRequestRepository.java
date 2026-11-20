@@ -1,6 +1,7 @@
 package com.flowops.persistence;
 
 import com.flowops.application.request.port.ApprovalStore;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.domain.request.Request;
 import com.flowops.domain.execution.ExecutionPlan;
 import com.flowops.domain.execution.port.ExecutionPlanRepository;
@@ -18,9 +19,9 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/** JPA adapter for the {@link RequestRepository} port. Maps domain ↔ entity. */
+/** Persistence adapter for request storage, approval writes, and request locking. */
 @Repository
-public class SpringRequestRepository implements RequestRepository, ApprovalStore {
+public class SpringRequestRepository implements RequestRepository, ApprovalStore, RequestWriteLock {
 
     private final RequestJpaRepository jpaRepository;
     private final JdbcTemplate jdbc;

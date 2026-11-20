@@ -1,6 +1,7 @@
 package com.flowops.application.execution;
 
 import com.flowops.application.audit.LifecycleAuditRecorder;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.domain.execution.*;
 import com.flowops.domain.execution.port.ExecutionJobRepository;
 import com.flowops.domain.request.RequestStatus;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.*;
 @Service
 public class StartExecutionJob {
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final ExecutionJobRepository jobs;
     private final LifecycleAuditRecorder audit;
     private final Clock clock;
@@ -23,16 +25,18 @@ public class StartExecutionJob {
     private final ProviderContracts contracts;
     private final com.flowops.domain.execution.port.ExecutionPlanRepository plans;
     private final com.flowops.application.execution.port.ProviderContractRepository contractHistory;
-    public StartExecutionJob(RequestRepository requests,ExecutionJobRepository jobs,LifecycleAuditRecorder audit,Clock clock,ProviderContracts contracts,com.flowops.application.execution.port.ProviderContractRepository contractHistory,
+    public StartExecutionJob(RequestRepository requests,RequestWriteLock requestWriteLock,ExecutionJobRepository jobs,LifecycleAuditRecorder audit,Clock clock,ProviderContracts contracts,com.flowops.application.execution.port.ProviderContractRepository contractHistory,
                               com.flowops.application.execution.port.ExecutionRecoveryRepository recovery,
                               ExecutionLeasePolicy timing,ExecutionAttemptRecorder attempts,com.flowops.domain.execution.port.ExecutionPlanRepository plans) {
-        this.plans=plans;this.requests=requests;this.jobs=jobs;this.audit=audit;this.clock=clock;this.timing=timing;this.attempts=attempts;this.contracts=contracts;this.contractHistory=contractHistory;this.recovery=recovery;
+        this.plans=plans;this.requests=requests;
+        this.requestWriteLock = requestWriteLock;
+        this.jobs=jobs;this.audit=audit;this.clock=clock;this.timing=timing;this.attempts=attempts;this.contracts=contracts;this.contractHistory=contractHistory;this.recovery=recovery;
     }
     public record Claim(ExecutionJob job,ActionCommand command,UUID token,Instant deadline,ProviderContract providerContract) {}
 
     @Transactional(propagation=Propagation.REQUIRES_NEW)
     public Optional<Claim> start(ExecutionJobRepository.Candidate candidate) {
-        var request=requests.tryFindByIdForUpdate(candidate.requestId()).orElse(null);
+        var request=requestWriteLock.tryFindByIdForUpdate(candidate.requestId()).orElse(null);
         if(request==null || request.getStatus()!=RequestStatus.APPROVED || request.hasUnresolvedExecutionHistory()
                 || request.getExecutionPlannedAt()==null || request.getExecutionPlanId()==null) return Optional.empty();
         var job=jobs.findForLockedRequest(candidate.jobId(),candidate.requestId()).orElse(null);

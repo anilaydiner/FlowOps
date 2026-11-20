@@ -19,7 +19,7 @@ FLOWOPS_EMAIL_GATEWAY=smtp java -jar flowops-web/target/flowops-web-0.1.0-SNAPSH
 | [Health](http://localhost:8080/actuator/health) | Application health |
 | [Mailpit](http://localhost:8025) | Captured development email when SMTP is enabled |
 
-Sign in through `POST /api/v1/auth/token` using the local seed account `admin` / `admin123`, then supply the returned access token as a bearer token. PostgreSQL defaults to `jdbc:postgresql://localhost:5432/flowops` with local credentials `flowops` / `flowops`. Flyway applies the schema on startup and Hibernate validates it. The repository provides an API and Swagger UI.
+Sign in through `POST /api/v1/auth/token` using the local seed account `admin` / `admin123`, then supply the returned access token as a bearer token. PostgreSQL defaults to `jdbc:postgresql://localhost:5432/flowops_fresh` with local credentials `flowops` / `flowops`. Flyway applies the schema on startup and Hibernate validates it. The repository provides an API and Swagger UI.
 
 ```sh
 ./mvnw clean verify
@@ -70,6 +70,8 @@ Request writes acquire the parent request lock before mutating the request or it
 ### Blocked review and deadlines
 
 A step becomes `BLOCKED` when the remaining eligible participants cannot reach the approval threshold. The request stays `IN_REVIEW`. A block tracks its reason, episode, time, and recovery owner or team. An authorized operator can recheck eligibility, refresh an eligible numeric pool, or record a replacement for an unvoted slot. The original roster size, effective votes, and quorum remain historical evidence. Recovery requires a new valid vote to satisfy an outstanding approval.
+
+Step responses expose `blockedReason` and `blockReasonCode` only while `state` is `BLOCKED`; both are null after recovery or another transition out of `BLOCKED`. Block and recovery timestamps remain available, and storage and audit history retain the original reasons. Clients should use the step state to display an active block.
 
 The blocked queue and recovery history require `request:blocked:read` in the applicable scope. Recovery and recheck require `request:recover`, the current `stepInstanceId` and `expectedVersion`, and a reason. Recheck evaluates the existing roster. Recover can add eligible participants to numeric pools or replace unvoted slots explicitly. An existing `ALL_OF` roster retains its slots and threshold.
 
@@ -169,8 +171,9 @@ V1–V31 Flyway history.** Keep existing data backed up and select a new empty d
 Do not repair checksums, disable Flyway validation or remove only the history table to
 force this schema onto existing tables. No database is deleted by these scripts.
 
-For example, with the local Compose PostgreSQL service already running, create a
-separate database and point the new build at it:
+The local default is now `flowops_fresh`; the previous `flowops` database is retained.
+A new Compose volume creates `flowops_fresh` automatically. An existing PostgreSQL
+volume needs the new database created once (skip this command if it already exists):
 
 ```sh
 docker compose exec postgres createdb -U flowops flowops_fresh

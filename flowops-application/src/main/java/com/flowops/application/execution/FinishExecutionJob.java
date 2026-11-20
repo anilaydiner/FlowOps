@@ -2,6 +2,7 @@ package com.flowops.application.execution;
 
 import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.application.execution.port.ExecutionJobObservability;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.domain.execution.*;
 import com.flowops.domain.execution.port.ExecutionJobRepository;
 import com.flowops.domain.request.port.RequestRepository;
@@ -14,19 +15,22 @@ import org.springframework.transaction.support.*;
 @Service
 public class FinishExecutionJob {
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final ExecutionJobRepository jobs;
     private final LifecycleAuditRecorder audit;
     private final ExecutionJobObservability observability;
     private final Clock clock;
     private final CompleteRequestExecution completion;
     private final ExecutionAttemptRecorder attempts;
-    public FinishExecutionJob(RequestRepository requests,ExecutionJobRepository jobs,LifecycleAuditRecorder audit,
+    public FinishExecutionJob(RequestRepository requests,RequestWriteLock requestWriteLock,ExecutionJobRepository jobs,LifecycleAuditRecorder audit,
                                ExecutionJobObservability observability,Clock clock,CompleteRequestExecution completion,ExecutionAttemptRecorder attempts) {
-        this.requests=requests;this.jobs=jobs;this.audit=audit;this.observability=observability;this.clock=clock;this.completion=completion;this.attempts=attempts;
+        this.requests=requests;
+        this.requestWriteLock = requestWriteLock;
+        this.jobs=jobs;this.audit=audit;this.observability=observability;this.clock=clock;this.completion=completion;this.attempts=attempts;
     }
     @Transactional(propagation=Propagation.REQUIRES_NEW)
     public boolean finish(StartExecutionJob.Claim claim,Map<String,Object> result,RuntimeException failure,boolean retrySafe) {
-        var request=requests.findByIdForUpdate(claim.command().requestId()).orElseThrow();
+        var request=requestWriteLock.findByIdForUpdate(claim.command().requestId()).orElseThrow();
         var job=jobs.findForLockedRequest(claim.job().getId(),request.getId()).orElseThrow();
         if(job.getStatus()!=JobStatus.STARTED || !claim.token().equals(job.getClaimToken())) return false;
         var now=clock.instant();

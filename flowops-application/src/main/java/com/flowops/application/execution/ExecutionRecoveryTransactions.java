@@ -4,6 +4,7 @@ import com.flowops.application.request.RequestTargets;
 import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.application.execution.model.ExecutionRecovery.*;
 import com.flowops.application.execution.port.*;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.domain.exception.*;
 import com.flowops.domain.execution.*;
 import com.flowops.domain.execution.port.*;
@@ -26,6 +27,7 @@ public class ExecutionRecoveryTransactions {
     public record Result(Long requestVersion, Entry entry) {}
     public record Prepared(Result result, ProviderQuery query,ProviderContract contract,Instant deadline) {}
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final ExecutionJobRepository jobs;
     private final ExecutionRecoveryRepository recovery;
     private final UserRepository users;
@@ -38,12 +40,14 @@ public class ExecutionRecoveryTransactions {
     private final Clock clock;
     private final Duration lease;
     private final ExecutionAttemptRecorder attempts;
-    public ExecutionRecoveryTransactions(RequestRepository requests,ExecutionJobRepository jobs,ExecutionRecoveryRepository recovery,
+    public ExecutionRecoveryTransactions(RequestRepository requests,RequestWriteLock requestWriteLock,ExecutionJobRepository jobs,ExecutionRecoveryRepository recovery,
             UserRepository users,AuthorizationEvaluator authz,LifecycleAuditRecorder audit,CompleteRequestExecution completion,
             ExecutionJobObservability metrics,ProviderContracts contracts,ProviderContractRepository contractHistory,Clock clock,ExecutionAttemptRecorder attempts,
             @Value("${flowops.execution.reconciliation-lease-seconds:60}") long seconds) {
         if(seconds<1 || seconds>86400) throw new IllegalArgumentException("Reconciliation lease must be 1–86400 seconds");
-        this.requests=requests;this.jobs=jobs;this.recovery=recovery;this.users=users;this.authz=authz;
+        this.requests=requests;
+        this.requestWriteLock = requestWriteLock;
+        this.jobs=jobs;this.recovery=recovery;this.users=users;this.authz=authz;
         this.audit=audit;this.completion=completion;this.metrics=metrics;this.contracts=contracts;this.contractHistory=contractHistory;this.clock=clock;this.attempts=attempts;lease=Duration.ofSeconds(seconds);
     }
     @Transactional(propagation=Propagation.REQUIRES_NEW)
@@ -164,7 +168,7 @@ public class ExecutionRecoveryTransactions {
         return new Result(request.getVersion(),existing);
     }
     private Request locked(Long requestId) {
-        return requests.findByIdForUpdate(requestId).orElseThrow(()->new NotFoundException("Request not found: "+requestId));
+        return requestWriteLock.findByIdForUpdate(requestId).orElseThrow(()->new NotFoundException("Request not found: "+requestId));
     }
     private ExecutionJob job(Long requestId,Long jobId) {
         return jobs.findForLockedRequest(jobId,requestId).orElseThrow(()->new NotFoundException("Execution job not found: "+jobId));

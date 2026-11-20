@@ -136,6 +136,55 @@ class BlockedRequestRecoveryTest extends AbstractIntegrationTest {
     }
 
     @Test @Transactional
+    void recoveredResponsesOnlyExposeCurrentBlockReasonsAndKeepHistoricalEvidence() throws Exception {
+        var f=fixture(CompletionRule.ANY_OF,1,0);
+        Instant blockedAt=step(f).getBlockedAt();
+        mvc.perform(get("/api/v1/requests/"+f.requestId()).with(authenticated(caller("admin"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.steps[0].blockReasonCode").value("NO_ELIGIBLE_APPROVER"))
+                .andExpect(jsonPath("$.steps[0].blockedReason").isNotEmpty());
+
+        Long reviewer=addPerson(f.role());
+        String body="{\"stepInstanceId\":"+f.stepId()+",\"expectedVersion\":"+request(f).getVersion()
+                +",\"reason\":\"Staff coverage restored\",\"refreshPool\":true}";
+        mvc.perform(post("/api/v1/requests/"+f.requestId()+"/recover").with(authenticated(caller("admin")))
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.steps[0].state").value("PENDING"))
+                .andExpect(jsonPath("$.steps[0].blockReasonCode").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.steps[0].blockedReason").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.steps[0].recoveredAt").isNotEmpty())
+                .andExpect(jsonPath("$.requiresAttention").value(false));
+        mvc.perform(get("/api/v1/requests/"+f.requestId()).with(authenticated(caller(reviewer))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.steps[0].state").value("PENDING"))
+                .andExpect(jsonPath("$.steps[0].blockReasonCode").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.steps[0].blockedReason").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.requiresAttention").value(false));
+        assertEquals(BlockReason.NO_ELIGIBLE_APPROVER,step(f).getBlockReasonCode());
+        assertEquals(blockedAt,step(f).getBlockedAt());
+        assertNotNull(step(f).getRecoveredAt());
+        assertEquals(1,count("step_recoveries",f));
+
+        active(reviewer,false);
+        recheck(f);
+        mvc.perform(get("/api/v1/requests/"+f.requestId()).with(authenticated(caller("admin"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.steps[0].state").value("BLOCKED"))
+                .andExpect(jsonPath("$.steps[0].blockReasonCode").value("NO_ELIGIBLE_APPROVER"))
+                .andExpect(jsonPath("$.steps[0].blockedReason").isNotEmpty())
+                .andExpect(jsonPath("$.steps[0].blockEpisode").value(2));
+        active(reviewer,true);
+        recover(f,false,List.of());
+        approve(f,reviewer);
+        mvc.perform(get("/api/v1/requests/"+f.requestId()).with(authenticated(caller("admin"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.steps[0].state").value("SATISFIED"))
+                .andExpect(jsonPath("$.steps[0].blockReasonCode").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$.steps[0].blockedReason").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test @Transactional
     void numericPoolRefreshRecoversAnInsufficientRosterWithoutChangingThreshold() {
         var f=fixture(CompletionRule.K_OF_N,2,1);
         assertEquals(BlockReason.INSUFFICIENT_QUORUM,step(f).getBlockReasonCode());

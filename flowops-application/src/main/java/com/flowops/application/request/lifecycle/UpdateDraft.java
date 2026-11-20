@@ -2,6 +2,7 @@ package com.flowops.application.request.lifecycle;
 
 import com.flowops.application.request.RequestTargets;
 import com.flowops.application.audit.LifecycleAuditRecorder;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.exception.RequestValidationException;
@@ -29,12 +30,14 @@ public class UpdateDraft {
     private final LifecycleAuditRecorder audit;
 
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final PayloadValidator validator;
     private final AuthorizationEvaluator authz;
 
-    public UpdateDraft(RequestRepository requests, PayloadValidator validator, AuthorizationEvaluator authz, LifecycleAuditRecorder audit) {
+    public UpdateDraft(RequestRepository requests, RequestWriteLock requestWriteLock, PayloadValidator validator, AuthorizationEvaluator authz, LifecycleAuditRecorder audit) {
         this.audit = audit;
         this.requests = requests;
+        this.requestWriteLock = requestWriteLock;
         this.validator = validator;
         this.authz = authz;
     }
@@ -61,7 +64,7 @@ public class UpdateDraft {
     }
 
     private Request load(Long id) {
-        return requests.findByIdForUpdate(id)
+        return requestWriteLock.findByIdForUpdate(id)
                 .orElseThrow(() -> new NotFoundException("Request not found: " + id));
     }
 }

@@ -1,5 +1,6 @@
 package com.flowops;
 
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.application.mediator.Mediator;
 import com.flowops.application.request.ClarificationService;
 import com.flowops.application.request.command.*;
@@ -29,6 +30,7 @@ class RequestWriteLockTest extends AbstractIntegrationTest {
     @MockitoBean OutboxDispatcher backgroundOutbox;
     @MockitoBean SlaScanner backgroundSla;
     @Autowired RequestRepository requests;
+    @Autowired RequestWriteLock requestWriteLock;
     @Autowired StepInstanceRepository steps;
     @Autowired DecisionRepository decisions;
     @Autowired ExecutionJobRepository jobs;
@@ -68,7 +70,7 @@ class RequestWriteLockTest extends AbstractIntegrationTest {
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
             var holder = pool.submit(() -> tx.executeWithoutResult(status -> {
-                Request request = requests.findByIdForUpdate(id).orElseThrow();
+                Request request = requestWriteLock.findByIdForUpdate(id).orElseThrow();
                 holderChange.accept(request);
                 held.countDown();
                 try { assertTrue(release.await(10, TimeUnit.SECONDS)); }
@@ -96,7 +98,7 @@ class RequestWriteLockTest extends AbstractIntegrationTest {
     void lockRequiresAnExistingTransaction() {
         Request request = draft(100);
         assertThrows(org.springframework.transaction.IllegalTransactionStateException.class,
-                () -> requests.findByIdForUpdate(request.getId()));
+                () -> requestWriteLock.findByIdForUpdate(request.getId()));
     }
 
     @Test
@@ -104,7 +106,7 @@ class RequestWriteLockTest extends AbstractIntegrationTest {
         Request request = draft(100);
         Request refreshed = whileLocked(request.getId(), r -> { r.cancel(); requests.save(r); }, () -> {
             assertEquals(RequestStatus.DRAFT, requests.findById(request.getId()).orElseThrow().getStatus());
-            return requests.findByIdForUpdate(request.getId()).orElseThrow();
+            return requestWriteLock.findByIdForUpdate(request.getId()).orElseThrow();
         });
         assertEquals(RequestStatus.CANCELLED, refreshed.getStatus());
         assertTrue(refreshed.getVersion() > request.getVersion());
@@ -117,8 +119,8 @@ class RequestWriteLockTest extends AbstractIntegrationTest {
         ExecutorService pool = Executors.newSingleThreadExecutor();
         try {
             tx.executeWithoutResult(status -> {
-                requests.findByIdForUpdate(request.getId()).orElseThrow();
-                var waiting = pool.submit(() -> tx.execute(s -> requests.findByIdForUpdate(request.getId())));
+                requestWriteLock.findByIdForUpdate(request.getId()).orElseThrow();
+                var waiting = pool.submit(() -> tx.execute(s -> requestWriteLock.findByIdForUpdate(request.getId())));
                 ExecutionException failure = assertThrows(ExecutionException.class,
                         () -> waiting.get(8, TimeUnit.SECONDS));
                 assertInstanceOf(org.springframework.dao.PessimisticLockingFailureException.class, failure.getCause());
@@ -205,7 +207,7 @@ class RequestWriteLockTest extends AbstractIntegrationTest {
         ExecutorService pool = Executors.newSingleThreadExecutor();
         try {
             tx.executeWithoutResult(status -> {
-                requests.findByIdForUpdate(request.getId()).orElseThrow();
+                requestWriteLock.findByIdForUpdate(request.getId()).orElseThrow();
                 try {
                     var job=jobs.findByRequestIdOrderByCreatedAtAsc(request.getId()).getFirst();
                     var result = pool.submit(() -> executionStart.start(new ExecutionJobRepository.Candidate(job.getId(),request.getId()))).get(3, TimeUnit.SECONDS);

@@ -4,6 +4,7 @@ import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.application.event.DomainEventPublisher;
 import com.flowops.application.request.ApprovalEligibilityService;
 import com.flowops.application.notification.ApproverNotifier;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.application.request.workflow.StepMaterializer;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.ForbiddenException;
@@ -55,6 +56,7 @@ public class DecideStep {
     private static final Logger log = LoggerFactory.getLogger(DecideStep.class);
 
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final StepInstanceRepository stepInstances;
     private final DecisionRepository decisions;
     private final StepMaterializer materializer;
@@ -65,6 +67,7 @@ public class DecideStep {
     private final FinalizeApproval finalization;
 
     public DecideStep(RequestRepository requests,
+                      RequestWriteLock requestWriteLock,
                       StepInstanceRepository stepInstances,
                       DecisionRepository decisions,
                       StepMaterializer materializer,
@@ -75,6 +78,7 @@ public class DecideStep {
         this.clock = clock;this.finalization=finalization;
         this.audit = audit;
         this.requests = requests;
+        this.requestWriteLock = requestWriteLock;
         this.stepInstances = stepInstances;
         this.decisions = decisions;
         this.materializer = materializer;
@@ -102,7 +106,7 @@ public class DecideStep {
         // Capture the version observed on entry, including for legacy bodies without a version.
         Request observed = load(requestId);
         Long targetVersion = expectedVersion == null ? observed.getVersion() : expectedVersion;
-        Request request = requests.findByIdForUpdate(requestId)
+        Request request = requestWriteLock.findByIdForUpdate(requestId)
                 .orElseThrow(() -> new NotFoundException("Request not found: " + requestId));
         if (!targetVersion.equals(request.getVersion())) {
             throw new ConflictException("Stale workflow decision; reload the request");

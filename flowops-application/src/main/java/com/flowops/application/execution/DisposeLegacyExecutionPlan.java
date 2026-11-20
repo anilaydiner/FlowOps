@@ -4,6 +4,7 @@ import com.flowops.application.request.RequestTargets;
 import com.flowops.application.audit.LifecycleAuditRecorder;
 import com.flowops.application.execution.model.LegacyPlanDisposition.*;
 import com.flowops.application.execution.port.*;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.domain.exception.*;
 import com.flowops.domain.execution.*;
 import com.flowops.domain.execution.port.*;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DisposeLegacyExecutionPlan {
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final ExecutionJobRepository jobs;
     private final ExecutionPlanRepository plans;
     private final LegacyPlanDispositionRepository records;
@@ -33,18 +35,20 @@ public class DisposeLegacyExecutionPlan {
     private final LifecycleAuditRecorder audit;
     private final CompleteRequestExecution completion;
     private final Clock clock;
-    public DisposeLegacyExecutionPlan(RequestRepository requests,ExecutionJobRepository jobs,ExecutionPlanRepository plans,
+    public DisposeLegacyExecutionPlan(RequestRepository requests,RequestWriteLock requestWriteLock,ExecutionJobRepository jobs,ExecutionPlanRepository plans,
             LegacyPlanDispositionRepository records,ExecutionRecoveryRepository recovery,ExecutionRecoveryTransactions access,
             ProviderContracts contracts,UserRepository users,AuthorizationEvaluator authz,ExecutionAttemptRecorder attempts,
             LifecycleAuditRecorder audit,CompleteRequestExecution completion,Clock clock){
-        this.requests=requests;this.jobs=jobs;this.plans=plans;this.records=records;this.recovery=recovery;this.access=access;
+        this.requests=requests;
+        this.requestWriteLock = requestWriteLock;
+        this.jobs=jobs;this.plans=plans;this.records=records;this.recovery=recovery;this.access=access;
         this.contracts=contracts;this.users=users;this.authz=authz;this.attempts=attempts;this.audit=audit;this.completion=completion;this.clock=clock;
     }
     private record Work(ProposedAction proposal,ExecutionJob existing,ExecutionPlan.Action action){}
     @Transactional
     public Result dispose(Long requestId,Input input,CallerIdentity caller){
         validate(input);
-        var request=requests.findByIdForUpdate(requestId).orElseThrow(()->new NotFoundException("Request not found: "+requestId));
+        var request=requestWriteLock.findByIdForUpdate(requestId).orElseThrow(()->new NotFoundException("Request not found: "+requestId));
         var operator=users.findById(caller.id()).orElseThrow(()->new ForbiddenException("Inactive execution operator"));
         if(!operator.isActive() || !authz.evaluate(operator,PermissionCodes.EXECUTION_PLAN_DISPOSE,RequestTargets.from(request,null)).allowed())
             throw new ForbiddenException("Active scoped execution:plan:dispose permission and separation of duties are required");

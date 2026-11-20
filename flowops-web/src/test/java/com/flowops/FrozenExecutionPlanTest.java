@@ -1,5 +1,6 @@
 package com.flowops;
 
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.application.audit.port.LifecycleAuditRepository;
 import com.flowops.application.event.*;
 import com.flowops.application.execution.*;
@@ -49,6 +50,7 @@ class FrozenExecutionPlanTest extends AbstractIntegrationTest {
     @Autowired Mediator mediator;
     @Autowired UserRepository users;
     @Autowired RequestRepository requests;
+    @Autowired RequestWriteLock requestWriteLock;
     @Autowired StepInstanceRepository steps;
     @Autowired DecisionRepository decisions;
     @Autowired ExecutionJobRepository jobs;
@@ -140,7 +142,7 @@ class FrozenExecutionPlanTest extends AbstractIntegrationTest {
         var r=approved(List.of(JobActions.ACCOUNTING_EXPORT));var p=plan(r.getId());var ids=jobs.findByRequestIdOrderByCreatedAtAsc(r.getId()).stream().map(ExecutionJob::getId).toList();
         var factsBefore=audit.findByRequestId(r.getId());var intentsBefore=intents(r.getId());long version=stored(r.getId()).getVersion();
         jdbc.update("UPDATE request_types SET execution_actions=?::jsonb WHERE id=?","[\"PURCHASE_TICKET\",\"PROVISIONING\"]",p.typeId());
-        tx().executeWithoutResult(s->{requests.findByIdForUpdate(r.getId()).orElseThrow();events.publish(new RequestApproved(r.getId(),p.id(),p.approval()));});
+        tx().executeWithoutResult(s->{requestWriteLock.findByIdForUpdate(r.getId()).orElseThrow();events.publish(new RequestApproved(r.getId(),p.id(),p.approval()));});
         assertEquals(p,plan(r.getId()));assertEquals(ids,jobs.findByRequestIdOrderByCreatedAtAsc(r.getId()).stream().map(ExecutionJob::getId).toList());
         assertEquals(factsBefore,audit.findByRequestId(r.getId()));assertEquals(intentsBefore,intents(r.getId()));assertEquals(version,stored(r.getId()).getVersion());
     }
@@ -195,12 +197,12 @@ class FrozenExecutionPlanTest extends AbstractIntegrationTest {
     }
     @Test void completedEventReplayAndFinalizerReplayPreserveIdsVersionsAndIntents(){
         var r=approved(List.of());var p=plan(r.getId());var history=audit.findByRequestId(r.getId());var messages=intents(r.getId());long version=r.getVersion();
-        tx().executeWithoutResult(s->{requests.findByIdForUpdate(r.getId()).orElseThrow();events.publish(new RequestApproved(r.getId(),p.id(),p.approval()));events.publish(new RequestExecuted(r.getId(),p.id(),0));finalizer.execute(r.getId(),p.approval());});
+        tx().executeWithoutResult(s->{requestWriteLock.findByIdForUpdate(r.getId()).orElseThrow();events.publish(new RequestApproved(r.getId(),p.id(),p.approval()));events.publish(new RequestExecuted(r.getId(),p.id(),0));finalizer.execute(r.getId(),p.approval());});
         assertEquals(version,stored(r.getId()).getVersion());assertEquals(p,plan(r.getId()));assertEquals(history,audit.findByRequestId(r.getId()));assertEquals(messages,intents(r.getId()));
     }
     @Test void cancellationAndApprovalReplayNeverRecreateStoppedJobs(){
         var r=approved(List.of(JobActions.ACCOUNTING_EXPORT));var p=plan(r.getId());cancel.execute(r.getId(),caller("alice"));var messages=intents(r.getId());
-        tx().executeWithoutResult(s->{requests.findByIdForUpdate(r.getId()).orElseThrow();events.publish(new RequestApproved(r.getId(),p.id(),p.approval()));});
+        tx().executeWithoutResult(s->{requestWriteLock.findByIdForUpdate(r.getId()).orElseThrow();events.publish(new RequestApproved(r.getId(),p.id(),p.approval()));});
         assertEquals(RequestStatus.CANCELLED,stored(r.getId()).getStatus());assertEquals(JobStatus.CANCELLED,jobs.findByRequestIdOrderByCreatedAtAsc(r.getId()).getFirst().getStatus());assertEquals(messages,intents(r.getId()));
     }
     @Test void manifestEvidenceActionsAndBindingsCannotBeRewrittenOrExtended(){
@@ -214,7 +216,7 @@ class FrozenExecutionPlanTest extends AbstractIntegrationTest {
     }
     @Test void missingExpectedJobCannotCountAsSuccess(){
         tx().executeWithoutResult(s->{
-            s.setRollbackOnly();var r=draft(type(List.of(JobActions.ACCOUNTING_EXPORT,JobActions.PROVISIONING),true));r=requests.findByIdForUpdate(r.getId()).orElseThrow();
+            s.setRollbackOnly();var r=draft(type(List.of(JobActions.ACCOUNTING_EXPORT,JobActions.PROVISIONING),true));r=requestWriteLock.findByIdForUpdate(r.getId()).orElseThrow();
             r.markSubmitted(now);requests.save(r);
             UUID id=UUID.randomUUID();var actions=List.of(new ExecutionPlan.Action(1,JobActions.ACCOUNTING_EXPORT,"req:"+r.getId()+":ACCOUNTING_EXPORT",r.getPayload(),r.getCorrelationId()),
                     new ExecutionPlan.Action(2,JobActions.PROVISIONING,"req:"+r.getId()+":PROVISIONING",r.getPayload(),r.getCorrelationId()));
@@ -230,7 +232,7 @@ class FrozenExecutionPlanTest extends AbstractIntegrationTest {
     }
     @Test void missingManifestIsNotTreatedAsAnEmptyPlanAndReadAccessIsUnchanged() throws Exception {
         var draft=draft(type(List.of(),false));assertFalse(mediator.send(new GetExecutionPlan(draft.getId(),caller("alice"))).known());
-        tx().executeWithoutResult(s->{var r=requests.findByIdForUpdate(draft.getId()).orElseThrow();r.markSubmitted(now);requests.save(r);LegacyRequestFixtures.approveWithoutManifest(jdbc,r.getId(),now,true);completion.completeLocked(requests.findByIdForUpdate(r.getId()).orElseThrow(),null);});
+        tx().executeWithoutResult(s->{var r=requestWriteLock.findByIdForUpdate(draft.getId()).orElseThrow();r.markSubmitted(now);requests.save(r);LegacyRequestFixtures.approveWithoutManifest(jdbc,r.getId(),now,true);completion.completeLocked(requestWriteLock.findByIdForUpdate(r.getId()).orElseThrow(),null);});
         assertEquals(RequestStatus.APPROVED,stored(draft.getId()).getStatus());assertFalse(mediator.send(new GetExecutionPlan(draft.getId(),caller("alice"))).known());
         assertThrows(ConflictException.class,()->cancel.execute(draft.getId(),caller("alice")));
         var r=approved(List.of(JobActions.ACCOUNTING_EXPORT));var owner=caller("alice");

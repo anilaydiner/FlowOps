@@ -1,5 +1,6 @@
 package com.flowops;
 
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.application.identity.UserService;
 import com.flowops.application.organization.RoleService;
 import com.flowops.application.request.lifecycle.SubmitRequest;
@@ -42,6 +43,7 @@ class IdentityRecoveryReconciliationTest extends AbstractIntegrationTest {
     @Autowired WorkflowStepRepository definitions;
     @Autowired RequestTypeRepository types;
     @Autowired RequestRepository requests;
+    @Autowired RequestWriteLock requestWriteLock;
     @Autowired StepInstanceRepository steps;
     @Autowired SubmitRequest submit;
     @Autowired UserService userService;
@@ -151,7 +153,7 @@ class IdentityRecoveryReconciliationTest extends AbstractIntegrationTest {
         var f=fixture();
         try(var pool=Executors.newSingleThreadExecutor()) {
             tx().executeWithoutResult(s->{
-                requests.findByIdForUpdate(f.request()).orElseThrow();
+                requestWriteLock.findByIdForUpdate(f.request()).orElseThrow();
                 try { pool.submit(()->active(f.reviewer(),false)).get(5,TimeUnit.SECONDS); }
                 catch(Exception e) { throw new AssertionError(e); }
                 assertEquals(StepState.PENDING,step(f).getState());assertEquals(1,queued(f));

@@ -2,6 +2,7 @@ package com.flowops.application.request.lifecycle;
 
 import com.flowops.application.request.RequestTargets;
 import com.flowops.application.audit.LifecycleAuditRecorder;
+import com.flowops.application.request.port.RequestWriteLock;
 import com.flowops.domain.exception.ConflictException;
 import com.flowops.domain.exception.NotFoundException;
 import com.flowops.domain.identity.CallerIdentity;
@@ -26,12 +27,14 @@ public class CloseRequest {
     private final LifecycleAuditRecorder audit;
 
     private final RequestRepository requests;
+    private final RequestWriteLock requestWriteLock;
     private final AuthorizationEvaluator authz;
     private final java.time.Clock clock;
 
-    public CloseRequest(RequestRepository requests, AuthorizationEvaluator authz, LifecycleAuditRecorder audit,java.time.Clock clock) {
+    public CloseRequest(RequestRepository requests, RequestWriteLock requestWriteLock, AuthorizationEvaluator authz, LifecycleAuditRecorder audit,java.time.Clock clock) {
         this.audit = audit;
         this.requests = requests;
+        this.requestWriteLock = requestWriteLock;
         this.authz = authz;
         this.clock = clock;
     }
@@ -56,7 +59,7 @@ public class CloseRequest {
     }
 
     private Request load(Long id) {
-        return requests.findByIdForUpdate(id)
+        return requestWriteLock.findByIdForUpdate(id)
                 .orElseThrow(() -> new NotFoundException("Request not found: " + id));
     }
 }
