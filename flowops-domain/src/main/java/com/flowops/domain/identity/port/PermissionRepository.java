@@ -10,8 +10,9 @@ import java.util.Optional;
 /**
  * Persistence port for the {@link Permission} catalog.
  *
- * <p>Implemented by the JPA adapter in {@code persistence}; the domain
- * layer only sees this contract — no Spring Data types.
+ * <p>
+ * Implemented by the JPA adapter in {@code persistence}; the domain layer only sees this
+ * contract — no Spring Data types.
  */
 public interface PermissionRepository {
 
@@ -25,4 +26,5 @@ public interface PermissionRepository {
     boolean existsByCode(String code);
 
     List<Permission> findAll();
+
 }

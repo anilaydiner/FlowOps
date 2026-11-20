@@ -4,12 +4,13 @@ import com.flowops.domain.request.Request;
 import com.flowops.persistence.entity.RequestEntity;
 
 /**
- * Maps the {@link Request} aggregate to and from its JPA entity.
- * Stateless — safe to call from any thread.
+ * Maps the {@link Request} aggregate to and from its JPA entity. Stateless — safe to call
+ * from any thread.
  *
- * <p>{@code fromEntity} runs inside the persistence adapter (i.e. inside the
- * transaction), so lazy associations are safely resolved here and the
- * resulting domain object needs no live persistence context.
+ * <p>
+ * {@code fromEntity} runs inside the persistence adapter (i.e. inside the transaction),
+ * so lazy associations are safely resolved here and the resulting domain object needs no
+ * live persistence context.
  */
 public final class RequestMappers {
 
@@ -33,8 +34,11 @@ public final class RequestMappers {
         e.setUpdatedAt(d.getUpdatedAt());
         e.setSubmittedAt(d.getSubmittedAt());
         e.setLegacyPlanDispositionId(d.getLegacyPlanDispositionId());
-        e.setExecutionPlanId(d.getExecutionPlanId());e.setExecutionPlannedAt(d.getExecutionPlannedAt()); e.setExecutionStartedAt(d.getExecutionStartedAt());
-        e.setExecutionStartUnknown(d.isExecutionStartUnknown()); e.setExecutionStartInferred(d.isExecutionStartInferred());
+        e.setExecutionPlanId(d.getExecutionPlanId());
+        e.setExecutionPlannedAt(d.getExecutionPlannedAt());
+        e.setExecutionStartedAt(d.getExecutionStartedAt());
+        e.setExecutionStartUnknown(d.isExecutionStartUnknown());
+        e.setExecutionStartInferred(d.isExecutionStartInferred());
         e.setOutcome(d.getOutcome());
         e.setApprovedAt(d.getApprovedAt());
         e.setRejectedAt(d.getRejectedAt());
@@ -50,12 +54,12 @@ public final class RequestMappers {
         if (e == null) {
             return null;
         }
-        return Request.restore(new Request.Snapshot(
-                e.getId(), RequestTypeMappers.fromEntity(e.getType()),
-                UserMappers.fromEntity(e.getRequester()), e.getStatus(), e.getPayload(),
-                e.getVersion(), e.getCorrelationId(), e.getCreatedAt(),
-                e.getUpdatedAt(), e.getSubmittedAt(), e.getExecutionPlannedAt(), e.getExecutionStartedAt(),
-                e.isExecutionStartUnknown(),e.isExecutionStartInferred(),e.getExecutionPlanId(),e.getOutcome(),
-                e.getApprovedAt(),e.getRejectedAt(),e.getExecutedAt(),e.getCancelledAt(),e.getExpiredAt(),e.getClosedAt(),e.getLegacyPlanDispositionId()));
+        return Request.restore(new Request.Snapshot(e.getId(), RequestTypeMappers.fromEntity(e.getType()),
+                UserMappers.fromEntity(e.getRequester()), e.getStatus(), e.getPayload(), e.getVersion(),
+                e.getCorrelationId(), e.getCreatedAt(), e.getUpdatedAt(), e.getSubmittedAt(), e.getExecutionPlannedAt(),
+                e.getExecutionStartedAt(), e.isExecutionStartUnknown(), e.isExecutionStartInferred(),
+                e.getExecutionPlanId(), e.getOutcome(), e.getApprovedAt(), e.getRejectedAt(), e.getExecutedAt(),
+                e.getCancelledAt(), e.getExpiredAt(), e.getClosedAt(), e.getLegacyPlanDispositionId()));
     }
+
 }

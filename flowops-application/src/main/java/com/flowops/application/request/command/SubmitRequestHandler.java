@@ -11,12 +11,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SubmitRequestHandler implements MessageHandler<SubmitRequestCommand, RequestDetail> {
+
     private final SubmitRequest useCase;
+
     private final RequestLifecycleObservability observability;
+
     private final RequestDetailReader details;
 
     public SubmitRequestHandler(SubmitRequest useCase, RequestLifecycleObservability observability,
-                              RequestDetailReader details) {
+            RequestDetailReader details) {
         this.useCase = useCase;
         this.observability = observability;
         this.details = details;
@@ -34,4 +37,5 @@ public class SubmitRequestHandler implements MessageHandler<SubmitRequestCommand
                 () -> useCase.execute(command.id(), command.caller()));
         return details.load(result);
     }
+
 }

@@ -20,21 +20,34 @@ import org.hibernate.type.SqlTypes;
 
 /**
  * JPA entity backing the {@link com.flowops.domain.workflow.WorkflowStep} aggregate
- * (table {@code workflow_steps}). Pure data carrier — all business behavior
- * lives on the domain aggregate; field mapping is identical to the schema.
+ * (table {@code workflow_steps}). Pure data carrier — all business behavior lives on the
+ * domain aggregate; field mapping is identical to the schema.
  */
 @Entity(name = "WorkflowStep")
 @Table(name = "workflow_steps")
 public class WorkflowStepEntity {
 
-    @Column(name="escalation_interval_minutes",nullable=false)
-    private int escalationIntervalMinutes=60;
-    @Column(name="max_escalation_levels")
+    @Column(name = "escalation_interval_minutes", nullable = false)
+    private int escalationIntervalMinutes = 60;
+
+    @Column(name = "max_escalation_levels")
     private Integer maxEscalationLevels;
-    public int getEscalationIntervalMinutes() { return escalationIntervalMinutes; }
-    public void setEscalationIntervalMinutes(int value) { this.escalationIntervalMinutes=value; }
-    public Integer getMaxEscalationLevels() { return maxEscalationLevels; }
-    public void setMaxEscalationLevels(Integer value) { this.maxEscalationLevels=value; }
+
+    public int getEscalationIntervalMinutes() {
+        return escalationIntervalMinutes;
+    }
+
+    public void setEscalationIntervalMinutes(int value) {
+        this.escalationIntervalMinutes = value;
+    }
+
+    public Integer getMaxEscalationLevels() {
+        return maxEscalationLevels;
+    }
+
+    public void setMaxEscalationLevels(Integer value) {
+        this.maxEscalationLevels = value;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -63,7 +76,10 @@ public class WorkflowStepEntity {
     @Column(name = "required_approvals", nullable = false)
     private int requiredApprovals = 1;
 
-    /** JSONB condition, e.g. {"field":"amount","op":">","value":5000}; null = always applies. */
+    /**
+     * JSONB condition, e.g. {"field":"amount","op":">","value":5000}; null = always
+     * applies.
+     */
     @Column(name = "condition")
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> condition = new LinkedHashMap<>();
@@ -89,44 +105,116 @@ public class WorkflowStepEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public WorkflowEntity getWorkflow() { return workflow; }
-    public void setWorkflow(WorkflowEntity workflow) { this.workflow = workflow; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public int getPosition() { return position; }
-    public void setPosition(int position) { this.position = position; }
+    public WorkflowEntity getWorkflow() {
+        return workflow;
+    }
 
-    public String getCode() { return code; }
-    public void setCode(String code) { this.code = code; }
+    public void setWorkflow(WorkflowEntity workflow) {
+        this.workflow = workflow;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public int getPosition() {
+        return position;
+    }
 
-    public String getRequiredRole() { return requiredRole; }
-    public void setRequiredRole(String requiredRole) { this.requiredRole = requiredRole; }
+    public void setPosition(int position) {
+        this.position = position;
+    }
 
-    public CompletionRule getCompletionRule() { return completionRule; }
-    public void setCompletionRule(CompletionRule completionRule) { this.completionRule = completionRule; }
+    public String getCode() {
+        return code;
+    }
 
-    public int getRequiredApprovals() { return requiredApprovals; }
-    public void setRequiredApprovals(int requiredApprovals) { this.requiredApprovals = requiredApprovals; }
+    public void setCode(String code) {
+        this.code = code;
+    }
 
-    public Map<String, Object> getCondition() { return condition; }
-    public void setCondition(Map<String, Object> condition) { this.condition = condition; }
+    public String getName() {
+        return name;
+    }
 
-    public Integer getExpiryMinutes() { return expiryMinutes; }
-    public void setExpiryMinutes(Integer value) { this.expiryMinutes = value; }
-    public Integer getSlaMinutes() { return slaMinutes; }
-    public void setSlaMinutes(Integer slaMinutes) { this.slaMinutes = slaMinutes; }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    public String getEscalationRole() { return escalationRole; }
-    public void setEscalationRole(String escalationRole) { this.escalationRole = escalationRole; }
+    public String getRequiredRole() {
+        return requiredRole;
+    }
 
-    public boolean isTerminal() { return terminal; }
-    public void setTerminal(boolean terminal) { this.terminal = terminal; }
+    public void setRequiredRole(String requiredRole) {
+        this.requiredRole = requiredRole;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public CompletionRule getCompletionRule() {
+        return completionRule;
+    }
+
+    public void setCompletionRule(CompletionRule completionRule) {
+        this.completionRule = completionRule;
+    }
+
+    public int getRequiredApprovals() {
+        return requiredApprovals;
+    }
+
+    public void setRequiredApprovals(int requiredApprovals) {
+        this.requiredApprovals = requiredApprovals;
+    }
+
+    public Map<String, Object> getCondition() {
+        return condition;
+    }
+
+    public void setCondition(Map<String, Object> condition) {
+        this.condition = condition;
+    }
+
+    public Integer getExpiryMinutes() {
+        return expiryMinutes;
+    }
+
+    public void setExpiryMinutes(Integer value) {
+        this.expiryMinutes = value;
+    }
+
+    public Integer getSlaMinutes() {
+        return slaMinutes;
+    }
+
+    public void setSlaMinutes(Integer slaMinutes) {
+        this.slaMinutes = slaMinutes;
+    }
+
+    public String getEscalationRole() {
+        return escalationRole;
+    }
+
+    public void setEscalationRole(String escalationRole) {
+        this.escalationRole = escalationRole;
+    }
+
+    public boolean isTerminal() {
+        return terminal;
+    }
+
+    public void setTerminal(boolean terminal) {
+        this.terminal = terminal;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
 }

@@ -11,12 +11,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class CloseRequestHandler implements MessageHandler<CloseRequestCommand, RequestDetail> {
+
     private final CloseRequest useCase;
+
     private final RequestLifecycleObservability observability;
+
     private final RequestDetailReader details;
 
     public CloseRequestHandler(CloseRequest useCase, RequestLifecycleObservability observability,
-                              RequestDetailReader details) {
+            RequestDetailReader details) {
         this.useCase = useCase;
         this.observability = observability;
         this.details = details;
@@ -34,4 +37,5 @@ public class CloseRequestHandler implements MessageHandler<CloseRequestCommand, 
                 () -> useCase.execute(command.id(), command.caller()));
         return details.load(result);
     }
+
 }

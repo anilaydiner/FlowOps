@@ -23,14 +23,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class RequestTypeService {
 
     private final RequestTypeRepository requestTypes;
+
     private final DepartmentRepository departments;
+
     private final WorkflowRepository workflows;
+
     private final AuthorizationEvaluator authz;
 
-    public RequestTypeService(RequestTypeRepository requestTypes,
-                              DepartmentRepository departments,
-                              WorkflowRepository workflows,
-                              AuthorizationEvaluator authz) {
+    public RequestTypeService(RequestTypeRepository requestTypes, DepartmentRepository departments,
+            WorkflowRepository workflows, AuthorizationEvaluator authz) {
         this.requestTypes = requestTypes;
         this.departments = departments;
         this.workflows = workflows;
@@ -53,7 +54,7 @@ public class RequestTypeService {
     public RequestType get(Long id, CallerIdentity caller) {
         authz.require(caller, PermissionCodes.REQUEST_TYPES_READ);
         RequestType rt = requestTypes.findById(id)
-                .orElseThrow(() -> new NotFoundException("Request type not found: " + id));
+            .orElseThrow(() -> new NotFoundException("Request type not found: " + id));
         if (rt.getOwningDepartment() != null) {
             rt.getOwningDepartment().getCode();
         }
@@ -67,10 +68,7 @@ public class RequestTypeService {
         if (requestTypes.existsByCode(code)) {
             throw new ConflictException("Request type already exists: " + code);
         }
-        RequestType rt = new RequestType(
-                code,
-                request.name().strip(),
-                blankToNull(request.description()),
+        RequestType rt = new RequestType(code, request.name().strip(), blankToNull(request.description()),
                 resolveDepartment(request.departmentCode()));
         if (request.requiredFields() != null) {
             rt.setRequiredFields(stringMap(request.requiredFields()));
@@ -88,7 +86,7 @@ public class RequestTypeService {
     public RequestType update(Long id, RequestTypeSpec request, CallerIdentity caller) {
         authz.require(caller, PermissionCodes.REQUEST_TYPES_UPDATE);
         RequestType rt = requestTypes.findById(id)
-                .orElseThrow(() -> new NotFoundException("Request type not found: " + id));
+            .orElseThrow(() -> new NotFoundException("Request type not found: " + id));
         if (request.name() != null && !request.name().isBlank()) {
             rt.updateProfile(request.name().strip(), blankToNull(request.description()),
                     request.departmentCode() != null ? resolveDepartment(request.departmentCode()) : null);
@@ -121,7 +119,7 @@ public class RequestTypeService {
             return null;
         }
         return workflows.findByCode(code.strip().toUpperCase())
-                .orElseThrow(() -> new NotFoundException("Workflow not found: " + code));
+            .orElseThrow(() -> new NotFoundException("Workflow not found: " + code));
     }
 
     private Map<String, Object> stringMap(Map<String, String> in) {
@@ -133,10 +131,11 @@ public class RequestTypeService {
             return null;
         }
         return departments.findByCode(code.strip().toUpperCase())
-                .orElseThrow(() -> new NotFoundException("Department not found: " + code));
+            .orElseThrow(() -> new NotFoundException("Department not found: " + code));
     }
 
     private static String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s.strip();
     }
+
 }

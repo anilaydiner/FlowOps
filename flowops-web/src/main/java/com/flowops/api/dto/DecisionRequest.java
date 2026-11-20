@@ -4,14 +4,10 @@ import com.flowops.domain.request.DecisionAction;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-public record DecisionRequest(
-        @NotNull DecisionAction action,
-        @Size(max = 1000) String justification,
+public record DecisionRequest(@NotNull DecisionAction action, @Size(max = 1000) String justification,
         /** Required when action == DELEGATE: the user ID to delegate to. */
-        Long delegatedTo,
-        @jakarta.validation.constraints.Positive Long stepInstanceId,
-        @jakarta.validation.constraints.PositiveOrZero Long expectedVersion
-) {
+        Long delegatedTo, @jakarta.validation.constraints.Positive Long stepInstanceId,
+        @jakarta.validation.constraints.PositiveOrZero Long expectedVersion) {
     public DecisionRequest(DecisionAction action, String justification, Long delegatedTo) {
         this(action, justification, delegatedTo, null, null);
     }

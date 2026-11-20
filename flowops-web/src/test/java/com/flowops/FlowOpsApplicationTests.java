@@ -16,10 +16,16 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FlowOpsApplicationTests extends AbstractIntegrationTest {
+
     // Keep this cached context from polling the database used by manual worker tests.
-    @MockitoBean JobWorker backgroundJobs;
-    @MockitoBean OutboxDispatcher backgroundOutbox;
-    @MockitoBean SlaScanner backgroundSla;
+    @MockitoBean
+    JobWorker backgroundJobs;
+
+    @MockitoBean
+    OutboxDispatcher backgroundOutbox;
+
+    @MockitoBean
+    SlaScanner backgroundSla;
 
     @Autowired
     private UserRepository userRepository;
@@ -38,8 +44,7 @@ class FlowOpsApplicationTests extends AbstractIntegrationTest {
         assertThat(departmentRepository.findByCode("IT")).isPresent();
         // RBAC: admin user should have ADMIN role via user_roles junction
         User admin = userRepository.findByUsername("admin").orElseThrow();
-        assertThat(admin.getRoles()).extracting(com.flowops.domain.identity.Role::getCode)
-                .contains("ADMIN");
+        assertThat(admin.getRoles()).extracting(com.flowops.domain.identity.Role::getCode).contains("ADMIN");
         assertThat(userRepository.findByUsername("alice")).isPresent();
         // Roles seeded
         assertThat(roleRepository.findByCode("ADMIN")).isPresent();
@@ -53,4 +58,5 @@ class FlowOpsApplicationTests extends AbstractIntegrationTest {
         assertThat(requestTypeRepository.findByCode("POLICY_EXCEPTION")).isPresent();
         assertThat(requestTypeRepository.count()).isGreaterThanOrEqualTo(4);
     }
+
 }

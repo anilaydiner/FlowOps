@@ -10,8 +10,8 @@ import java.time.Instant;
 
 /**
  * JPA entity backing the {@link com.flowops.domain.notification.Notification} aggregate
- * (table {@code notifications}). Pure data carrier — all business behavior
- * lives on the domain aggregate; field mapping is identical to the schema.
+ * (table {@code notifications}). Pure data carrier — all business behavior lives on the
+ * domain aggregate; field mapping is identical to the schema.
  */
 @Entity(name = "Notification")
 @Table(name = "notifications")
@@ -48,27 +48,68 @@ public class NotificationEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public Long getRecipientId() { return recipientId; }
-    public void setRecipientId(Long recipientId) { this.recipientId = recipientId; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
+    public Long getRecipientId() {
+        return recipientId;
+    }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public void setRecipientId(Long recipientId) {
+        this.recipientId = recipientId;
+    }
 
-    public String getBody() { return body; }
-    public void setBody(String body) { this.body = body; }
+    public String getType() {
+        return type;
+    }
 
-    public Long getRequestId() { return requestId; }
-    public void setRequestId(Long requestId) { this.requestId = requestId; }
+    public void setType(String type) {
+        this.type = type;
+    }
 
-    public Instant getReadAt() { return readAt; }
-    public void setReadAt(Instant readAt) { this.readAt = readAt; }
+    public String getTitle() {
+        return title;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getBody() {
+        return body;
+    }
+
+    public void setBody(String body) {
+        this.body = body;
+    }
+
+    public Long getRequestId() {
+        return requestId;
+    }
+
+    public void setRequestId(Long requestId) {
+        this.requestId = requestId;
+    }
+
+    public Instant getReadAt() {
+        return readAt;
+    }
+
+    public void setReadAt(Instant readAt) {
+        this.readAt = readAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
 }

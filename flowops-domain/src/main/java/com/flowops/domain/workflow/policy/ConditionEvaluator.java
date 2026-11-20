@@ -5,11 +5,12 @@ import java.util.Map;
 /**
  * Evaluates workflow step conditions (JSONB) against a request payload.
  *
- * <p>Pure domain service — no framework dependencies.
+ * <p>
+ * Pure domain service — no framework dependencies.
  *
- * Condition shape: {"field": "amount", "op": ">", "value": 5000}
- * Supported ops: >, >=, <, <=, ==, !=. A null/empty condition always applies.
- * A missing field in the payload fails the condition (step is skipped).
+ * Condition shape: {"field": "amount", "op": ">", "value": 5000} Supported ops: >, >=, <,
+ * <=, ==, !=. A null/empty condition always applies. A missing field in the payload fails
+ * the condition (step is skipped).
  */
 public class ConditionEvaluator {
 
@@ -46,10 +47,8 @@ public class ConditionEvaluator {
         if (actual instanceof String as && expected instanceof String es) {
             return as.compareTo(es);
         }
-        throw new IllegalArgumentException(
-                "Cannot compare payload value of type " + actual.getClass().getSimpleName()
-                        + " with condition value of type "
-                        + (expected == null ? "null" : expected.getClass().getSimpleName()));
+        throw new IllegalArgumentException("Cannot compare payload value of type " + actual.getClass().getSimpleName()
+                + " with condition value of type " + (expected == null ? "null" : expected.getClass().getSimpleName()));
     }
 
     private boolean looseEquals(Object actual, Object expected) {
@@ -58,4 +57,5 @@ public class ConditionEvaluator {
         }
         return actual.equals(expected);
     }
+
 }

@@ -12,11 +12,13 @@ import org.springframework.data.jpa.domain.Specification;
 
 public final class RequestSpecifications {
 
-    private RequestSpecifications() { }
+    private RequestSpecifications() {
+    }
 
     /**
-     * @param callerId       the authenticated caller's user id
-     * @param callerIsAdmin  admins see all requests; everyone else is restricted to their own
+     * @param callerId the authenticated caller's user id
+     * @param callerIsAdmin admins see all requests; everyone else is restricted to their
+     * own
      */
     public static Specification<RequestEntity> from(RequestFilter filter, Long callerId, boolean callerIsAdmin) {
         boolean hasTypeFilter = filter != null && filter.typeCode() != null && !filter.typeCode().isBlank();
@@ -30,20 +32,17 @@ public final class RequestSpecifications {
             List<Predicate> predicates = new ArrayList<>();
             if (hasTypeFilter) {
                 Join<?, ?> type = root.join("type", JoinType.INNER);
-                predicates.add(cb.equal(
-                        cb.upper(type.get("code")),
-                        filter.typeCode().strip().toUpperCase()));
+                predicates.add(cb.equal(cb.upper(type.get("code")), filter.typeCode().strip().toUpperCase()));
             }
             if (hasStatusFilter) {
-                predicates.add(cb.equal(root.get("status"),
-                        RequestStatus.valueOf(filter.status().strip().toUpperCase())));
+                predicates
+                    .add(cb.equal(root.get("status"), RequestStatus.valueOf(filter.status().strip().toUpperCase())));
             }
             if (hasMineFilter || restrictToCaller) {
                 predicates.add(cb.equal(root.get("requester").get("id"), callerId));
             }
-            return predicates.isEmpty()
-                    ? cb.conjunction()
-                    : cb.and(predicates.toArray(new Predicate[0]));
+            return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new Predicate[0]));
         };
     }
+
 }

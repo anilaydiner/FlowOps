@@ -10,8 +10,8 @@ import java.time.Instant;
 
 /**
  * JPA entity backing the {@link com.flowops.domain.organization.Department} aggregate
- * (table {@code departments}). Pure data carrier — all business behavior
- * lives on the domain aggregate.
+ * (table {@code departments}). Pure data carrier — all business behavior lives on the
+ * domain aggregate.
  */
 @Entity(name = "Department")
 @Table(name = "departments")
@@ -36,15 +36,36 @@ public class DepartmentEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getCode() { return code; }
-    public void setCode(String code) { this.code = code; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getCode() {
+        return code;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setCode(String code) {
+        this.code = code;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
 }

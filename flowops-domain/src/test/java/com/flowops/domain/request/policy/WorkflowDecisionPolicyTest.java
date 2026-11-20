@@ -18,6 +18,7 @@ import static com.flowops.domain.request.policy.WorkflowDecisionPolicy.Outcome.*
 import static org.junit.jupiter.api.Assertions.*;
 
 class WorkflowDecisionPolicyTest {
+
     private Request inReview() {
         Request request = Request.newDraft(null, null, Map.of(), "correlation");
         request.markSubmitted(java.time.Instant.now());
@@ -29,7 +30,8 @@ class WorkflowDecisionPolicyTest {
         WorkflowStep definition = new WorkflowStep(null, 1, "REVIEW", "Review", "APPROVER");
         definition.configure(rule, rule == CompletionRule.ALL_OF ? 1 : threshold, null, null, null, false);
         var instance = new StepInstance(request, definition);
-        if (rule == CompletionRule.ALL_OF) instance.snapshotRoster(threshold);
+        if (rule == CompletionRule.ALL_OF)
+            instance.snapshotRoster(threshold);
         return instance;
     }
 
@@ -51,7 +53,8 @@ class WorkflowDecisionPolicyTest {
         assertEquals(StepState.SATISFIED, current.getState());
         assertEquals(43L, current.getSatisfiedBy());
         assertNotNull(current.getSatisfiedAt());
-        // The application must materialize the next step before deciding if the request is approved.
+        // The application must materialize the next step before deciding if the request
+        // is approved.
         assertEquals(RequestStatus.IN_REVIEW, request.getStatus());
     }
 
@@ -59,8 +62,7 @@ class WorkflowDecisionPolicyTest {
     void approvalCountAboveThresholdStillCompletesStep() {
         Request request = inReview();
         StepInstance current = step(request, CompletionRule.K_OF_N, 2);
-        assertEquals(STEP_COMPLETED,
-                WorkflowDecisionPolicy.apply(request, current, DecisionAction.APPROVE, 3, 42L));
+        assertEquals(STEP_COMPLETED, WorkflowDecisionPolicy.apply(request, current, DecisionAction.APPROVE, 3, 42L));
         assertEquals(StepState.SATISFIED, current.getState());
     }
 
@@ -68,8 +70,7 @@ class WorkflowDecisionPolicyTest {
     void delegationDoesNotAdvanceOrSatisfyEvenWhenApprovalThresholdIsMet() {
         Request request = inReview();
         StepInstance current = step(request, CompletionRule.ANY_OF, 1);
-        assertEquals(DELEGATED,
-                WorkflowDecisionPolicy.apply(request, current, DecisionAction.DELEGATE, 1, 42L));
+        assertEquals(DELEGATED, WorkflowDecisionPolicy.apply(request, current, DecisionAction.DELEGATE, 1, 42L));
         assertEquals(RequestStatus.IN_REVIEW, request.getStatus());
         assertEquals(StepState.PENDING, current.getState());
         assertNull(current.getSatisfiedAt());
@@ -79,8 +80,7 @@ class WorkflowDecisionPolicyTest {
     void rejectionEndsRequestAndStopsTheActiveStep() {
         Request request = inReview();
         StepInstance current = step(request, CompletionRule.ANY_OF, 1);
-        assertEquals(REJECTED,
-                WorkflowDecisionPolicy.apply(request, current, DecisionAction.REJECT, 1, 42L));
+        assertEquals(REJECTED, WorkflowDecisionPolicy.apply(request, current, DecisionAction.REJECT, 1, 42L));
         assertEquals(RequestStatus.REJECTED, request.getStatus());
         assertEquals(StepState.REJECTED, current.getState());
         assertNull(current.getSatisfiedBy());
@@ -89,8 +89,8 @@ class WorkflowDecisionPolicyTest {
     @ParameterizedTest
     @EnumSource(value = RequestStatus.class, names = "IN_REVIEW", mode = EnumSource.Mode.EXCLUDE)
     void cannotDecideOutsideReview(RequestStatus status) {
-        Request request = Request.restore(new Request.Snapshot(1L, null, null, status,
-                Map.of(), 0L, null, null, null, null));
+        Request request = Request
+            .restore(new Request.Snapshot(1L, null, null, status, Map.of(), 0L, null, null, null, null));
         StepInstance current = step(request, CompletionRule.ANY_OF, 1);
         assertThrows(ConflictException.class,
                 () -> WorkflowDecisionPolicy.apply(request, current, DecisionAction.APPROVE, 1, 42L));
@@ -130,4 +130,5 @@ class WorkflowDecisionPolicyTest {
         assertDoesNotThrow(() -> WorkflowDecisionPolicy.validateAction(DecisionAction.APPROVE, null));
         assertDoesNotThrow(() -> WorkflowDecisionPolicy.validateAction(DecisionAction.REJECT, null));
     }
+
 }

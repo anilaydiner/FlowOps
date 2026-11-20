@@ -3,12 +3,13 @@ package com.flowops.domain.notification;
 import java.time.Instant;
 
 /**
- * An internal feed notification visible to the recipient (PLAN §8).
- * Created by the dispatcher when delivering a FEED-channel outbox message.
+ * An internal feed notification visible to the recipient (PLAN §8). Created by the
+ * dispatcher when delivering a FEED-channel outbox message.
  *
- * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
- * lives in {@code persistence.entity.NotificationEntity}; the
- * rehydration constructor and setters exist solely for that mapper.
+ * <p>
+ * Pure domain aggregate — no persistence annotations. The JPA mapping lives in
+ * {@code persistence.entity.NotificationEntity}; the rehydration constructor and setters
+ * exist solely for that mapper.
  */
 public class Notification {
 
@@ -43,14 +44,37 @@ public class Notification {
 
     // ── Getters ──────────────────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public Long getRecipientId() { return recipientId; }
-    public String getType() { return type; }
-    public String getTitle() { return title; }
-    public String getBody() { return body; }
-    public Long getRequestId() { return requestId; }
-    public Instant getReadAt() { return readAt; }
-    public Instant getCreatedAt() { return createdAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public Long getRecipientId() {
+        return recipientId;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getBody() {
+        return body;
+    }
+
+    public Long getRequestId() {
+        return requestId;
+    }
+
+    public Instant getReadAt() {
+        return readAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
 
     // ── Behavior ─────────────────────────────────────────────────────────
 
@@ -66,12 +90,36 @@ public class Notification {
 
     // ── Setters (persistence rehydration only) ─────────────────────────
 
-    public void setId(Long id) { this.id = id; }
-    public void setRecipientId(Long recipientId) { this.recipientId = recipientId; }
-    public void setType(String type) { this.type = type; }
-    public void setTitle(String title) { this.title = title; }
-    public void setBody(String body) { this.body = body; }
-    public void setRequestId(Long requestId) { this.requestId = requestId; }
-    public void setReadAt(Instant readAt) { this.readAt = readAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setRecipientId(Long recipientId) {
+        this.recipientId = recipientId;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public void setBody(String body) {
+        this.body = body;
+    }
+
+    public void setRequestId(Long requestId) {
+        this.requestId = requestId;
+    }
+
+    public void setReadAt(Instant readAt) {
+        this.readAt = readAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
 }

@@ -26,12 +26,12 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
  * Customizes MVC exception handling by extending {@link ResponseEntityExceptionHandler}.
  * Spring Boot backs off from registering its built-in ProblemDetailsExceptionHandler
  * whenever a {@code ResponseEntityExceptionHandler} bean exists, so this class owns
- * validation failures (400) and friends, emitting RFC 7807 bodies that include:
- * - per-field {@code violations} for validation errors,
- * - the {@code correlationId} of the request.
+ * validation failures (400) and friends, emitting RFC 7807 bodies that include: -
+ * per-field {@code violations} for validation errors, - the {@code correlationId} of the
+ * request.
  *
- * Spring 7 builds validation bodies from the exception's own ErrorResponse payload,
- * so the handlers are overridden directly rather than via createProblemDetail.
+ * Spring 7 builds validation bodies from the exception's own ErrorResponse payload, so
+ * the handlers are overridden directly rather than via createProblemDetail.
  */
 @RestControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -41,8 +41,7 @@ public class FlowOpsExceptionHandler extends ResponseEntityExceptionHandler {
 
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
-                                                                   HttpHeaders headers, HttpStatusCode status,
-                                                                   WebRequest request) {
+            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request validation failed");
         problem.setType(VALIDATION);
         Map<String, String> violations = new HashMap<>();
@@ -55,8 +54,7 @@ public class FlowOpsExceptionHandler extends ResponseEntityExceptionHandler {
 
     @Override
     protected ResponseEntity<Object> handleHandlerMethodValidationException(HandlerMethodValidationException ex,
-                                                                            HttpHeaders headers, HttpStatusCode status,
-                                                                            WebRequest request) {
+            HttpHeaders headers, HttpStatusCode status, WebRequest request) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Request validation failed");
         problem.setType(VALIDATION);
         Map<String, String> violations = new HashMap<>();
@@ -71,8 +69,7 @@ public class FlowOpsExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static String parameterName(ParameterValidationResult result) {
         MethodParameter parameter = result.getMethodParameter();
-        return (parameter != null && parameter.getParameterName() != null)
-                ? parameter.getParameterName() : "parameter";
+        return (parameter != null && parameter.getParameterName() != null) ? parameter.getParameterName() : "parameter";
     }
 
     private ResponseEntity<Object> validationResponse(ProblemDetail problem) {
@@ -82,4 +79,5 @@ public class FlowOpsExceptionHandler extends ResponseEntityExceptionHandler {
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(problem);
     }
+
 }

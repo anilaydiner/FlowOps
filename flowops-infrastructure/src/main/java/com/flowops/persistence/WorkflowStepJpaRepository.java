@@ -11,4 +11,5 @@ public interface WorkflowStepJpaRepository extends JpaRepository<WorkflowStepEnt
     List<WorkflowStepEntity> deleteByWorkflowId(Long workflowId);
 
     List<WorkflowStepEntity> findAllByWorkflowIdOrderByPosition(Long workflowId);
+
 }

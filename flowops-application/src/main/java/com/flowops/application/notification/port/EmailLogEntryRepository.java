@@ -18,4 +18,5 @@ public interface EmailLogEntryRepository {
     long countByStatus(String status);
 
     List<EmailLogEntry> findAll();
+
 }

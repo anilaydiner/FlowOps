@@ -17,9 +17,9 @@ public interface OutboxMessageRepository {
     OutboxMessage save(OutboxMessage message);
 
     /**
-     * Save unless a message with the same idempotency key already exists.
-     * Returns the saved message, or empty when the write was skipped
-     * (idempotent duplicate, including concurrent inserts).
+     * Save unless a message with the same idempotency key already exists. Returns the
+     * saved message, or empty when the write was skipped (idempotent duplicate, including
+     * concurrent inserts).
      */
     Optional<OutboxMessage> saveIfAbsent(OutboxMessage message);
 
@@ -41,4 +41,5 @@ public interface OutboxMessageRepository {
     List<OutboxMessage> findAll();
 
     Optional<OutboxMessage> findById(Long id);
+
 }

@@ -27,45 +27,52 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Forgot-password / password-reset use cases (PLAN §9).
  *
- * <p><b>No user enumeration:</b> {@link #requestReset(String)} always behaves
- * the same whether or not the email exists — it never throws on an unknown
- * address and the controller returns a uniform {@code 202 Accepted}.
+ * <p>
+ * <b>No user enumeration:</b> {@link #requestReset(String)} always behaves the same
+ * whether or not the email exists — it never throws on an unknown address and the
+ * controller returns a uniform {@code 202 Accepted}.
  *
- * <p><b>Token security:</b> the raw token is a 256-bit {@link SecureRandom}
- * value delivered to the user's email; only its SHA-256 hash is persisted.
- * Tokens are single-use and expire (default 30 minutes).
+ * <p>
+ * <b>Token security:</b> the raw token is a 256-bit {@link SecureRandom} value delivered
+ * to the user's email; only its SHA-256 hash is persisted. Tokens are single-use and
+ * expire (default 30 minutes).
  *
- * <p>The reset link points at the front end:
- * {@code {flowops.fe-base-url}{flowops.password-reset.path}?token=...} — the
- * FE reads the token from the URL and calls {@link #resetPassword}.
+ * <p>
+ * The reset link points at the front end:
+ * {@code {flowops.fe-base-url}{flowops.password-reset.path}?token=...} — the FE reads the
+ * token from the URL and calls {@link #resetPassword}.
  */
 @Service
 public class PasswordResetService {
 
     private static final Logger log = LoggerFactory.getLogger(PasswordResetService.class);
+
     private static final SecureRandom RANDOM = new SecureRandom();
 
     /** Minimum length enforced for a freshly reset password. */
     private static final int MIN_PASSWORD_LENGTH = 8;
 
     private final UserRepository users;
+
     private final PasswordResetTokenRepository tokens;
+
     private final EmailComposer emailComposer;
+
     private final OutboxService outbox;
+
     private final PasswordHasher passwordHasher;
 
     private final String feBaseUrl;
+
     private final String resetPath;
+
     private final long expireMinutes;
 
-    public PasswordResetService(UserRepository users,
-                                PasswordResetTokenRepository tokens,
-                                EmailComposer emailComposer,
-                                OutboxService outbox,
-                                PasswordHasher passwordHasher,
-                                @Value("${flowops.fe-base-url:http://localhost:5173}") String feBaseUrl,
-                                @Value("${flowops.password-reset.path:/reset-password}") String resetPath,
-                                @Value("${flowops.password-reset.expire-minutes:30}") long expireMinutes) {
+    public PasswordResetService(UserRepository users, PasswordResetTokenRepository tokens, EmailComposer emailComposer,
+            OutboxService outbox, PasswordHasher passwordHasher,
+            @Value("${flowops.fe-base-url:http://localhost:5173}") String feBaseUrl,
+            @Value("${flowops.password-reset.path:/reset-password}") String resetPath,
+            @Value("${flowops.password-reset.expire-minutes:30}") long expireMinutes) {
         this.users = users;
         this.tokens = tokens;
         this.emailComposer = emailComposer;
@@ -79,10 +86,10 @@ public class PasswordResetService {
     /**
      * Issue a reset token for the given email and enqueue the reset email.
      *
-     * <p>Always returns normally — for an unknown email it is a silent no-op so
-     * callers (and attackers) cannot distinguish "account exists" from "no
-     * account". The controller maps every call to {@code 202 Accepted}.
-     *
+     * <p>
+     * Always returns normally — for an unknown email it is a silent no-op so callers (and
+     * attackers) cannot distinguish "account exists" from "no account". The controller
+     * maps every call to {@code 202 Accepted}.
      * @return the issued token, or {@code null} when no (email-bearing) user matched
      */
     @Transactional
@@ -90,8 +97,7 @@ public class PasswordResetService {
         if (email == null || email.isBlank()) {
             return null;
         }
-        User user = users.findByEmail(email.strip())
-                .orElse(null);
+        User user = users.findByEmail(email.strip()).orElse(null);
         if (user == null || user.getEmail() == null || user.getEmail().isBlank()) {
             // No leak: identical observable behaviour to the success path.
             return null;
@@ -108,18 +114,18 @@ public class PasswordResetService {
         String resetUrl = feBaseUrl + resetPath + "?token=" + rawToken;
         EmailComposer.ComposedEmail composed = emailComposer.passwordReset(user, resetUrl, expiresAt);
         String correlationId = MDC.get(CorrelationId.MDC_KEY);
-        outbox.passwordResetEmail(user.getId(), tokenHash,
-                composed.subject(), composed.text(), composed.html(), correlationId);
+        outbox.passwordResetEmail(user.getId(), tokenHash, composed.subject(), composed.text(), composed.html(),
+                correlationId);
 
-        log.info("PASSWORD RESET requested for user {} (token expires {})",
-                user.getId(), expiresAt);
+        log.info("PASSWORD RESET requested for user {} (token expires {})", user.getId(), expiresAt);
         return token;
     }
 
     /**
      * Validate a reset token and set the account's new password.
      *
-     * <p>All failure modes (unknown token, expired, already used) raise the same
+     * <p>
+     * All failure modes (unknown token, expired, already used) raise the same
      * {@link RequestValidationException} so the client cannot distinguish them.
      */
     @Transactional
@@ -128,16 +134,16 @@ public class PasswordResetService {
             throw new RequestValidationException(Map.of("token", "Reset token is required"));
         }
         if (newPassword == null || newPassword.length() < MIN_PASSWORD_LENGTH) {
-            throw new RequestValidationException(Map.of("password",
-                    "Password must be at least " + MIN_PASSWORD_LENGTH + " characters"));
+            throw new RequestValidationException(
+                    Map.of("password", "Password must be at least " + MIN_PASSWORD_LENGTH + " characters"));
         }
 
         PasswordResetToken token = tokens.findByTokenHash(sha256Hex(rawToken))
-                .filter(t -> t.isUsable(Instant.now()))
-                .orElseThrow(() -> new RequestValidationException(Map.of("token", "Invalid or expired reset link")));
+            .filter(t -> t.isUsable(Instant.now()))
+            .orElseThrow(() -> new RequestValidationException(Map.of("token", "Invalid or expired reset link")));
 
         User user = users.findById(token.getUserId())
-                .orElseThrow(() -> new IllegalStateException("User not found: " + token.getUserId()));
+            .orElseThrow(() -> new IllegalStateException("User not found: " + token.getUserId()));
 
         user.changePasswordHash(passwordHasher.hash(newPassword));
         users.save(user);
@@ -167,17 +173,20 @@ public class PasswordResetService {
                 sb.append(Character.forDigit(b & 0xF, 16));
             }
             return sb.toString();
-        } catch (NoSuchAlgorithmException e) {
+        }
+        catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
         }
     }
 
     private static String stripTrailingSlash(String url) {
-        if (url == null || url.isBlank()) return "";
+        if (url == null || url.isBlank())
+            return "";
         String u = url.strip();
         while (u.endsWith("/")) {
             u = u.substring(0, u.length() - 1);
         }
         return u;
     }
+
 }

@@ -10,8 +10,9 @@ import java.util.Optional;
 /**
  * Persistence port for the {@link User} aggregate.
  *
- * <p>Implemented by the JPA adapter in {@code persistence}; the domain
- * layer only sees this contract — no Spring Data types.
+ * <p>
+ * Implemented by the JPA adapter in {@code persistence}; the domain layer only sees this
+ * contract — no Spring Data types.
  */
 public interface UserRepository {
 
@@ -41,6 +42,10 @@ public interface UserRepository {
     /** Active users carrying a given role code (for SLA escalation). */
     List<User> findActiveByRoleCode(String roleCode);
 
-    /** Coarse permission check: does the user hold a permission with the given code (via any role)? */
+    /**
+     * Coarse permission check: does the user hold a permission with the given code (via
+     * any role)?
+     */
     boolean hasPermission(Long userId, String permissionCode);
+
 }

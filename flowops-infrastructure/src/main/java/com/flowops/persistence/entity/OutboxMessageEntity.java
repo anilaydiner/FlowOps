@@ -15,9 +15,10 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * JPA entity backing the {@link com.flowops.application.notification.outbox.OutboxMessage} application delivery record
- * (table {@code outbox}). Pure data carrier — all business behavior
- * lives on the application record; field mapping is identical to the schema.
+ * JPA entity backing the
+ * {@link com.flowops.application.notification.outbox.OutboxMessage} application delivery
+ * record (table {@code outbox}). Pure data carrier — all business behavior lives on the
+ * application record; field mapping is identical to the schema.
  */
 @Entity(name = "OutboxMessage")
 @Table(name = "outbox")
@@ -71,42 +72,108 @@ public class OutboxMessageEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getIdempotencyKey() { return idempotencyKey; }
-    public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getChannel() { return channel; }
-    public void setChannel(String channel) { this.channel = channel; }
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
 
-    public Long getRecipientId() { return recipientId; }
-    public void setRecipientId(Long recipientId) { this.recipientId = recipientId; }
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
+    }
 
-    public String getPayload() { return payload; }
-    public void setPayload(String payload) { this.payload = payload; }
+    public String getChannel() {
+        return channel;
+    }
 
-    public OutboxStatus getStatus() { return status; }
-    public void setStatus(OutboxStatus status) { this.status = status; }
+    public void setChannel(String channel) {
+        this.channel = channel;
+    }
 
-    public int getRetryCount() { return retryCount; }
-    public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
+    public Long getRecipientId() {
+        return recipientId;
+    }
 
-    public int getMaxRetries() { return maxRetries; }
-    public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
+    public void setRecipientId(Long recipientId) {
+        this.recipientId = recipientId;
+    }
 
-    public Instant getNextRetryAt() { return nextRetryAt; }
-    public void setNextRetryAt(Instant nextRetryAt) { this.nextRetryAt = nextRetryAt; }
+    public String getPayload() {
+        return payload;
+    }
 
-    public String getLastError() { return lastError; }
-    public void setLastError(String lastError) { this.lastError = lastError; }
+    public void setPayload(String payload) {
+        this.payload = payload;
+    }
 
-    public String getCorrelationId() { return correlationId; }
-    public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
+    public OutboxStatus getStatus() {
+        return status;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setStatus(OutboxStatus status) {
+        this.status = status;
+    }
 
-    public Instant getSentAt() { return sentAt; }
-    public void setSentAt(Instant sentAt) { this.sentAt = sentAt; }
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
+    }
+
+    public int getMaxRetries() {
+        return maxRetries;
+    }
+
+    public void setMaxRetries(int maxRetries) {
+        this.maxRetries = maxRetries;
+    }
+
+    public Instant getNextRetryAt() {
+        return nextRetryAt;
+    }
+
+    public void setNextRetryAt(Instant nextRetryAt) {
+        this.nextRetryAt = nextRetryAt;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    public void setLastError(String lastError) {
+        this.lastError = lastError;
+    }
+
+    public String getCorrelationId() {
+        return correlationId;
+    }
+
+    public void setCorrelationId(String correlationId) {
+        this.correlationId = correlationId;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getSentAt() {
+        return sentAt;
+    }
+
+    public void setSentAt(Instant sentAt) {
+        this.sentAt = sentAt;
+    }
+
 }

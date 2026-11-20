@@ -15,34 +15,39 @@ import org.junit.jupiter.params.provider.EnumSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RequestTest {
+
     private static final Instant CREATED = Instant.parse("2026-01-01T00:00:00Z");
+
     private static final Instant SUBMITTED = CREATED.plusSeconds(60);
-    private static final Map<RequestStatus, Set<RequestStatus>> EDGES = Map.of(
-            RequestStatus.DRAFT, Set.of(RequestStatus.SUBMITTED, RequestStatus.CANCELLED),
-            RequestStatus.SUBMITTED, Set.of(RequestStatus.IN_REVIEW, RequestStatus.APPROVED,
-                    RequestStatus.CANCELLED, RequestStatus.EXPIRED),
-            RequestStatus.IN_REVIEW, Set.of(RequestStatus.APPROVED, RequestStatus.REJECTED,
-                    RequestStatus.CANCELLED, RequestStatus.EXPIRED),
-            RequestStatus.APPROVED, Set.of(RequestStatus.EXECUTED, RequestStatus.CANCELLED),
-            RequestStatus.EXECUTED, Set.of(RequestStatus.CLOSED),
-            RequestStatus.REJECTED, Set.of(RequestStatus.CLOSED));
+
+    private static final Map<RequestStatus, Set<RequestStatus>> EDGES = Map.of(RequestStatus.DRAFT,
+            Set.of(RequestStatus.SUBMITTED, RequestStatus.CANCELLED), RequestStatus.SUBMITTED,
+            Set.of(RequestStatus.IN_REVIEW, RequestStatus.APPROVED, RequestStatus.CANCELLED, RequestStatus.EXPIRED),
+            RequestStatus.IN_REVIEW,
+            Set.of(RequestStatus.APPROVED, RequestStatus.REJECTED, RequestStatus.CANCELLED, RequestStatus.EXPIRED),
+            RequestStatus.APPROVED, Set.of(RequestStatus.EXECUTED, RequestStatus.CANCELLED), RequestStatus.EXECUTED,
+            Set.of(RequestStatus.CLOSED), RequestStatus.REJECTED, Set.of(RequestStatus.CLOSED));
 
     private Request restored(RequestStatus status, Map<String, Object> payload) {
-        return Request.restore(new Request.Snapshot(12L, null, null, status, payload, 3L,
-                "correlation", CREATED, SUBMITTED, SUBMITTED, status==RequestStatus.APPROVED?SUBMITTED:null,null,false,false,status==RequestStatus.APPROVED?java.util.UUID.randomUUID():null));
+        return Request.restore(new Request.Snapshot(12L, null, null, status, payload, 3L, "correlation", CREATED,
+                SUBMITTED, SUBMITTED, status == RequestStatus.APPROVED ? SUBMITTED : null, null, false, false,
+                status == RequestStatus.APPROVED ? java.util.UUID.randomUUID() : null));
     }
 
     @ParameterizedTest
     @EnumSource(RequestStatus.class)
     void preservesLifecycleTransitions(RequestStatus from) {
         for (RequestStatus to : RequestStatus.values()) {
-            if (to == RequestStatus.DRAFT || to == RequestStatus.APPROVED || to == RequestStatus.EXECUTED) continue;
-            if (from == RequestStatus.CANCELLED && to == RequestStatus.CANCELLED) continue;
+            if (to == RequestStatus.DRAFT || to == RequestStatus.APPROVED || to == RequestStatus.EXECUTED)
+                continue;
+            if (from == RequestStatus.CANCELLED && to == RequestStatus.CANCELLED)
+                continue;
             Request request = restored(from, Map.of());
             if (EDGES.getOrDefault(from, Set.of()).contains(to)) {
                 apply(request, to);
                 assertEquals(to, request.getStatus());
-            } else {
+            }
+            else {
                 assertThrows(InvalidStateTransitionException.class, () -> apply(request, to));
                 assertEquals(from, request.getStatus());
                 assertEquals(SUBMITTED, request.getUpdatedAt());
@@ -67,12 +72,12 @@ class RequestTest {
         var request = restored(RequestStatus.SUBMITTED, Map.of());
         var planId = java.util.UUID.randomUUID();
         var evidence = ApprovalEvidence.allSkipped(1L, "requester");
-        var wrongPlan = new com.flowops.domain.execution.ExecutionPlan(planId, 99L, 1L, "TYPE",
-                CREATED, SUBMITTED, evidence, List.of());
+        var wrongPlan = new com.flowops.domain.execution.ExecutionPlan(planId, 99L, 1L, "TYPE", CREATED, SUBMITTED,
+                evidence, List.of());
         assertThrows(ConflictException.class, () -> request.approve(wrongPlan.approvalPlan(), List.of(), List.of()));
 
-        var plan = new com.flowops.domain.execution.ExecutionPlan(planId, request.getId(), 1L, "TYPE",
-                CREATED, SUBMITTED, evidence, List.of());
+        var plan = new com.flowops.domain.execution.ExecutionPlan(planId, request.getId(), 1L, "TYPE", CREATED,
+                SUBMITTED, evidence, List.of());
         request.approve(plan.approvalPlan(), List.of(), List.of());
         assertEquals(planId, request.getExecutionPlanId());
         assertThrows(ConflictException.class, () -> request.completeExecution(
@@ -88,7 +93,8 @@ class RequestTest {
         if (status == RequestStatus.DRAFT) {
             request.replacePayload(Map.of("new", 2));
             assertEquals(Map.of("new", 2), request.getPayload());
-        } else {
+        }
+        else {
             assertThrows(ConflictException.class, () -> request.replacePayload(Map.of("new", 2)));
             assertEquals(Map.of("old", 1), request.getPayload());
         }
@@ -159,4 +165,5 @@ class RequestTest {
         assertEquals(12L, request.getId());
         assertEquals(4L, request.getVersion());
     }
+
 }

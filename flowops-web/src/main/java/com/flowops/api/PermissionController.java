@@ -24,8 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/permissions")
 public class PermissionController {
 
-    private static final List<String> ALLOWED_SORT_FIELDS = List.of(
-            "id", "code", "name", "createdAt");
+    private static final List<String> ALLOWED_SORT_FIELDS = List.of("id", "code", "name", "createdAt");
 
     private final PermissionService permissionService;
 
@@ -34,40 +33,33 @@ public class PermissionController {
     }
 
     @GetMapping
-    @Operation(summary = "List permissions",
-            description = """
-                    Supports dynamic filtering, multi-sort, and pagination.
+    @Operation(summary = "List permissions", description = """
+            Supports dynamic filtering, multi-sort, and pagination.
 
-                    **Filters** — all optional, combined with AND:
-                    - `code` — partial match (case-insensitive)
-                    - `name` — partial match
+            **Filters** — all optional, combined with AND:
+            - `code` — partial match (case-insensitive)
+            - `name` — partial match
 
-                    **Sorting** — repeatable `sort` param, format `field,asc|desc`
-                    **Pagination**: `page` (default 1), `size` (default 20, max 100)
-                    """)
-    @Parameters({
-            @Parameter(name = "code", description = "Partial permission code match (case-insensitive)"),
+            **Sorting** — repeatable `sort` param, format `field,asc|desc`
+            **Pagination**: `page` (default 1), `size` (default 20, max 100)
+            """)
+    @Parameters({ @Parameter(name = "code", description = "Partial permission code match (case-insensitive)"),
             @Parameter(name = "name", description = "Partial permission name match"),
-            @Parameter(name = "sort", description = "Sort field + direction: field,asc|desc. Repeatable for multi-sort."),
+            @Parameter(name = "sort",
+                    description = "Sort field + direction: field,asc|desc. Repeatable for multi-sort."),
             @Parameter(name = "page", description = "One-based page number (default 1)"),
-            @Parameter(name = "size", description = "Page size (default 20, max 100)")
-    })
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Paged permission list"),
+            @Parameter(name = "size", description = "Page size (default 20, max 100)") })
+    @ApiResponses({ @ApiResponse(responseCode = "200", description = "Paged permission list"),
             @ApiResponse(responseCode = "401", description = "Not authenticated"),
-            @ApiResponse(responseCode = "403", description = "Missing permission")
-    })
-    public PageResponse<PermissionResponse> list(
-            @RequestParam(required = false) String code,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) List<String> sort,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @AuthenticationPrincipal UserPrincipal caller
-    ) {
+            @ApiResponse(responseCode = "403", description = "Missing permission") })
+    public PageResponse<PermissionResponse> list(@RequestParam(required = false) String code,
+            @RequestParam(required = false) String name, @RequestParam(required = false) List<String> sort,
+            @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal caller) {
         PermissionFilter filter = new PermissionFilter(code, name);
         PageQuery pageQuery = Pagination.toPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
-        return PageResponse.from(permissionService.list(filter, pageQuery, caller.toIdentity()).map(PermissionResponse::from));
+        return PageResponse
+            .from(permissionService.list(filter, pageQuery, caller.toIdentity()).map(PermissionResponse::from));
     }
 
     @GetMapping("/{id}")
@@ -75,4 +67,5 @@ public class PermissionController {
     public PermissionResponse get(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
         return PermissionResponse.from(permissionService.get(id, caller.toIdentity()));
     }
+
 }

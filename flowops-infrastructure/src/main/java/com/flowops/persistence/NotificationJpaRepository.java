@@ -19,4 +19,5 @@ public interface NotificationJpaRepository extends JpaRepository<NotificationEnt
     List<NotificationEntity> findUnread(@Param("recipientId") Long recipientId);
 
     void deleteAllByRecipientId(Long recipientId);
+
 }

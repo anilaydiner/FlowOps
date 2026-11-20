@@ -36,12 +36,18 @@ public class SpringWorkflowStepRepository implements WorkflowStepRepository {
 
     @Override
     public List<WorkflowStep> findByWorkflowIdOrderById(Long workflowId) {
-        return jpaRepository.findByWorkflowIdOrderById(workflowId).stream().map(WorkflowStepMappers::fromEntity).toList();
+        return jpaRepository.findByWorkflowIdOrderById(workflowId)
+            .stream()
+            .map(WorkflowStepMappers::fromEntity)
+            .toList();
     }
 
     @Override
     public List<WorkflowStep> findInExecutionOrder(Long workflowId) {
-        return jpaRepository.findAllByWorkflowIdOrderByPosition(workflowId).stream()
-                .map(WorkflowStepMappers::fromEntity).toList();
+        return jpaRepository.findAllByWorkflowIdOrderByPosition(workflowId)
+            .stream()
+            .map(WorkflowStepMappers::fromEntity)
+            .toList();
     }
+
 }

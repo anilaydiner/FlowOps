@@ -16,9 +16,9 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * JPA entity backing the {@link com.flowops.domain.identity.User} aggregate
- * (table {@code users}). Pure data carrier — all business behavior lives
- * on the domain aggregate.
+ * JPA entity backing the {@link com.flowops.domain.identity.User} aggregate (table
+ * {@code users}). Pure data carrier — all business behavior lives on the domain
+ * aggregate.
  */
 @Entity(name = "User")
 @Table(name = "users")
@@ -43,11 +43,8 @@ public class UserEntity {
 
     /** Roles assigned to this user (e.g. ADMIN, MEMBER). */
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
+    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<RoleEntity> roles = new LinkedHashSet<>();
 
     @Column(name = "password_hash", nullable = false, length = 100)
@@ -68,33 +65,84 @@ public class UserEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getDisplayName() { return displayName; }
-    public void setDisplayName(String displayName) { this.displayName = displayName; }
+    public String getUsername() {
+        return username;
+    }
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
+    public void setUsername(String username) {
+        this.username = username;
+    }
 
-    public DepartmentEntity getDepartment() { return department; }
-    public void setDepartment(DepartmentEntity department) { this.department = department; }
+    public String getDisplayName() {
+        return displayName;
+    }
 
-    public Set<RoleEntity> getRoles() { return roles; }
-    public void setRoles(Set<RoleEntity> roles) { this.roles = roles; }
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
 
-    public String getPasswordHash() { return passwordHash; }
-    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public String getEmail() {
+        return email;
+    }
 
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public DepartmentEntity getDepartment() {
+        return department;
+    }
 
-    public Instant getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public void setDepartment(DepartmentEntity department) {
+        this.department = department;
+    }
+
+    public Set<RoleEntity> getRoles() {
+        return roles;
+    }
+
+    public void setRoles(Set<RoleEntity> roles) {
+        this.roles = roles;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
 }

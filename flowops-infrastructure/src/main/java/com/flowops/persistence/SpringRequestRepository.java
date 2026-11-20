@@ -24,19 +24,24 @@ import org.springframework.transaction.annotation.Transactional;
 public class SpringRequestRepository implements RequestRepository, ApprovalStore, RequestWriteLock {
 
     private final RequestJpaRepository jpaRepository;
+
     private final JdbcTemplate jdbc;
+
     private final EntityManager entities;
+
     private final ExecutionPlanRepository plans;
+
     private final int lockTimeoutMillis;
 
-    public SpringRequestRepository(RequestJpaRepository jpaRepository, JdbcTemplate jdbc,
-                                   EntityManager entities, ExecutionPlanRepository plans,
-                                   @Value("${flowops.request.lock-timeout-millis:5000}") int lockTimeoutMillis) {
+    public SpringRequestRepository(RequestJpaRepository jpaRepository, JdbcTemplate jdbc, EntityManager entities,
+            ExecutionPlanRepository plans,
+            @Value("${flowops.request.lock-timeout-millis:5000}") int lockTimeoutMillis) {
         this.jpaRepository = jpaRepository;
         this.jdbc = jdbc;
         this.entities = entities;
         this.plans = plans;
-        if (lockTimeoutMillis < 1) throw new IllegalArgumentException("Request lock timeout must be positive");
+        if (lockTimeoutMillis < 1)
+            throw new IllegalArgumentException("Request lock timeout must be positive");
         this.lockTimeoutMillis = lockTimeoutMillis;
     }
 
@@ -53,7 +58,8 @@ public class SpringRequestRepository implements RequestRepository, ApprovalStore
         if (!plan.id().equals(request.getExecutionPlanId()) || !plan.requestId().equals(request.getId())) {
             throw new IllegalArgumentException("Approval and execution plan must belong to the same request");
         }
-        // The manifest insert requires an approved parent, then the parent can reference the manifest.
+        // The manifest insert requires an approved parent, then the parent can reference
+        // the manifest.
         RequestEntity pendingLink = RequestMappers.toEntity(request);
         pendingLink.setExecutionPlanId(null);
         pendingLink.setExecutionPlannedAt(null);
@@ -75,17 +81,21 @@ public class SpringRequestRepository implements RequestRepository, ApprovalStore
         List<Long> ids;
         try {
             ids = jdbc.queryForList("SELECT id FROM requests WHERE id=? FOR UPDATE", Long.class, id);
-        } catch (UncategorizedSQLException failure) {
+        }
+        catch (UncategorizedSQLException failure) {
             // PostgreSQL lock_not_available (including lock_timeout) is not classified by
-            // Spring's default SQL-state translator. Normalize it for the HTTP 409 handler.
+            // Spring's default SQL-state translator. Normalize it for the HTTP 409
+            // handler.
             if ("55P03".equals(failure.getSQLException().getSQLState())) {
                 throw new CannotAcquireLockException("Request write lock unavailable: " + id, failure);
             }
             throw failure;
         }
-        if (ids.isEmpty()) return Optional.empty();
+        if (ids.isEmpty())
+            return Optional.empty();
         RequestEntity entity = entities.find(RequestEntity.class, id);
-        // A managed entity loaded before waiting may otherwise retain the previous version/status.
+        // A managed entity loaded before waiting may otherwise retain the previous
+        // version/status.
         entities.refresh(entity);
         return Optional.of(RequestMappers.fromEntity(entity));
     }
@@ -94,7 +104,8 @@ public class SpringRequestRepository implements RequestRepository, ApprovalStore
     @Transactional(propagation = Propagation.MANDATORY)
     public Optional<Request> tryFindByIdForUpdate(Long id) {
         var ids = jdbc.queryForList("SELECT id FROM requests WHERE id=? FOR UPDATE SKIP LOCKED", Long.class, id);
-        if (ids.isEmpty()) return Optional.empty();
+        if (ids.isEmpty())
+            return Optional.empty();
         var entity = entities.find(RequestEntity.class, id);
         entities.refresh(entity);
         return Optional.of(RequestMappers.fromEntity(entity));
@@ -103,4 +114,5 @@ public class SpringRequestRepository implements RequestRepository, ApprovalStore
     private static void backfill(Request d, RequestEntity e) {
         d.recordPersistence(e.getId(), e.getVersion());
     }
+
 }

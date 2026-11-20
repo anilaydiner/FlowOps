@@ -18,4 +18,5 @@ public interface ClarificationRepository {
     long countByRequestId(Long requestId);
 
     Optional<Clarification> findById(Long id);
+
 }

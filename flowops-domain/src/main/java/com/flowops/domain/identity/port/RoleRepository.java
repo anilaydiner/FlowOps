@@ -10,8 +10,9 @@ import java.util.Optional;
 /**
  * Persistence port for the {@link Role} aggregate.
  *
- * <p>Implemented by the JPA adapter in {@code persistence}; the domain
- * layer only sees this contract — no Spring Data types.
+ * <p>
+ * Implemented by the JPA adapter in {@code persistence}; the domain layer only sees this
+ * contract — no Spring Data types.
  */
 public interface RoleRepository {
 
@@ -29,8 +30,9 @@ public interface RoleRepository {
     boolean existsByCode(String code);
 
     /**
-     * Returns true when any of the given role codes carries the named
-     * permission (used for coarse permission checks like audit:read:any).
+     * Returns true when any of the given role codes carries the named permission (used
+     * for coarse permission checks like audit:read:any).
      */
     boolean anyRoleHasPermission(Collection<String> roleCodes, String permissionCode);
+
 }

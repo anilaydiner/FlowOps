@@ -10,8 +10,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
 /**
- * Translates framework-free paging types ({@code domain.paging}) to and from
- * Spring Data types. Single source of truth for the JPA adapters.
+ * Translates framework-free paging types ({@code domain.paging}) to and from Spring Data
+ * types. Single source of truth for the JPA adapters.
  */
 final class Paging {
 
@@ -30,4 +30,5 @@ final class Paging {
     static <T> PageResult<T> toPageResult(Page<T> page) {
         return new PageResult<>(page.getContent(), page.getNumber(), page.getSize(), page.getTotalElements());
     }
+
 }

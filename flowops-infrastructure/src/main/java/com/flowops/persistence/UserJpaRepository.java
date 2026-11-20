@@ -30,11 +30,13 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, Long>, JpaS
     @Query("select u from User u join u.roles r where r.code = :role and u.active = true")
     List<UserEntity> findActiveByRoleCode(@Param("role") String role);
 
-    /** Coarse permission check: does the user hold a permission with the given code (via any role)? */
-    @Query(value = "SELECT COUNT(*) > 0 FROM role_permissions rp " +
-            "JOIN roles r ON rp.role_id = r.id " +
-            "JOIN permissions p ON rp.permission_id = p.id " +
-            "JOIN user_roles ur ON ur.role_id = r.id " +
-            "WHERE ur.user_id = :userId AND p.code = :code", nativeQuery = true)
+    /**
+     * Coarse permission check: does the user hold a permission with the given code (via
+     * any role)?
+     */
+    @Query(value = "SELECT COUNT(*) > 0 FROM role_permissions rp " + "JOIN roles r ON rp.role_id = r.id "
+            + "JOIN permissions p ON rp.permission_id = p.id " + "JOIN user_roles ur ON ur.role_id = r.id "
+            + "WHERE ur.user_id = :userId AND p.code = :code", nativeQuery = true)
     boolean hasPermission(@Param("userId") Long userId, @Param("code") String code);
+
 }

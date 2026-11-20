@@ -7,8 +7,9 @@ import java.util.Optional;
 /**
  * Persistence port for {@link PasswordResetToken}.
  *
- * <p>Implemented by the JPA adapter in {@code persistence}; the domain
- * layer only sees this contract — no Spring Data types.
+ * <p>
+ * Implemented by the JPA adapter in {@code persistence}; the domain layer only sees this
+ * contract — no Spring Data types.
  */
 public interface PasswordResetTokenRepository {
 
@@ -21,4 +22,5 @@ public interface PasswordResetTokenRepository {
 
     /** Remove all tokens for a user (e.g. after a password change). */
     void deleteByUserId(Long userId);
+
 }

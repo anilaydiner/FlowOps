@@ -6,9 +6,9 @@ import java.util.function.Supplier;
 /**
  * Driven-side port for execution-job observability (PLAN §8).
  *
- * <p>Wraps each job execution in a trace span and records the
- * completed / failed / dead-letter metrics. Keeps the use case free of
- * OpenTelemetry and Micrometer types.
+ * <p>
+ * Wraps each job execution in a trace span and records the completed / failed /
+ * dead-letter metrics. Keeps the use case free of OpenTelemetry and Micrometer types.
  */
 public interface ExecutionJobObservability {
 
@@ -20,4 +20,5 @@ public interface ExecutionJobObservability {
 
     /** Record the job-failure metric (plus dead-letter when retries are exhausted). */
     void recordFailed(ExecutionJob job);
+
 }

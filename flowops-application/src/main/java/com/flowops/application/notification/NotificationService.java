@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class NotificationService {
 
     private final NotificationRepository notifications;
+
     private final AuthorizationEvaluator authz;
 
     public NotificationService(NotificationRepository notifications, AuthorizationEvaluator authz) {
@@ -46,7 +47,7 @@ public class NotificationService {
     public Notification markRead(Long id, Long recipientId, CallerIdentity caller) {
         authz.require(caller, PermissionCodes.NOTIFICATIONS_UPDATE);
         Notification notification = notifications.findById(id)
-                .orElseThrow(() -> new NotFoundException("Notification not found: " + id));
+            .orElseThrow(() -> new NotFoundException("Notification not found: " + id));
         if (!notification.getRecipientId().equals(recipientId)) {
             throw new ForbiddenException("Not your notification");
         }
@@ -62,4 +63,5 @@ public class NotificationService {
         notifications.saveAll(unread);
         return unread.size();
     }
+
 }

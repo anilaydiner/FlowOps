@@ -28,6 +28,8 @@ Sign in through `POST /api/v1/auth/token` using the local seed account `admin` /
 
 The full build runs domain and application tests, ArchUnit rules, and PostgreSQL integration tests. It packages the executable JAR in `flowops-web/target/`.
 
+See the [Java code style guide](docs/code-style.md) for formatting commands, IntelliJ IDEA setup, and CI checks.
+
 ## Architecture
 
 FlowOps runs as a modular monolith with one Spring Boot process and one PostgreSQL database. Maven module dependencies point toward the business code.

@@ -38,37 +38,68 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Iteration 7 tests: Execution Jobs + DELEGATE (PLAN §8).
  *
- * Verifies:
- * - Approval triggers execution jobs for types with actions
- * - JobWorker processes jobs and transitions APPROVED → EXECUTED
- * - Job failure → retry → DEAD_LETTER
- * - Idempotency: duplicate enqueue is no-op
- * - DELEGATE records decision with delegatedTo, does NOT advance workflow
- * - Types without execution actions (POLICY_EXCEPTION) stay APPROVED
+ * Verifies: - Approval triggers execution jobs for types with actions - JobWorker
+ * processes jobs and transitions APPROVED → EXECUTED - Job failure → retry → DEAD_LETTER
+ * - Idempotency: duplicate enqueue is no-op - DELEGATE records decision with delegatedTo,
+ * does NOT advance workflow - Types without execution actions (POLICY_EXCEPTION) stay
+ * APPROVED
  */
 @AutoConfigureMockMvc
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ExecutionJobsTest extends AbstractIntegrationTest {
 
-    @Autowired private ExecutionJobJpaRepository jobRows;
-    @Autowired MockMvc mvc;
-    @Autowired ExecutionJobRepository jobRepo;
-    @Autowired RequestRepository requestRepo;
-    @Autowired DecisionRepository decisionRepo;
-    @Autowired StepInstanceRepository stepInstanceRepo;
-    @Autowired JobWorker jobWorker;
-    @Autowired OutboxDispatcher dispatcher;
-    @Autowired SlaScanner slaScanner;
-    @Autowired SimulatedActionHandler actionHandler;
-    @Autowired UserRepository users;
-    @Autowired RoleRepository roles;
-    @Autowired DepartmentRepository departments;
-    @Autowired PasswordEncoder encoder;
-    @Autowired RequestTypeRepository typeRepo;
-    @Autowired org.springframework.transaction.support.TransactionTemplate txTemplate;
+    @Autowired
+    private ExecutionJobJpaRepository jobRows;
+
+    @Autowired
+    MockMvc mvc;
+
+    @Autowired
+    ExecutionJobRepository jobRepo;
+
+    @Autowired
+    RequestRepository requestRepo;
+
+    @Autowired
+    DecisionRepository decisionRepo;
+
+    @Autowired
+    StepInstanceRepository stepInstanceRepo;
+
+    @Autowired
+    JobWorker jobWorker;
+
+    @Autowired
+    OutboxDispatcher dispatcher;
+
+    @Autowired
+    SlaScanner slaScanner;
+
+    @Autowired
+    SimulatedActionHandler actionHandler;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    RoleRepository roles;
+
+    @Autowired
+    DepartmentRepository departments;
+
+    @Autowired
+    PasswordEncoder encoder;
+
+    @Autowired
+    RequestTypeRepository typeRepo;
+
+    @Autowired
+    org.springframework.transaction.support.TransactionTemplate txTemplate;
 
     private String bobToken;
+
     private String adminToken;
+
     private String delegateeToken;
 
     @BeforeEach
@@ -80,7 +111,8 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
                     departments.findByCode("FINANCE").orElse(null), memberRoles, encoder.encode("it7_bob123"));
             users.save(bob);
         }
-        // delegatee (dept-scoped approver in IT) — for DELEGATE tests on IT_ACCESS requests.
+        // delegatee (dept-scoped approver in IT) — for DELEGATE tests on IT_ACCESS
+        // requests.
         // Phase 7: DELEGATE now validates the delegatee against the same approval gate,
         // so the delegatee must be eligible for the IT department.
         if (users.findByUsername("it7_delegatee").isEmpty()) {
@@ -104,11 +136,13 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private String userToken(String username, String password) throws Exception {
-        var resp = mvc.perform(post("/api/v1/auth/token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        var resp = mvc
+            .perform(post("/api/v1/auth/token").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         int idx = resp.indexOf("\"token\":\"");
         int start = idx + "\"token\":\"".length();
         int end = resp.indexOf("\"", start);
@@ -116,27 +150,28 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
     }
 
     private long createAndSubmit(String token, String typeCode, String payload) throws Exception {
-        var resp = mvc.perform(post("/api/v1/requests")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
-                .andExpect(status().is2xxSuccessful())
-                .andReturn().getResponse().getContentAsString();
+        var resp = mvc
+            .perform(post("/api/v1/requests").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         int idIdx = resp.indexOf("\"id\":");
         long id = Long.parseLong(resp.substring(idIdx + 5).split("[,}\\s]")[0].trim());
 
-        mvc.perform(post("/api/v1/requests/" + id + "/submit")
-                        .header("Authorization", "Bearer " + token))
-                .andExpect(status().is2xxSuccessful());
+        mvc.perform(post("/api/v1/requests/" + id + "/submit").header("Authorization", "Bearer " + token))
+            .andExpect(status().is2xxSuccessful());
         return id;
     }
 
     private void approve(Long requestId, String approverToken) throws Exception {
-        mvc.perform(post("/api/v1/requests/" + requestId + "/decisions")
-                        .header("Authorization", "Bearer " + approverToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"action\":\"APPROVE\",\"justification\":\"ok\"}"))
-                .andExpect(status().is2xxSuccessful());
+        mvc.perform(
+                post("/api/v1/requests/" + requestId + "/decisions").header("Authorization", "Bearer " + approverToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"action\":\"APPROVE\",\"justification\":\"ok\"}"))
+            .andExpect(status().is2xxSuccessful());
     }
 
     // ── Execution job lifecycle ──────────────────────────────────────────
@@ -148,8 +183,7 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
         @Test
         @Order(1)
         void approvalTriggersJobsAndExecutedTransition() throws Exception {
-            long reqId = createAndSubmit(bobToken, "IT_ACCESS",
-                    "{\"resource\":\"Jira\",\"duration\":\"30d\"}");
+            long reqId = createAndSubmit(bobToken, "IT_ACCESS", "{\"resource\":\"Jira\",\"duration\":\"30d\"}");
 
             // Approve → APPROVED + execution jobs enqueued
             approve(reqId, adminToken);
@@ -196,8 +230,7 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
         @Test
         @Order(3)
         void jobFailureRetriesThenDeadLetters() throws Exception {
-            long reqId = createAndSubmit(bobToken, "EQUIPMENT",
-                    "{\"item\":\"Laptop\",\"quantity\":1}");
+            long reqId = createAndSubmit(bobToken, "EQUIPMENT", "{\"item\":\"Laptop\",\"quantity\":1}");
 
             approve(reqId, adminToken);
 
@@ -211,8 +244,10 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
                 jobWorker.process();
                 // Reset next_retry_at so the next claim picks it up immediately
                 ExecutionJob j = jobRepo.findByRequestIdOrderByCreatedAtAsc(reqId).get(0);
-                if (j.getStatus() == JobStatus.DEAD_LETTER) break;
-                txTemplate.executeWithoutResult(s -> jobRows.resetNextRetryAt(j.getId(), java.time.Instant.now().minusSeconds(1)));
+                if (j.getStatus() == JobStatus.DEAD_LETTER)
+                    break;
+                txTemplate.executeWithoutResult(
+                        s -> jobRows.resetNextRetryAt(j.getId(), java.time.Instant.now().minusSeconds(1)));
             }
 
             ExecutionJob job = jobRepo.findByRequestIdOrderByCreatedAtAsc(reqId).get(0);
@@ -228,8 +263,7 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
         @Test
         @Order(4)
         void idempotentEnqueue() throws Exception {
-            long reqId = createAndSubmit(bobToken, "EXPENSE",
-                    "{\"amount\":100.00,\"description\":\"test\"}");
+            long reqId = createAndSubmit(bobToken, "EXPENSE", "{\"amount\":100.00,\"description\":\"test\"}");
 
             approve(reqId, adminToken);
 
@@ -242,6 +276,7 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
             String key = "req:" + reqId + ":ACCOUNTING_EXPORT";
             assertThat(jobRepo.findByIdempotencyKey(key)).isPresent();
         }
+
     }
 
     // ── DELEGATE ─────────────────────────────────────────────────────────
@@ -253,16 +288,15 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
         @Test
         @Order(1)
         void delegateRecordsDecisionWithoutAdvancing() throws Exception {
-            long reqId = createAndSubmit(bobToken, "IT_ACCESS",
-                    "{\"resource\":\"Slack\",\"duration\":\"14d\"}");
+            long reqId = createAndSubmit(bobToken, "IT_ACCESS", "{\"resource\":\"Slack\",\"duration\":\"14d\"}");
 
             // DELEGATE to delegatee
-            mvc.perform(post("/api/v1/requests/" + reqId + "/decisions")
-                            .header("Authorization", "Bearer " + adminToken)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\",\"delegatedTo\":" + users.findByUsername("it7_delegatee").orElseThrow().getId() + "}"))
-                    .andExpect(status().is2xxSuccessful())
-                    .andExpect(jsonPath("$.status").value("IN_REVIEW"));
+            mvc.perform(post("/api/v1/requests/" + reqId + "/decisions").header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\",\"delegatedTo\":"
+                        + users.findByUsername("it7_delegatee").orElseThrow().getId() + "}"))
+                .andExpect(status().is2xxSuccessful())
+                .andExpect(jsonPath("$.status").value("IN_REVIEW"));
 
             // Request should still be IN_REVIEW (workflow did NOT advance)
             Request req = requestRepo.findById(reqId).orElseThrow();
@@ -272,10 +306,11 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
             List<StepInstance> steps = getSteps(reqId);
             var decisions = decisionRepo.findByStepInstanceIdOrderById(steps.get(0).getId());
             Decision delegateDecision = decisions.stream()
-                    .filter(d -> d.getAction() == DecisionAction.DELEGATE)
-                    .findFirst().orElseThrow();
+                .filter(d -> d.getAction() == DecisionAction.DELEGATE)
+                .findFirst()
+                .orElseThrow();
             assertThat(delegateDecision.getDelegatedTo())
-                    .isEqualTo(users.findByUsername("it7_delegatee").orElseThrow().getId());
+                .isEqualTo(users.findByUsername("it7_delegatee").orElseThrow().getId());
 
             // No execution jobs (request not approved)
             assertThat(jobRepo.findByRequestIdOrderByCreatedAtAsc(reqId)).isEmpty();
@@ -284,43 +319,41 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
         @Test
         @Order(2)
         void delegateWithoutDelegatedToFails() throws Exception {
-            long reqId = createAndSubmit(bobToken, "IT_ACCESS",
-                    "{\"resource\":\"Figma\",\"duration\":\"30d\"}");
+            long reqId = createAndSubmit(bobToken, "IT_ACCESS", "{\"resource\":\"Figma\",\"duration\":\"30d\"}");
 
-            mvc.perform(post("/api/v1/requests/" + reqId + "/decisions")
-                            .header("Authorization", "Bearer " + adminToken)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\"}"))
-                    .andExpect(status().isConflict())
-                    .andExpect(jsonPath("$.detail").exists());
+            mvc.perform(post("/api/v1/requests/" + reqId + "/decisions").header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").exists());
         }
 
         @Test
         @Order(3)
         void delegateeCanApproveAfterDelegation() throws Exception {
-            long reqId = createAndSubmit(bobToken, "IT_ACCESS",
-                    "{\"resource\":\"Notion\",\"duration\":\"7d\"}");
+            long reqId = createAndSubmit(bobToken, "IT_ACCESS", "{\"resource\":\"Notion\",\"duration\":\"7d\"}");
 
             long delegateeId = users.findByUsername("it7_delegatee").orElseThrow().getId();
 
             // Admin delegates to delegatee
-            mvc.perform(post("/api/v1/requests/" + reqId + "/decisions")
-                            .header("Authorization", "Bearer " + adminToken)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"action\":\"DELEGATE\",\"justification\":\"OOC\",\"delegatedTo\":" + delegateeId + "}"))
-                    .andExpect(status().is2xxSuccessful());
+            mvc.perform(post("/api/v1/requests/" + reqId + "/decisions").header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"action\":\"DELEGATE\",\"justification\":\"OOC\",\"delegatedTo\":" + delegateeId + "}"))
+                .andExpect(status().is2xxSuccessful());
 
-            // The authorized delegatee approves; the delegator has transferred responsibility.
-            mvc.perform(post("/api/v1/requests/" + reqId + "/decisions")
-                            .header("Authorization", "Bearer " + delegateeToken)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"action\":\"APPROVE\",\"justification\":\"approved on behalf\"}"))
-                    .andExpect(status().is2xxSuccessful())
-                    .andExpect(jsonPath("$.status").value("APPROVED"));
+            // The authorized delegatee approves; the delegator has transferred
+            // responsibility.
+            mvc.perform(
+                    post("/api/v1/requests/" + reqId + "/decisions").header("Authorization", "Bearer " + delegateeToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"action\":\"APPROVE\",\"justification\":\"approved on behalf\"}"))
+                .andExpect(status().is2xxSuccessful())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
 
             // Execution jobs should be enqueued
             assertThat(jobRepo.findByRequestIdOrderByCreatedAtAsc(reqId)).isNotEmpty();
         }
+
     }
 
     // ── API response includes jobs + clarifications ──────────────────────
@@ -332,20 +365,21 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
         @Test
         @Order(1)
         void requestDetailIncludesExecutionJobs() throws Exception {
-            long reqId = createAndSubmit(bobToken, "IT_ACCESS",
-                    "{\"resource\":\"Linear\",\"duration\":\"30d\"}");
+            long reqId = createAndSubmit(bobToken, "IT_ACCESS", "{\"resource\":\"Linear\",\"duration\":\"30d\"}");
             approve(reqId, adminToken);
             jobWorker.process();
 
-            var resp = mvc.perform(get("/api/v1/requests/" + reqId)
-                            .header("Authorization", "Bearer " + bobToken))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.executionJobs").isArray())
-                    .andExpect(jsonPath("$.executionJobs[0].action").value("PROVISIONING"))
-                    .andExpect(jsonPath("$.executionJobs[0].status").value("COMPLETED"))
-                    .andExpect(jsonPath("$.clarifications").isArray())
-                    .andReturn().getResponse().getContentAsString();
+            var resp = mvc.perform(get("/api/v1/requests/" + reqId).header("Authorization", "Bearer " + bobToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.executionJobs").isArray())
+                .andExpect(jsonPath("$.executionJobs[0].action").value("PROVISIONING"))
+                .andExpect(jsonPath("$.executionJobs[0].status").value("COMPLETED"))
+                .andExpect(jsonPath("$.clarifications").isArray())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
         }
+
     }
 
     // ── helper ───────────────────────────────────────────────────────────
@@ -353,4 +387,5 @@ class ExecutionJobsTest extends AbstractIntegrationTest {
     private List<StepInstance> getSteps(long reqId) {
         return stepInstanceRepo.findByRequestIdOrderById(reqId);
     }
+
 }

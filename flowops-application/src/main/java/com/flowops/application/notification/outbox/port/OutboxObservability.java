@@ -6,10 +6,10 @@ import java.util.function.Supplier;
 /**
  * Driven-side port for outbox-dispatch observability (PLAN §8).
  *
- * <p>Wraps the dispatch loop in the {@code outbox.dispatch} timer, each
- * delivery in an {@code outbox.deliver} span, and records the
- * sent / failed / dead-letter counters. Keeps the {@code DeliverOutbox}
- * use case free of OpenTelemetry and Micrometer types.
+ * <p>
+ * Wraps the dispatch loop in the {@code outbox.dispatch} timer, each delivery in an
+ * {@code outbox.deliver} span, and records the sent / failed / dead-letter counters.
+ * Keeps the {@code DeliverOutbox} use case free of OpenTelemetry and Micrometer types.
  */
 public interface OutboxObservability {
 
@@ -24,4 +24,5 @@ public interface OutboxObservability {
 
     /** Record a failed delivery (plus dead-letter when retries are exhausted). */
     void recordFailed(OutboxMessage msg);
+
 }

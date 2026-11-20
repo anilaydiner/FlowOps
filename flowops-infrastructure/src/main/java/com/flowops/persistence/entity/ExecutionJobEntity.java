@@ -17,46 +17,101 @@ import org.hibernate.type.SqlTypes;
 
 /**
  * JPA entity backing the {@link com.flowops.domain.execution.ExecutionJob} aggregate
- * (table {@code execution_jobs}). Pure data carrier — all business behavior
- * lives on the domain aggregate; field mapping is identical to the schema.
+ * (table {@code execution_jobs}). Pure data carrier — all business behavior lives on the
+ * domain aggregate; field mapping is identical to the schema.
  */
 @Entity(name = "ExecutionJob")
 @Table(name = "execution_jobs")
 public class ExecutionJobEntity {
 
-    @Column(name="started_at")
+    @Column(name = "started_at")
     private Instant startedAt;
-    public Instant getStartedAt() { return startedAt; }
-    public void setStartedAt(Instant value) { this.startedAt=value; }
-    @Column(name="start_inferred")
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public void setStartedAt(Instant value) {
+        this.startedAt = value;
+    }
+
+    @Column(name = "start_inferred")
     private boolean startInferred;
-    public boolean isStartInferred() { return startInferred; }
-    public void setStartInferred(boolean value) { this.startInferred=value; }
-    @Column(name="cancelled_at")
+
+    public boolean isStartInferred() {
+        return startInferred;
+    }
+
+    public void setStartInferred(boolean value) {
+        this.startInferred = value;
+    }
+
+    @Column(name = "cancelled_at")
     private Instant cancelledAt;
-    public Instant getCancelledAt() { return cancelledAt; }
-    public void setCancelledAt(Instant value) { this.cancelledAt=value; }
-    @Column(name="cancelled_by")
+
+    public Instant getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public void setCancelledAt(Instant value) {
+        this.cancelledAt = value;
+    }
+
+    @Column(name = "cancelled_by")
     private Long cancelledBy;
-    public Long getCancelledBy() { return cancelledBy; }
-    public void setCancelledBy(Long value) { this.cancelledBy=value; }
-    @Column(name="attempt_count")
+
+    public Long getCancelledBy() {
+        return cancelledBy;
+    }
+
+    public void setCancelledBy(Long value) {
+        this.cancelledBy = value;
+    }
+
+    @Column(name = "attempt_count")
     private int attemptCount;
-    public int getAttemptCount() { return attemptCount; }
-    public void setAttemptCount(int value) { this.attemptCount=value; }
-    @Column(name="claim_token")
+
+    public int getAttemptCount() {
+        return attemptCount;
+    }
+
+    public void setAttemptCount(int value) {
+        this.attemptCount = value;
+    }
+
+    @Column(name = "claim_token")
     private java.util.UUID claimToken;
-    public java.util.UUID getClaimToken() { return claimToken; }
-    public void setClaimToken(java.util.UUID value) { this.claimToken=value; }
-    @Column(name="lease_expires_at")
+
+    public java.util.UUID getClaimToken() {
+        return claimToken;
+    }
+
+    public void setClaimToken(java.util.UUID value) {
+        this.claimToken = value;
+    }
+
+    @Column(name = "lease_expires_at")
     private Instant leaseExpiresAt;
-    public Instant getLeaseExpiresAt() { return leaseExpiresAt; }
-    public void setLeaseExpiresAt(Instant value) { this.leaseExpiresAt=value; }
-    @Column(name="input_payload")
+
+    public Instant getLeaseExpiresAt() {
+        return leaseExpiresAt;
+    }
+
+    public void setLeaseExpiresAt(Instant value) {
+        this.leaseExpiresAt = value;
+    }
+
+    @Column(name = "input_payload")
     @JdbcTypeCode(SqlTypes.JSON)
-    private Map<String,Object> inputPayload;
-    public Map<String,Object> getInputPayload() { return inputPayload; }
-    public void setInputPayload(Map<String,Object> value) { this.inputPayload=value; }
+    private Map<String, Object> inputPayload;
+
+    public Map<String, Object> getInputPayload() {
+        return inputPayload;
+    }
+
+    public void setInputPayload(Map<String, Object> value) {
+        this.inputPayload = value;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -108,42 +163,108 @@ public class ExecutionJobEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getIdempotencyKey() { return idempotencyKey; }
-    public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public Long getRequestId() { return requestId; }
-    public void setRequestId(Long requestId) { this.requestId = requestId; }
+    public String getIdempotencyKey() {
+        return idempotencyKey;
+    }
 
-    public String getAction() { return action; }
-    public void setAction(String action) { this.action = action; }
+    public void setIdempotencyKey(String idempotencyKey) {
+        this.idempotencyKey = idempotencyKey;
+    }
 
-    public JobStatus getStatus() { return status; }
-    public void setStatus(JobStatus status) { this.status = status; }
+    public Long getRequestId() {
+        return requestId;
+    }
 
-    public int getRetryCount() { return retryCount; }
-    public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
+    public void setRequestId(Long requestId) {
+        this.requestId = requestId;
+    }
 
-    public int getMaxRetries() { return maxRetries; }
-    public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
+    public String getAction() {
+        return action;
+    }
 
-    public Instant getNextRetryAt() { return nextRetryAt; }
-    public void setNextRetryAt(Instant nextRetryAt) { this.nextRetryAt = nextRetryAt; }
+    public void setAction(String action) {
+        this.action = action;
+    }
 
-    public String getLastError() { return lastError; }
-    public void setLastError(String lastError) { this.lastError = lastError; }
+    public JobStatus getStatus() {
+        return status;
+    }
 
-    public Map<String, Object> getResult() { return result; }
-    public void setResult(Map<String, Object> result) { this.result = result; }
+    public void setStatus(JobStatus status) {
+        this.status = status;
+    }
 
-    public String getCorrelationId() { return correlationId; }
-    public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
+    public int getRetryCount() {
+        return retryCount;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
+    }
 
-    public Instant getCompletedAt() { return completedAt; }
-    public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
+    public int getMaxRetries() {
+        return maxRetries;
+    }
+
+    public void setMaxRetries(int maxRetries) {
+        this.maxRetries = maxRetries;
+    }
+
+    public Instant getNextRetryAt() {
+        return nextRetryAt;
+    }
+
+    public void setNextRetryAt(Instant nextRetryAt) {
+        this.nextRetryAt = nextRetryAt;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    public void setLastError(String lastError) {
+        this.lastError = lastError;
+    }
+
+    public Map<String, Object> getResult() {
+        return result;
+    }
+
+    public void setResult(Map<String, Object> result) {
+        this.result = result;
+    }
+
+    public String getCorrelationId() {
+        return correlationId;
+    }
+
+    public void setCorrelationId(String correlationId) {
+        this.correlationId = correlationId;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(Instant completedAt) {
+        this.completedAt = completedAt;
+    }
+
 }

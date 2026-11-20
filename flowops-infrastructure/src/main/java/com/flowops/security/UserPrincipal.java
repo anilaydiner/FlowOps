@@ -5,15 +5,14 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * The authenticated principal carried in the SecurityContext
- * after JWT validation.
+ * The authenticated principal carried in the SecurityContext after JWT validation.
  */
 public record UserPrincipal(Long id, String username, Set<String> roles, UUID sessionId) {
 
     /**
-     * Project this security principal into the framework-free
-     * {@link CallerIdentity} consumed by application services and
-     * domain policy. Dependency direction: security → domain.
+     * Project this security principal into the framework-free {@link CallerIdentity}
+     * consumed by application services and domain policy. Dependency direction: security
+     * → domain.
      */
     public CallerIdentity toIdentity() {
         return new CallerIdentity(id, username, roles);

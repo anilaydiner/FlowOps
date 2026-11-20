@@ -16,13 +16,16 @@ public interface ExecutionJobRepository {
 
     ExecutionJob save(ExecutionJob job);
 
-    /** Insert only, preserving a recorded original identity. Never overwrites an existing row. */
+    /**
+     * Insert only, preserving a recorded original identity. Never overwrites an existing
+     * row.
+     */
     boolean restoreUnstarted(ExecutionJob job);
 
     /**
-     * Save unless a job with the same idempotency key already exists.
-     * Returns the saved job, or empty when the write was skipped
-     * (idempotent duplicate, including concurrent inserts).
+     * Save unless a job with the same idempotency key already exists. Returns the saved
+     * job, or empty when the write was skipped (idempotent duplicate, including
+     * concurrent inserts).
      */
     Optional<ExecutionJob> saveIfAbsent(ExecutionJob job);
 
@@ -38,13 +41,18 @@ public interface ExecutionJobRepository {
 
     long countByStatus(JobStatus status);
 
-    record Candidate(Long jobId,Long requestId) {}
+    record Candidate(Long jobId, Long requestId) {
+    }
+
     /** Discovery only, never authorization for an external action. */
-    List<Candidate> findCandidates(Instant now,int limit);
-    Optional<ExecutionJob> findForLockedRequest(Long jobId,Long requestId);
+    List<Candidate> findCandidates(Instant now, int limit);
+
+    Optional<ExecutionJob> findForLockedRequest(Long jobId, Long requestId);
+
     List<ExecutionJob> findAllForLockedRequest(Long requestId);
 
     List<ExecutionJob> findByRequestIdIn(List<Long> requestIds);
 
     Optional<ExecutionJob> findById(Long id);
+
 }

@@ -28,26 +28,37 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Phase 7: Delegation must only target users who can actually approve the request.
  *
  * <ul>
- *   <li>GET /requests/{id}/eligible-delegatees — same gate as approval
- *       (permission + scope + SoD), excludes caller and requester.</li>
- *   <li>Only the current approver may list delegates (403 otherwise).</li>
- *   <li>DELEGATE validates the delegatee: not self (409), exists (404),
- *       active (409), eligible (403 with evidence).</li>
+ * <li>GET /requests/{id}/eligible-delegatees — same gate as approval (permission + scope
+ * + SoD), excludes caller and requester.</li>
+ * <li>Only the current approver may list delegates (403 otherwise).</li>
+ * <li>DELEGATE validates the delegatee: not self (409), exists (404), active (409),
+ * eligible (403 with evidence).</li>
  * </ul>
  *
- * <p>Assertions use "contains / does not contain" rather than exact-list
- * matches because other (non-transactional) test classes commit users to
- * the shared Testcontainers database.</p>
+ * <p>
+ * Assertions use "contains / does not contain" rather than exact-list matches because
+ * other (non-transactional) test classes commit users to the shared Testcontainers
+ * database.
+ * </p>
  */
 @AutoConfigureMockMvc
 @Transactional
 class EligibleDelegateesTest extends AbstractIntegrationTest {
 
-    @Autowired private MockMvc mvc;
-    @Autowired private UserRepository users;
-    @Autowired private RoleRepository roles;
-    @Autowired private DepartmentRepository departments;
-    @Autowired private PasswordEncoder encoder;
+    @Autowired
+    private MockMvc mvc;
+
+    @Autowired
+    private UserRepository users;
+
+    @Autowired
+    private RoleRepository roles;
+
+    @Autowired
+    private DepartmentRepository departments;
+
+    @Autowired
+    private PasswordEncoder encoder;
 
     private static final String PASSWORD = "pass123456";
 
@@ -56,23 +67,22 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
     private User createUser(String username, List<String> roleCodes, String deptCode) {
         Set<Role> roleSet = new LinkedHashSet<>();
         for (String code : roleCodes) {
-            roleSet.add(roles.findByCode(code)
-                    .orElseThrow(() -> new IllegalStateException("Role not found: " + code)));
+            roleSet.add(roles.findByCode(code).orElseThrow(() -> new IllegalStateException("Role not found: " + code)));
         }
-        com.flowops.domain.organization.Department dept = (deptCode != null)
-                ? departments.findByCode(deptCode)
-                        .orElseThrow(() -> new IllegalStateException("Dept not found: " + deptCode))
-                : null;
+        com.flowops.domain.organization.Department dept = (deptCode != null) ? departments.findByCode(deptCode)
+            .orElseThrow(() -> new IllegalStateException("Dept not found: " + deptCode)) : null;
         User user = User.newUser(username, username, null, dept, roleSet, encoder.encode(PASSWORD));
         return users.save(user);
     }
 
     private String userToken(String username, String password) throws Exception {
-        String json = mvc.perform(post("/api/v1/auth/token")
-                        .contentType("application/json")
-                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        String json = mvc
+            .perform(post("/api/v1/auth/token").contentType("application/json")
+                .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         int i = json.indexOf("\"token\":\"");
         String t = json.substring(i + "\"token\":\"".length());
         return t.substring(0, t.indexOf('"'));
@@ -82,58 +92,71 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
         int i = json.indexOf("\"id\":");
         String n = json.substring(i + 5);
         int end = n.indexOf(',');
-        if (end < 0) end = n.indexOf('}');
+        if (end < 0)
+            end = n.indexOf('}');
         return Long.parseLong(n.substring(0, end).trim());
     }
 
     /** Alice (MEMBER) creates + submits a request of the given type/payload. */
     private long createAndSubmitAlice(String typeCode, String payload) throws Exception {
         String alice = userToken("alice", "alice123");
-        String body = mvc.perform(post("/api/v1/requests")
-                        .header("Authorization", "Bearer " + alice)
-                        .contentType("application/json")
-                        .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        String body = mvc
+            .perform(post("/api/v1/requests").header("Authorization", "Bearer " + alice)
+                .contentType("application/json")
+                .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         long id = extractId(body);
-        mvc.perform(post("/api/v1/requests/" + id + "/submit")
-                        .header("Authorization", "Bearer " + alice))
-                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/requests/" + id + "/submit").header("Authorization", "Bearer " + alice))
+            .andExpect(status().isOk());
         return id;
     }
 
     /** Alice (MEMBER) creates a DRAFT (not submitted). */
     private long createDraftAlice(String typeCode, String payload) throws Exception {
         String alice = userToken("alice", "alice123");
-        String body = mvc.perform(post("/api/v1/requests")
-                        .header("Authorization", "Bearer " + alice)
-                        .contentType("application/json")
-                        .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        String body = mvc
+            .perform(post("/api/v1/requests").header("Authorization", "Bearer " + alice)
+                .contentType("application/json")
+                .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         return extractId(body);
     }
 
     private int eligibleStatus(String callerToken, long requestId) throws Exception {
-        return mvc.perform(get("/api/v1/requests/" + requestId + "/eligible-delegatees")
-                        .header("Authorization", "Bearer " + callerToken))
-                .andReturn().getResponse().getStatus();
+        return mvc
+            .perform(get("/api/v1/requests/" + requestId + "/eligible-delegatees").header("Authorization",
+                    "Bearer " + callerToken))
+            .andReturn()
+            .getResponse()
+            .getStatus();
     }
 
     private boolean eligibleListContains(String callerToken, long requestId, String username) throws Exception {
-        String body = mvc.perform(get("/api/v1/requests/" + requestId + "/eligible-delegatees")
-                        .header("Authorization", "Bearer " + callerToken))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        String body = mvc
+            .perform(get("/api/v1/requests/" + requestId + "/eligible-delegatees").header("Authorization",
+                    "Bearer " + callerToken))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         return body.contains("\"username\":\"" + username + "\"");
     }
 
     private int delegate(String approverToken, long requestId, long delegatedTo) throws Exception {
-        return mvc.perform(post("/api/v1/requests/" + requestId + "/decisions")
-                        .header("Authorization", "Bearer " + approverToken)
-                        .contentType("application/json")
-                        .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\",\"delegatedTo\":" + delegatedTo + "}"))
-                .andReturn().getResponse().getStatus();
+        return mvc
+            .perform(post("/api/v1/requests/" + requestId + "/decisions")
+                .header("Authorization", "Bearer " + approverToken)
+                .contentType("application/json")
+                .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\",\"delegatedTo\":" + delegatedTo + "}"))
+            .andReturn()
+            .getResponse()
+            .getStatus();
     }
 
     // ── eligible-delegatees endpoint ───────────────────────────────────
@@ -172,13 +195,15 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
 
             assertThat(eligibleListContains(admin, id, "d7_fm_big")).as("dept-scoped manager eligible").isTrue();
             assertThat(eligibleListContains(admin, id, "d7_ja_big"))
-                    .as("JUNIOR_APPROVER above 5000 threshold must NOT be eligible").isFalse();
+                .as("JUNIOR_APPROVER above 5000 threshold must NOT be eligible")
+                .isFalse();
             assertThat(eligibleListContains(admin, id, "admin")).as("caller must be excluded (self)").isFalse();
         }
 
         @Test
         void departmentScope_filtersByDept() throws Exception {
-            // Same role (dept-scoped approve) in two departments: only the IT one qualifies
+            // Same role (dept-scoped approve) in two departments: only the IT one
+            // qualifies
             createUser("d7_fm_it", List.of("FINANCE_MANAGER"), "IT");
             createUser("d7_fm_fin", List.of("FINANCE_MANAGER"), "FINANCE");
 
@@ -186,9 +211,11 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
             long id = createAndSubmitAlice("IT_ACCESS", "{\"resource\":\"Jira\",\"duration\":\"30d\"}");
 
             assertThat(eligibleListContains(admin, id, "d7_fm_it"))
-                    .as("IT-dept manager should be eligible for IT request").isTrue();
+                .as("IT-dept manager should be eligible for IT request")
+                .isTrue();
             assertThat(eligibleListContains(admin, id, "d7_fm_fin"))
-                    .as("FINANCE manager must NOT be eligible for IT dept request").isFalse();
+                .as("FINANCE manager must NOT be eligible for IT dept request")
+                .isFalse();
         }
 
         @Test
@@ -206,6 +233,7 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
 
             assertThat(eligibleStatus(admin, draftId)).isEqualTo(409);
         }
+
     }
 
     // ── DELEGATE validation in DecideStep ──────────────────────────────
@@ -250,12 +278,16 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
             String admin = userToken("admin", "admin123");
             long id = createAndSubmitAlice("EXPENSE", "{\"amount\":100,\"description\":\"test\"}");
 
-            String body = mvc.perform(post("/api/v1/requests/" + id + "/decisions")
-                            .header("Authorization", "Bearer " + admin)
+            String body = mvc
+                .perform(
+                        post("/api/v1/requests/" + id + "/decisions").header("Authorization", "Bearer " + admin)
                             .contentType("application/json")
-                            .content("{\"action\":\"DELEGATE\",\"justification\":\"x\",\"delegatedTo\":" + member.getId() + "}"))
-                    .andExpect(status().isForbidden())
-                    .andReturn().getResponse().getContentAsString();
+                            .content("{\"action\":\"DELEGATE\",\"justification\":\"x\",\"delegatedTo\":"
+                                    + member.getId() + "}"))
+                .andExpect(status().isForbidden())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
             assertThat(body).containsIgnoringCase("not eligible");
         }
@@ -267,12 +299,11 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
             String admin = userToken("admin", "admin123");
             long id = createAndSubmitAlice("EXPENSE", "{\"amount\":100,\"description\":\"test\"}");
 
-            mvc.perform(post("/api/v1/requests/" + id + "/decisions")
-                            .header("Authorization", "Bearer " + admin)
-                            .contentType("application/json")
-                            .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\",\"delegatedTo\":" + fm.getId() + "}"))
-                    .andExpect(status().is2xxSuccessful())
-                    .andExpect(jsonPath("$.status").value("IN_REVIEW"));
+            mvc.perform(post("/api/v1/requests/" + id + "/decisions").header("Authorization", "Bearer " + admin)
+                .contentType("application/json")
+                .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\",\"delegatedTo\":" + fm.getId() + "}"))
+                .andExpect(status().is2xxSuccessful())
+                .andExpect(jsonPath("$.status").value("IN_REVIEW"));
         }
 
         @Test
@@ -288,7 +319,8 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
 
             // 8000 > 5000 threshold → ja not listed; fm listed; member not listed
             assertThat(eligibleListContains(admin, id, "d7_fm_cx")).as("fm should be listed").isTrue();
-            assertThat(eligibleListContains(admin, id, "d7_ja_cx")).as("ja should not be listed (above threshold)").isFalse();
+            assertThat(eligibleListContains(admin, id, "d7_ja_cx")).as("ja should not be listed (above threshold)")
+                .isFalse();
             assertThat(eligibleListContains(admin, id, "d7_member_cx")).as("member should not be listed").isFalse();
 
             // DELEGATE must agree: fm ok, ja 403, member 403
@@ -296,6 +328,7 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
             assertThat(delegate(admin, id, ja.getId())).isEqualTo(403);
             assertThat(delegate(admin, id, member.getId())).isEqualTo(403);
         }
+
     }
 
     // ── delegation → queue visibility + approval ──────────────────────
@@ -312,39 +345,36 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
             long id = createAndSubmitAlice("EXPENSE", "{\"amount\":100,\"description\":\"delegated\"}");
 
             // admin delegates the decision to the FINANCE_MANAGER
-            mvc.perform(post("/api/v1/requests/" + id + "/decisions")
-                            .header("Authorization", "Bearer " + admin)
-                            .contentType("application/json")
-                            .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\",\"delegatedTo\":" + fm.getId() + "}"))
-                    .andExpect(status().is2xxSuccessful())
-                    .andExpect(jsonPath("$.status").value("IN_REVIEW"));
+            mvc.perform(post("/api/v1/requests/" + id + "/decisions").header("Authorization", "Bearer " + admin)
+                .contentType("application/json")
+                .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\",\"delegatedTo\":" + fm.getId() + "}"))
+                .andExpect(status().is2xxSuccessful())
+                .andExpect(jsonPath("$.status").value("IN_REVIEW"));
 
             String fmToken = userToken("d8_fm", PASSWORD);
 
             // 1) the delegatee sees the request in their queue
-            //    (via the DELEGATE branch — the step's required role is ADMIN)
-            String queue = mvc.perform(get("/api/v1/requests/queue")
-                            .header("Authorization", "Bearer " + fmToken))
-                    .andExpect(status().isOk())
-                    .andReturn().getResponse().getContentAsString();
-            assertThat(queue).as("delegatee queue must contain the delegated request")
-                    .contains("\"id\":" + id + ",");
+            // (via the DELEGATE branch — the step's required role is ADMIN)
+            String queue = mvc.perform(get("/api/v1/requests/queue").header("Authorization", "Bearer " + fmToken))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+            assertThat(queue).as("delegatee queue must contain the delegated request").contains("\"id\":" + id + ",");
 
             // 2) the delegatee can open the request detail
-            mvc.perform(get("/api/v1/requests/" + id)
-                            .header("Authorization", "Bearer " + fmToken))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.id").value(id))
-                    .andExpect(jsonPath("$.status").value("IN_REVIEW"));
+            mvc.perform(get("/api/v1/requests/" + id).header("Authorization", "Bearer " + fmToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.status").value("IN_REVIEW"));
 
             // 3) the delegatee can approve — dept-scoped request:approve passes,
-            //    and as the only step for amount=100 the request becomes APPROVED
-            mvc.perform(post("/api/v1/requests/" + id + "/decisions")
-                            .header("Authorization", "Bearer " + fmToken)
-                            .contentType("application/json")
-                            .content("{\"action\":\"APPROVE\",\"justification\":\"looks fine\"}"))
-                    .andExpect(status().is2xxSuccessful())
-                    .andExpect(jsonPath("$.status").value("APPROVED"));
+            // and as the only step for amount=100 the request becomes APPROVED
+            mvc.perform(post("/api/v1/requests/" + id + "/decisions").header("Authorization", "Bearer " + fmToken)
+                .contentType("application/json")
+                .content("{\"action\":\"APPROVE\",\"justification\":\"looks fine\"}"))
+                .andExpect(status().is2xxSuccessful())
+                .andExpect(jsonPath("$.status").value("APPROVED"));
         }
 
         @Test
@@ -355,20 +385,23 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
             String admin = userToken("admin", "admin123");
             long id = createAndSubmitAlice("EXPENSE", "{\"amount\":100,\"description\":\"delegated\"}");
 
-            mvc.perform(post("/api/v1/requests/" + id + "/decisions")
-                            .header("Authorization", "Bearer " + admin)
-                            .contentType("application/json")
-                            .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\",\"delegatedTo\":" + fmDelegated.getId() + "}"))
-                    .andExpect(status().is2xxSuccessful());
+            mvc.perform(post("/api/v1/requests/" + id + "/decisions").header("Authorization", "Bearer " + admin)
+                .contentType("application/json")
+                .content("{\"action\":\"DELEGATE\",\"justification\":\"on PTO\",\"delegatedTo\":" + fmDelegated.getId()
+                        + "}"))
+                .andExpect(status().is2xxSuccessful());
 
             // Visibility comes from the DELEGATE decision, not from the role:
             // fmOther has the same role + department but was not delegated to.
-            String queue = mvc.perform(get("/api/v1/requests/queue")
-                            .header("Authorization", "Bearer " + userToken("d8_fm_other", PASSWORD)))
-                    .andExpect(status().isOk())
-                    .andReturn().getResponse().getContentAsString();
+            String queue = mvc
+                .perform(get("/api/v1/requests/queue").header("Authorization",
+                        "Bearer " + userToken("d8_fm_other", PASSWORD)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
             assertThat(queue).as("non-delegatee queue must NOT contain the request")
-                    .doesNotContain("\"id\":" + id + ",");
+                .doesNotContain("\"id\":" + id + ",");
         }
 
         @Test
@@ -377,12 +410,14 @@ class EligibleDelegateesTest extends AbstractIntegrationTest {
             String alice = userToken("alice", "alice123");
             long id = createAndSubmitAlice("EXPENSE", "{\"amount\":100,\"description\":\"own\"}");
 
-            String queue = mvc.perform(get("/api/v1/requests/queue")
-                            .header("Authorization", "Bearer " + alice))
-                    .andExpect(status().isOk())
-                    .andReturn().getResponse().getContentAsString();
-            assertThat(queue).as("requester queue must NOT contain own request")
-                    .doesNotContain("\"id\":" + id + ",");
+            String queue = mvc.perform(get("/api/v1/requests/queue").header("Authorization", "Bearer " + alice))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+            assertThat(queue).as("requester queue must NOT contain own request").doesNotContain("\"id\":" + id + ",");
         }
+
     }
+
 }

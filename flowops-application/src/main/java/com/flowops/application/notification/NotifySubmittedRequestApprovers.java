@@ -12,7 +12,9 @@ import org.springframework.stereotype.Component;
 @Component
 @Order(200)
 public class NotifySubmittedRequestApprovers implements DomainEventHandler<RequestSubmitted> {
+
     private final RequestRepository requests;
+
     private final ApproverNotifier approvers;
 
     public NotifySubmittedRequestApprovers(RequestRepository requests, ApproverNotifier approvers) {
@@ -28,9 +30,10 @@ public class NotifySubmittedRequestApprovers implements DomainEventHandler<Reque
     @Override
     public void handle(RequestSubmitted event) {
         Request request = requests.findById(event.requestId())
-                .orElseThrow(() -> new NotFoundException("Request not found: " + event.requestId()));
+            .orElseThrow(() -> new NotFoundException("Request not found: " + event.requestId()));
         if (request.getStatus() == RequestStatus.IN_REVIEW) {
             approvers.notifyEligibleApprovers(request, null);
         }
     }
+
 }

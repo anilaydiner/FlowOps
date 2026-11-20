@@ -7,23 +7,25 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 /**
- * No-transport email gateway: logs the email and supports failure injection
- * for retry/backoff tests (PLAN §8).
+ * No-transport email gateway: logs the email and supports failure injection for
+ * retry/backoff tests (PLAN §8).
  *
- * <p>Default gateway ({@code flowops.email.gateway=simulated}) — tests rely on
- * it being present and on the failure-injection API.
+ * <p>
+ * Default gateway ({@code flowops.email.gateway=simulated}) — tests rely on it being
+ * present and on the failure-injection API.
  *
- * <p>In dev, use Mailpit instead: {@code FLOWOPS_EMAIL_GATEWAY=smtp}
- * (see {@code SmtpEmailGateway} + PLAN §11).
+ * <p>
+ * In dev, use Mailpit instead: {@code FLOWOPS_EMAIL_GATEWAY=smtp} (see
+ * {@code SmtpEmailGateway} + PLAN §11).
  */
 @Component
-@ConditionalOnProperty(prefix = "flowops.email", name = "gateway",
-        havingValue = "simulated", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "flowops.email", name = "gateway", havingValue = "simulated", matchIfMissing = true)
 public class SimulatedEmailGateway implements EmailGateway {
 
     private static final Logger log = LoggerFactory.getLogger(SimulatedEmailGateway.class);
 
     private volatile boolean simulatedFailure = false;
+
     private volatile int failuresRemaining = 0;
 
     public SimulatedEmailGateway() {
@@ -40,8 +42,8 @@ public class SimulatedEmailGateway implements EmailGateway {
             }
             throw new EmailGatewayException("Simulated email failure (to=" + to + ")");
         }
-        log.warn("EMAIL NOT DELIVERED (simulated gateway, log-only): to={} subject='{}' bodyLen={}",
-                to, subject, body == null ? 0 : body.length());
+        log.warn("EMAIL NOT DELIVERED (simulated gateway, log-only): to={} subject='{}' bodyLen={}", to, subject,
+                body == null ? 0 : body.length());
     }
 
     @Override
@@ -52,14 +54,13 @@ public class SimulatedEmailGateway implements EmailGateway {
             }
             throw new EmailGatewayException("Simulated email failure (to=" + to + ")");
         }
-        log.warn("EMAIL NOT DELIVERED (simulated gateway, log-only): to={} subject='{}' textLen={} htmlLen={}",
-                to, subject,
-                textBody == null ? 0 : textBody.length(), htmlBody == null ? 0 : htmlBody.length());
+        log.warn("EMAIL NOT DELIVERED (simulated gateway, log-only): to={} subject='{}' textLen={} htmlLen={}", to,
+                subject, textBody == null ? 0 : textBody.length(), htmlBody == null ? 0 : htmlBody.length());
     }
 
     /**
-     * Enable simulated failures. With {@code count > 0} the next {@code count}
-     * sends fail; with {@code count = 0} sends fail indefinitely until
+     * Enable simulated failures. With {@code count > 0} the next {@code count} sends
+     * fail; with {@code count = 0} sends fail indefinitely until
      * {@link #clearSimulatedFailure()} is called.
      */
     public void setSimulatedFailure(boolean fail, int count) {
@@ -74,4 +75,5 @@ public class SimulatedEmailGateway implements EmailGateway {
         this.simulatedFailure = false;
         this.failuresRemaining = 0;
     }
+
 }

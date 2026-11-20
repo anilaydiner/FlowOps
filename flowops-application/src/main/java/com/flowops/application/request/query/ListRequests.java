@@ -7,6 +7,6 @@ import com.flowops.domain.paging.PageQuery;
 import com.flowops.domain.paging.PageResult;
 import com.flowops.domain.request.query.RequestFilter;
 
-public record ListRequests(RequestFilter filter, PageQuery page, CallerIdentity caller)
-        implements Message<PageResult<RequestListItem>> {
+public record ListRequests(RequestFilter filter, PageQuery page,
+        CallerIdentity caller) implements Message<PageResult<RequestListItem>> {
 }

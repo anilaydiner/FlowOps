@@ -34,24 +34,49 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Real event handlers run first; a later subscriber fails before the approval can commit. */
+/**
+ * Real event handlers run first; a later subscriber fails before the approval can commit.
+ */
 @Import(ApprovalEventTransactionTest.FailureConfiguration.class)
 class ApprovalEventTransactionTest extends AbstractIntegrationTest {
+
     // These contexts exercise commands/API reads, not scheduled delivery. Other cached
     // contexts share PostgreSQL, so polling here would race the manual failure drills.
-    @MockitoBean JobWorker backgroundJobs;
-    @MockitoBean OutboxDispatcher backgroundOutbox;
-    @MockitoBean SlaScanner backgroundSla;
+    @MockitoBean
+    JobWorker backgroundJobs;
 
-    @Autowired Mediator mediator;
-    @Autowired UserRepository users;
-    @Autowired RequestRepository requests;
-    @Autowired StepInstanceRepository steps;
-    @Autowired DecisionRepository decisions;
-    @Autowired ExecutionJobRepository jobs;
-    @Autowired OutboxMessageRepository outbox;
-    @Autowired PlatformTransactionManager transactions;
-    @Autowired com.flowops.application.audit.port.LifecycleAuditRepository auditHistory;
+    @MockitoBean
+    OutboxDispatcher backgroundOutbox;
+
+    @MockitoBean
+    SlaScanner backgroundSla;
+
+    @Autowired
+    Mediator mediator;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    RequestRepository requests;
+
+    @Autowired
+    StepInstanceRepository steps;
+
+    @Autowired
+    DecisionRepository decisions;
+
+    @Autowired
+    ExecutionJobRepository jobs;
+
+    @Autowired
+    OutboxMessageRepository outbox;
+
+    @Autowired
+    PlatformTransactionManager transactions;
+
+    @Autowired
+    com.flowops.application.audit.port.LifecycleAuditRepository auditHistory;
 
     private CallerIdentity caller(String username) {
         return new TransactionTemplate(transactions).execute(status -> {
@@ -63,16 +88,17 @@ class ApprovalEventTransactionTest extends AbstractIntegrationTest {
     @Test
     void laterSubscriberFailureRollsBackApprovalAndAllEarlierSubscriberWrites() {
         CallerIdentity owner = caller("alice");
-        Request draft = mediator.send(new CreateDraftCommand("EXPENSE",
-                Map.of("amount", 150, "description", "event rollback"), owner)).request();
+        Request draft = mediator
+            .send(new CreateDraftCommand("EXPENSE", Map.of("amount", 150, "description", "event rollback"), owner))
+            .request();
         Request submitted = mediator.send(new SubmitRequestCommand(draft.getId(), owner)).request();
-        var before = new TransactionTemplate(transactions).execute(status ->
-                outbox.findByKeyPrefix("req:" + draft.getId() + ":").stream().map(m -> m.getId()).toList());
+        var before = new TransactionTemplate(transactions).execute(
+                status -> outbox.findByKeyPrefix("req:" + draft.getId() + ":").stream().map(m -> m.getId()).toList());
 
         var auditBefore = auditHistory.findByRequestId(draft.getId());
         CallerIdentity approver = caller("admin");
-        IllegalStateException failure = assertThrows(IllegalStateException.class, () -> mediator.send(
-                new DecideStepCommand(draft.getId(), DecisionAction.APPROVE, "approved", null, approver)));
+        IllegalStateException failure = assertThrows(IllegalStateException.class, () -> mediator
+            .send(new DecideStepCommand(draft.getId(), DecisionAction.APPROVE, "approved", null, approver)));
         assertEquals("approval subscriber failed", failure.getMessage());
 
         new TransactionTemplate(transactions).executeWithoutResult(status -> {
@@ -86,19 +112,23 @@ class ApprovalEventTransactionTest extends AbstractIntegrationTest {
             assertTrue(decisions.findByStepInstanceIdOrderById(instances.getFirst().getId()).isEmpty());
             assertEquals(0, decisions.countDistinctApprovers(instances.getFirst().getId()));
             assertTrue(jobs.findByRequestIdOrderByCreatedAtAsc(draft.getId()).isEmpty());
-            assertEquals(before, outbox.findByKeyPrefix("req:" + draft.getId() + ":")
-                    .stream().map(m -> m.getId()).toList());
+            assertEquals(before,
+                    outbox.findByKeyPrefix("req:" + draft.getId() + ":").stream().map(m -> m.getId()).toList());
         });
     }
 
     @TestConfiguration
     static class FailureConfiguration {
+
         @Bean
         @Order(300)
-        DomainEventHandler<RequestApproved> failingApprovalSubscriber(
-                ExecutionJobRepository jobs, OutboxMessageRepository outbox, RequestRepository requests) {
+        DomainEventHandler<RequestApproved> failingApprovalSubscriber(ExecutionJobRepository jobs,
+                OutboxMessageRepository outbox, RequestRepository requests) {
             return new DomainEventHandler<>() {
-                public Class<RequestApproved> eventType() { return RequestApproved.class; }
+                public Class<RequestApproved> eventType() {
+                    return RequestApproved.class;
+                }
+
                 public void handle(RequestApproved event) {
                     assertTrue(TransactionSynchronizationManager.isActualTransactionActive());
                     assertFalse(TransactionSynchronizationManager.isCurrentTransactionReadOnly());
@@ -106,11 +136,15 @@ class ApprovalEventTransactionTest extends AbstractIntegrationTest {
                     Request request = requests.findById(event.requestId()).orElseThrow();
                     assertEquals(RequestStatus.APPROVED, request.getStatus());
                     Long owner = request.getRequester().getId();
-                    assertTrue(outbox.findByIdempotencyKey("req:" + event.requestId() + ":NOTIFY_APPROVE:" + owner).isPresent());
-                    assertTrue(outbox.findByIdempotencyKey("req:" + event.requestId() + ":APPROVED:" + owner).isPresent());
+                    assertTrue(outbox.findByIdempotencyKey("req:" + event.requestId() + ":NOTIFY_APPROVE:" + owner)
+                        .isPresent());
+                    assertTrue(
+                            outbox.findByIdempotencyKey("req:" + event.requestId() + ":APPROVED:" + owner).isPresent());
                     throw new IllegalStateException("approval subscriber failed");
                 }
             };
         }
+
     }
+
 }

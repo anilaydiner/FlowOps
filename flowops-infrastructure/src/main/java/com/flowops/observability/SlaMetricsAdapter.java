@@ -5,9 +5,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.stereotype.Component;
 
 /**
- * Records the SLA breach / expiry counters for the SLA scanner
- * (PLAN §8). The scanner itself ({@code infra.worker}) and the
- * {@code ScanSla} use case stay telemetry-free.
+ * Records the SLA breach / expiry counters for the SLA scanner (PLAN §8). The scanner
+ * itself ({@code infra.worker}) and the {@code ScanSla} use case stay telemetry-free.
  */
 @Component
 public class SlaMetricsAdapter implements SlaMetrics {
@@ -27,4 +26,5 @@ public class SlaMetricsAdapter implements SlaMetrics {
     public void recordExpiry(String stepCode) {
         metrics.counter(MetricNames.SLA_EXPIRED, "step", stepCode).increment();
     }
+
 }

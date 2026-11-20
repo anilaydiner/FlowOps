@@ -8,7 +8,9 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
-/** JPA adapter for the {@link PasswordResetTokenRepository} port. Maps domain ↔ entity. */
+/**
+ * JPA adapter for the {@link PasswordResetTokenRepository} port. Maps domain ↔ entity.
+ */
 @Repository
 public class SpringPasswordResetTokenRepository implements PasswordResetTokenRepository {
 
@@ -33,11 +35,14 @@ public class SpringPasswordResetTokenRepository implements PasswordResetTokenRep
     @Override
     public List<PasswordResetToken> findAllByUserId(Long userId) {
         return jpaRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
-                .stream().map(PasswordResetTokenMappers::fromEntity).toList();
+            .stream()
+            .map(PasswordResetTokenMappers::fromEntity)
+            .toList();
     }
 
     @Override
     public void deleteByUserId(Long userId) {
         jpaRepository.deleteAllByUserId(userId);
     }
+
 }

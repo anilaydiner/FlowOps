@@ -5,9 +5,10 @@ import java.time.Instant;
 /**
  * An organizational department (e.g. a cost center or business unit).
  *
- * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
- * lives in {@code persistence.entity.DepartmentEntity}; the rehydration
- * constructor and setters exist solely for that mapper.
+ * <p>
+ * Pure domain aggregate — no persistence annotations. The JPA mapping lives in
+ * {@code persistence.entity.DepartmentEntity}; the rehydration constructor and setters
+ * exist solely for that mapper.
  */
 public class Department {
 
@@ -46,8 +47,20 @@ public class Department {
 
     // ── Setters (persistence rehydration only) ─────────────────────────
 
-    public void setId(Long id) { this.id = id; }
-    public void setCode(String code) { this.code = code; }
-    public void setName(String name) { this.name = name; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
 }

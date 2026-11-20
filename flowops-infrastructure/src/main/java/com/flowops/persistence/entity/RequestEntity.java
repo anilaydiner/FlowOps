@@ -20,69 +20,157 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * JPA entity backing the {@link com.flowops.domain.request.Request} aggregate
- * (table {@code requests}). Pure data carrier — all business behavior lives
- * on the domain aggregate; field mapping is identical to the schema.
+ * JPA entity backing the {@link com.flowops.domain.request.Request} aggregate (table
+ * {@code requests}). Pure data carrier — all business behavior lives on the domain
+ * aggregate; field mapping is identical to the schema.
  */
 @Entity(name = "Request")
 @Table(name = "requests")
 public class RequestEntity {
 
-    @Column(name="legacy_plan_disposition_id")
+    @Column(name = "legacy_plan_disposition_id")
     private java.util.UUID legacyPlanDispositionId;
-    public java.util.UUID getLegacyPlanDispositionId(){return legacyPlanDispositionId;}
-    public void setLegacyPlanDispositionId(java.util.UUID value){legacyPlanDispositionId=value;}
 
-    @Column(name="execution_plan_id")
+    public java.util.UUID getLegacyPlanDispositionId() {
+        return legacyPlanDispositionId;
+    }
+
+    public void setLegacyPlanDispositionId(java.util.UUID value) {
+        legacyPlanDispositionId = value;
+    }
+
+    @Column(name = "execution_plan_id")
     private java.util.UUID executionPlanId;
-    public java.util.UUID getExecutionPlanId(){return executionPlanId;}
-    public void setExecutionPlanId(java.util.UUID value){executionPlanId=value;}
-    @Column(name="execution_planned_at")
+
+    public java.util.UUID getExecutionPlanId() {
+        return executionPlanId;
+    }
+
+    public void setExecutionPlanId(java.util.UUID value) {
+        executionPlanId = value;
+    }
+
+    @Column(name = "execution_planned_at")
     private Instant executionPlannedAt;
-    public Instant getExecutionPlannedAt() { return executionPlannedAt; }
-    public void setExecutionPlannedAt(Instant value) { this.executionPlannedAt=value; }
-    @Column(name="execution_started_at")
+
+    public Instant getExecutionPlannedAt() {
+        return executionPlannedAt;
+    }
+
+    public void setExecutionPlannedAt(Instant value) {
+        this.executionPlannedAt = value;
+    }
+
+    @Column(name = "execution_started_at")
     private Instant executionStartedAt;
-    public Instant getExecutionStartedAt() { return executionStartedAt; }
-    public void setExecutionStartedAt(Instant value) { this.executionStartedAt=value; }
-    @Column(name="execution_start_unknown")
+
+    public Instant getExecutionStartedAt() {
+        return executionStartedAt;
+    }
+
+    public void setExecutionStartedAt(Instant value) {
+        this.executionStartedAt = value;
+    }
+
+    @Column(name = "execution_start_unknown")
     private boolean executionStartUnknown;
-    public boolean isExecutionStartUnknown() { return executionStartUnknown; }
-    public void setExecutionStartUnknown(boolean value) { this.executionStartUnknown=value; }
-    @Column(name="execution_start_inferred")
+
+    public boolean isExecutionStartUnknown() {
+        return executionStartUnknown;
+    }
+
+    public void setExecutionStartUnknown(boolean value) {
+        this.executionStartUnknown = value;
+    }
+
+    @Column(name = "execution_start_inferred")
     private boolean executionStartInferred;
-    public boolean isExecutionStartInferred() { return executionStartInferred; }
-    public void setExecutionStartInferred(boolean value) { this.executionStartInferred=value; }
+
+    public boolean isExecutionStartInferred() {
+        return executionStartInferred;
+    }
+
+    public void setExecutionStartInferred(boolean value) {
+        this.executionStartInferred = value;
+    }
 
     @Enumerated(EnumType.STRING)
-    @Column(name="outcome")
+    @Column(name = "outcome")
     private com.flowops.domain.request.RequestOutcome outcome;
-    public com.flowops.domain.request.RequestOutcome getOutcome(){return outcome;}
-    public void setOutcome(com.flowops.domain.request.RequestOutcome value){outcome=value;}
-    @Column(name="approved_at")
+
+    public com.flowops.domain.request.RequestOutcome getOutcome() {
+        return outcome;
+    }
+
+    public void setOutcome(com.flowops.domain.request.RequestOutcome value) {
+        outcome = value;
+    }
+
+    @Column(name = "approved_at")
     private Instant approvedAt;
-    public Instant getApprovedAt(){return approvedAt;}
-    public void setApprovedAt(Instant value){approvedAt=value;}
-    @Column(name="rejected_at")
+
+    public Instant getApprovedAt() {
+        return approvedAt;
+    }
+
+    public void setApprovedAt(Instant value) {
+        approvedAt = value;
+    }
+
+    @Column(name = "rejected_at")
     private Instant rejectedAt;
-    public Instant getRejectedAt(){return rejectedAt;}
-    public void setRejectedAt(Instant value){rejectedAt=value;}
-    @Column(name="executed_at")
+
+    public Instant getRejectedAt() {
+        return rejectedAt;
+    }
+
+    public void setRejectedAt(Instant value) {
+        rejectedAt = value;
+    }
+
+    @Column(name = "executed_at")
     private Instant executedAt;
-    public Instant getExecutedAt(){return executedAt;}
-    public void setExecutedAt(Instant value){executedAt=value;}
-    @Column(name="cancelled_at")
+
+    public Instant getExecutedAt() {
+        return executedAt;
+    }
+
+    public void setExecutedAt(Instant value) {
+        executedAt = value;
+    }
+
+    @Column(name = "cancelled_at")
     private Instant cancelledAt;
-    public Instant getCancelledAt(){return cancelledAt;}
-    public void setCancelledAt(Instant value){cancelledAt=value;}
-    @Column(name="expired_at")
+
+    public Instant getCancelledAt() {
+        return cancelledAt;
+    }
+
+    public void setCancelledAt(Instant value) {
+        cancelledAt = value;
+    }
+
+    @Column(name = "expired_at")
     private Instant expiredAt;
-    public Instant getExpiredAt(){return expiredAt;}
-    public void setExpiredAt(Instant value){expiredAt=value;}
-    @Column(name="closed_at")
+
+    public Instant getExpiredAt() {
+        return expiredAt;
+    }
+
+    public void setExpiredAt(Instant value) {
+        expiredAt = value;
+    }
+
+    @Column(name = "closed_at")
     private Instant closedAt;
-    public Instant getClosedAt(){return closedAt;}
-    public void setClosedAt(Instant value){closedAt=value;}
+
+    public Instant getClosedAt() {
+        return closedAt;
+    }
+
+    public void setClosedAt(Instant value) {
+        closedAt = value;
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -126,33 +214,84 @@ public class RequestEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public RequestTypeEntity getType() { return type; }
-    public void setType(RequestTypeEntity type) { this.type = type; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public UserEntity getRequester() { return requester; }
-    public void setRequester(UserEntity requester) { this.requester = requester; }
+    public RequestTypeEntity getType() {
+        return type;
+    }
 
-    public RequestStatus getStatus() { return status; }
-    public void setStatus(RequestStatus status) { this.status = status; }
+    public void setType(RequestTypeEntity type) {
+        this.type = type;
+    }
 
-    public Map<String, Object> getPayload() { return payload; }
-    public void setPayload(Map<String, Object> payload) { this.payload = payload; }
+    public UserEntity getRequester() {
+        return requester;
+    }
 
-    public Long getVersion() { return version; }
-    public void setVersion(Long version) { this.version = version; }
+    public void setRequester(UserEntity requester) {
+        this.requester = requester;
+    }
 
-    public String getCorrelationId() { return correlationId; }
-    public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
+    public RequestStatus getStatus() {
+        return status;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setStatus(RequestStatus status) {
+        this.status = status;
+    }
 
-    public Instant getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public Map<String, Object> getPayload() {
+        return payload;
+    }
 
-    public Instant getSubmittedAt() { return submittedAt; }
-    public void setSubmittedAt(Instant submittedAt) { this.submittedAt = submittedAt; }
+    public void setPayload(Map<String, Object> payload) {
+        this.payload = payload;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setVersion(Long version) {
+        this.version = version;
+    }
+
+    public String getCorrelationId() {
+        return correlationId;
+    }
+
+    public void setCorrelationId(String correlationId) {
+        this.correlationId = correlationId;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public Instant getSubmittedAt() {
+        return submittedAt;
+    }
+
+    public void setSubmittedAt(Instant submittedAt) {
+        this.submittedAt = submittedAt;
+    }
+
 }

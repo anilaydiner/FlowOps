@@ -18,20 +18,19 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI flowOpsOpenAPI() {
         return new OpenAPI()
-                .info(new Info()
-                        .title("FlowOps API")
-                        .description("Request & Approval Platform — manage users, permissions, "
-                                + "departments, and approval workflows.")
-                        .version("v1")
-                        .contact(new Contact().name("FlowOps Team").email("flowops@example.com"))
-                        .license(new License().name("Internal Use")))
-                .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH))
-                .components(new Components()
-                        .addSecuritySchemes(BEARER_AUTH, new SecurityScheme()
-                                .name(BEARER_AUTH)
-                                .type(SecurityScheme.Type.HTTP)
-                                .scheme("bearer")
-                                .bearerFormat("JWT")
-                                .description("Provide a JWT obtained from POST /api/v1/auth/token")));
+            .info(new Info().title("FlowOps API")
+                .description("Request & Approval Platform — manage users, permissions, "
+                        + "departments, and approval workflows.")
+                .version("v1")
+                .contact(new Contact().name("FlowOps Team").email("flowops@example.com"))
+                .license(new License().name("Internal Use")))
+            .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH))
+            .components(new Components().addSecuritySchemes(BEARER_AUTH,
+                    new SecurityScheme().name(BEARER_AUTH)
+                        .type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer")
+                        .bearerFormat("JWT")
+                        .description("Provide a JWT obtained from POST /api/v1/auth/token")));
     }
+
 }

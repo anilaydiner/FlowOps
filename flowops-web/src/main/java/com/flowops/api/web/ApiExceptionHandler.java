@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
- * Maps domain exceptions to RFC 7807 ProblemDetail responses.
- * (Validation handling lives in {@link ProblemDetailsAdvice}.)
+ * Maps domain exceptions to RFC 7807 ProblemDetail responses. (Validation handling lives
+ * in {@link ProblemDetailsAdvice}.)
  */
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -29,8 +29,8 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     @ResponseStatus(HttpStatus.CONFLICT)
     public ProblemDetail handleConflict(ConflictException ex) {
-        var detail=problem(HttpStatus.CONFLICT, ex.getCode(), ex.getMessage());
-        detail.setProperty("code",ex.getCode());
+        var detail = problem(HttpStatus.CONFLICT, ex.getCode(), ex.getMessage());
+        detail.setProperty("code", ex.getCode());
         return detail;
     }
 
@@ -93,4 +93,5 @@ public class ApiExceptionHandler {
         problem.setType(ApiErrors.type(name));
         return problem;
     }
+
 }

@@ -13,12 +13,17 @@ import org.springframework.stereotype.Component;
 @Component
 @Order(100)
 public class NotifyRequestApproved implements DomainEventHandler<RequestApproved> {
+
     private final RequestWriteLock requestWriteLock;
+
     private final EmailComposer emails;
+
     private final OutboxService outbox;
+
     private final com.flowops.domain.execution.port.ExecutionPlanRepository plans;
 
-    public NotifyRequestApproved(RequestWriteLock requestWriteLock, EmailComposer emails, OutboxService outbox,com.flowops.domain.execution.port.ExecutionPlanRepository plans) {
+    public NotifyRequestApproved(RequestWriteLock requestWriteLock, EmailComposer emails, OutboxService outbox,
+            com.flowops.domain.execution.port.ExecutionPlanRepository plans) {
         this.requestWriteLock = requestWriteLock;
         this.plans = plans;
         this.emails = emails;
@@ -33,15 +38,19 @@ public class NotifyRequestApproved implements DomainEventHandler<RequestApproved
     @Override
     public void handle(RequestApproved event) {
         Request request = requestWriteLock.findByIdForUpdate(event.requestId())
-                .orElseThrow(() -> new NotFoundException("Request not found: " + event.requestId()));
-        var plan=plans.findByRequestId(request.getId()).orElseThrow(()->new com.flowops.domain.exception.ConflictException("Approval has no frozen plan"));
-        if(!plan.id().equals(event.executionPlanId()) || !plan.id().equals(request.getExecutionPlanId()) || !plan.approval().equals(event.approval()))
-            throw new com.flowops.domain.exception.ConflictException("approval-event-mismatch","Approval event differs from its frozen fact");
+            .orElseThrow(() -> new NotFoundException("Request not found: " + event.requestId()));
+        var plan = plans.findByRequestId(request.getId())
+            .orElseThrow(() -> new com.flowops.domain.exception.ConflictException("Approval has no frozen plan"));
+        if (!plan.id().equals(event.executionPlanId()) || !plan.id().equals(request.getExecutionPlanId())
+                || !plan.approval().equals(event.approval()))
+            throw new com.flowops.domain.exception.ConflictException("approval-event-mismatch",
+                    "Approval event differs from its frozen fact");
         Long requesterId = request.getRequester().getId();
-        EmailComposer.ComposedEmail email = emails.approved(request, plan.approval(),plan.actions().size());
-        outbox.notifyFeed(event.requestId(), requesterId, OutboxEvents.NOTIFY_APPROVE,
-                email.subject(), email.text(), null);
-        outbox.notifyEmail(event.requestId(), requesterId, OutboxEvents.APPROVED,
-                email.subject(), email.text(), email.html(), null);
+        EmailComposer.ComposedEmail email = emails.approved(request, plan.approval(), plan.actions().size());
+        outbox.notifyFeed(event.requestId(), requesterId, OutboxEvents.NOTIFY_APPROVE, email.subject(), email.text(),
+                null);
+        outbox.notifyEmail(event.requestId(), requesterId, OutboxEvents.APPROVED, email.subject(), email.text(),
+                email.html(), null);
     }
+
 }

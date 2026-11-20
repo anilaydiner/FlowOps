@@ -13,15 +13,17 @@ import org.springframework.stereotype.Component;
 
 /**
  * Real SMTP delivery (PLAN §8). In dev this points at
- * <a href="https://github.com/axllent/mailpit">Mailpit</a> (localhost:1025,
- * UI on :8025); in production it would point at SES/SendGrid/SMTP relay.
+ * <a href="https://github.com/axllent/mailpit">Mailpit</a> (localhost:1025, UI on :8025);
+ * in production it would point at SES/SendGrid/SMTP relay.
  *
- * <p>Selected via {@code flowops.email.gateway=smtp}. Delivery failures throw
+ * <p>
+ * Selected via {@code flowops.email.gateway=smtp}. Delivery failures throw
  * {@link EmailGatewayException} so the outbox retry/backoff machinery kicks in.
  *
- * <p>Builds its own {@link JavaMailSenderImpl} from {@code spring.mail.*}
- * properties — no reliance on Boot's mail auto-configuration (Boot 4
- * modularizes autoconfig modules; explicit wiring keeps this predictable).
+ * <p>
+ * Builds its own {@link JavaMailSenderImpl} from {@code spring.mail.*} properties — no
+ * reliance on Boot's mail auto-configuration (Boot 4 modularizes autoconfig modules;
+ * explicit wiring keeps this predictable).
  */
 @Component
 @ConditionalOnProperty(prefix = "flowops.email", name = "gateway", havingValue = "smtp")
@@ -30,12 +32,11 @@ public class SmtpEmailGateway implements EmailGateway {
     private static final Logger log = LoggerFactory.getLogger(SmtpEmailGateway.class);
 
     private final JavaMailSenderImpl sender;
+
     private final String from;
 
-    public SmtpEmailGateway(
-            @Value("${spring.mail.host:localhost}") String host,
-            @Value("${spring.mail.port:1025}") int port,
-            @Value("${spring.mail.username:}") String username,
+    public SmtpEmailGateway(@Value("${spring.mail.host:localhost}") String host,
+            @Value("${spring.mail.port:1025}") int port, @Value("${spring.mail.username:}") String username,
             @Value("${spring.mail.password:}") String password,
             @Value("${flowops.email.from:flowops@localhost}") String from) {
         this.from = from;
@@ -67,11 +68,11 @@ public class SmtpEmailGateway implements EmailGateway {
             helper.setSubject(subject);
             helper.setText(body, false);
             sender.send(message);
-            log.info("EMAIL SENT (smtp): to={} subject='{}' via {}:{}", to, subject,
-                    sender.getHost(), sender.getPort());
-        } catch (Exception e) {
-            throw new EmailGatewayException(
-                    "SMTP send failed (to=" + to + "): " + e.getMessage(), e);
+            log.info("EMAIL SENT (smtp): to={} subject='{}' via {}:{}", to, subject, sender.getHost(),
+                    sender.getPort());
+        }
+        catch (Exception e) {
+            throw new EmailGatewayException("SMTP send failed (to=" + to + "): " + e.getMessage(), e);
         }
     }
 
@@ -86,11 +87,12 @@ public class SmtpEmailGateway implements EmailGateway {
             helper.setSubject(subject);
             helper.setText(textBody, htmlBody);
             sender.send(message);
-            log.info("EMAIL SENT (smtp/html): to={} subject='{}' via {}:{}", to, subject,
-                    sender.getHost(), sender.getPort());
-        } catch (Exception e) {
-            throw new EmailGatewayException(
-                    "SMTP HTML send failed (to=" + to + "): " + e.getMessage(), e);
+            log.info("EMAIL SENT (smtp/html): to={} subject='{}' via {}:{}", to, subject, sender.getHost(),
+                    sender.getPort());
+        }
+        catch (Exception e) {
+            throw new EmailGatewayException("SMTP HTML send failed (to=" + to + "): " + e.getMessage(), e);
         }
     }
+
 }

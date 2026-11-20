@@ -11,7 +11,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ListRequestsHandler implements MessageHandler<ListRequests, PageResult<RequestListItem>> {
+
     private final RequestListQueries requests;
+
     private final AuthorizationEvaluator authz;
 
     public ListRequestsHandler(RequestListQueries requests, AuthorizationEvaluator authz) {
@@ -25,9 +27,10 @@ public class ListRequestsHandler implements MessageHandler<ListRequests, PageRes
     }
 
     @Override
-    @Transactional(readOnly = true,isolation=org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public PageResult<RequestListItem> handle(ListRequests query) {
         boolean canSeeAll = authz.hasPermission(query.caller(), PermissionCodes.REQUEST_LIST);
         return requests.findAll(query.filter(), query.page(), query.caller().id(), canSeeAll);
     }
+
 }

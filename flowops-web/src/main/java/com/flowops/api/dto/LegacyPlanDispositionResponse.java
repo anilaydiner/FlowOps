@@ -6,8 +6,8 @@ import java.util.UUID;
 
 public record LegacyPlanDispositionResponse(Long requestVersion, Receipt disposition) {
     public record Receipt(UUID commandId, Long requestId, UUID planId, Long actorId, String actorName,
-                          Long expectedVersion, LegacyPlanDispositionRequest.Mode mode, String reason, String evidenceReference,
-                          Instant recordedAt) {
+            Long expectedVersion, LegacyPlanDispositionRequest.Mode mode, String reason, String evidenceReference,
+            Instant recordedAt) {
         public static Receipt from(LegacyPlanDisposition.Receipt receipt) {
             return new Receipt(receipt.commandId(), receipt.requestId(), receipt.planId(), receipt.actorId(),
                     receipt.actorName(), receipt.expectedVersion(),

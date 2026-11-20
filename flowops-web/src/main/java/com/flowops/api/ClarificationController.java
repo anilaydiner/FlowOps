@@ -28,45 +28,34 @@ public class ClarificationController {
     @PostMapping
     @Operation(summary = "Add a clarification question to a request",
             description = "Requester or admin only. The request must not be in a terminal state.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Clarification added"),
+    @ApiResponses({ @ApiResponse(responseCode = "201", description = "Clarification added"),
             @ApiResponse(responseCode = "404", description = "Request not found (or not the owner)"),
-            @ApiResponse(responseCode = "409", description = "Request is in a terminal state")
-    })
-    public ResponseEntity<ClarificationResponse> ask(
-            @PathVariable Long id,
-            @Valid @RequestBody ClarificationRequest body,
-            @AuthenticationPrincipal UserPrincipal caller) {
+            @ApiResponse(responseCode = "409", description = "Request is in a terminal state") })
+    public ResponseEntity<ClarificationResponse> ask(@PathVariable Long id,
+            @Valid @RequestBody ClarificationRequest body, @AuthenticationPrincipal UserPrincipal caller) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ClarificationResponse.from(
-                        clarificationService.ask(id, body.question(), caller.toIdentity())));
+            .body(ClarificationResponse.from(clarificationService.ask(id, body.question(), caller.toIdentity())));
     }
 
     @GetMapping
     @Operation(summary = "List clarifications on a request",
             description = "Requester or admin only. Returns the full Q&A thread, newest first.")
-    public List<ClarificationResponse> list(
-            @PathVariable Long id,
-            @AuthenticationPrincipal UserPrincipal caller) {
-        return clarificationService.listByRequest(id, caller.toIdentity()).stream()
-                .map(ClarificationResponse::from)
-                .toList();
+    public List<ClarificationResponse> list(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
+        return clarificationService.listByRequest(id, caller.toIdentity())
+            .stream()
+            .map(ClarificationResponse::from)
+            .toList();
     }
 
     @PutMapping("/{cid}")
     @Operation(summary = "Answer a clarification",
             description = "Requester or admin only. One-time; the clarification becomes read-only after answering.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Clarification answered"),
+    @ApiResponses({ @ApiResponse(responseCode = "200", description = "Clarification answered"),
             @ApiResponse(responseCode = "404", description = "Clarification not found"),
-            @ApiResponse(responseCode = "409", description = "Already answered or request is terminal")
-    })
-    public ClarificationResponse answer(
-            @PathVariable Long id,
-            @PathVariable Long cid,
-            @Valid @RequestBody ClarificationAnswerRequest body,
-            @AuthenticationPrincipal UserPrincipal caller) {
-        return ClarificationResponse.from(
-                clarificationService.answer(cid, id, body.answer(), caller.toIdentity()));
+            @ApiResponse(responseCode = "409", description = "Already answered or request is terminal") })
+    public ClarificationResponse answer(@PathVariable Long id, @PathVariable Long cid,
+            @Valid @RequestBody ClarificationAnswerRequest body, @AuthenticationPrincipal UserPrincipal caller) {
+        return ClarificationResponse.from(clarificationService.answer(cid, id, body.answer(), caller.toIdentity()));
     }
+
 }

@@ -13,10 +13,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 
 /**
- * Enriches every ProblemDetail response written through the MVC message
- * converters with the request's correlation ID.
- * (Validation failures are handled by {@link FlowOpsExceptionHandler}, which
- * adds them directly since ResponseEntity-wrapped bodies bypass this advice.)
+ * Enriches every ProblemDetail response written through the MVC message converters with
+ * the request's correlation ID. (Validation failures are handled by
+ * {@link FlowOpsExceptionHandler}, which adds them directly since ResponseEntity-wrapped
+ * bodies bypass this advice.)
  */
 @RestControllerAdvice
 public class ProblemDetailsAdvice implements ResponseBodyAdvice<ProblemDetail> {
@@ -29,12 +29,9 @@ public class ProblemDetailsAdvice implements ResponseBodyAdvice<ProblemDetail> {
     }
 
     @Override
-    public ProblemDetail beforeBodyWrite(ProblemDetail body,
-                                         MethodParameter returnType,
-                                         MediaType mediaType,
-                                         Class<? extends HttpMessageConverter<?>> converterType,
-                                         ServerHttpRequest request,
-                                         ServerHttpResponse response) {
+    public ProblemDetail beforeBodyWrite(ProblemDetail body, MethodParameter returnType, MediaType mediaType,
+            Class<? extends HttpMessageConverter<?>> converterType, ServerHttpRequest request,
+            ServerHttpResponse response) {
         String correlationId = MDC.get(CorrelationId.MDC_KEY);
         if (correlationId != null) {
             body.setProperty("correlationId", correlationId);
@@ -44,4 +41,5 @@ public class ProblemDetailsAdvice implements ResponseBodyAdvice<ProblemDetail> {
         }
         return body;
     }
+
 }

@@ -28,27 +28,42 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Iteration 5: Scoped Authorization + Eligibility (PLAN §7).
  *
  * <ul>
- *   <li>SELF scope — requester can close own, cannot approve own (SoD)</li>
- *   <li>DEPARTMENT scope — only in user's department; departmentless → deny</li>
- *   <li>THRESHOLD scope — approve up to amount; exceeded → deny</li>
- *   <li>Evidence — explainable trail in decisions.evidence</li>
- *   <li>SoD override — ordinary APPROVE never bypasses self-approval protection</li>
+ * <li>SELF scope — requester can close own, cannot approve own (SoD)</li>
+ * <li>DEPARTMENT scope — only in user's department; departmentless → deny</li>
+ * <li>THRESHOLD scope — approve up to amount; exceeded → deny</li>
+ * <li>Evidence — explainable trail in decisions.evidence</li>
+ * <li>SoD override — ordinary APPROVE never bypasses self-approval protection</li>
  * </ul>
  */
 @AutoConfigureMockMvc
 @Transactional
 class ScopedAuthzTest extends AbstractIntegrationTest {
 
-    @Autowired private MockMvc mvc;
-    @Autowired private UserRepository users;
-    @Autowired private RoleRepository roles;
-    @Autowired private PermissionRepository permissions;
-    @Autowired private DepartmentRepository departments;
-    @Autowired private PasswordEncoder encoder;
-    @Autowired private com.flowops.domain.workflow.port.RequestTypeRepository requestTypes;
-    @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
-    private String participationRole;
+    @Autowired
+    private MockMvc mvc;
 
+    @Autowired
+    private UserRepository users;
+
+    @Autowired
+    private RoleRepository roles;
+
+    @Autowired
+    private PermissionRepository permissions;
+
+    @Autowired
+    private DepartmentRepository departments;
+
+    @Autowired
+    private PasswordEncoder encoder;
+
+    @Autowired
+    private com.flowops.domain.workflow.port.RequestTypeRepository requestTypes;
+
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    private String participationRole;
 
     // ── helpers ────────────────────────────────────────────────────────
 
@@ -57,11 +72,13 @@ class ScopedAuthzTest extends AbstractIntegrationTest {
     }
 
     private String token(String username, String password) throws Exception {
-        return mvc.perform(post("/api/v1/auth/token")
-                        .contentType("application/json")
-                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        return mvc
+            .perform(post("/api/v1/auth/token").contentType("application/json")
+                .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
     }
 
     private static String extractToken(String json) {
@@ -74,54 +91,58 @@ class ScopedAuthzTest extends AbstractIntegrationTest {
         int i = json.indexOf("\"id\":");
         String n = json.substring(i + 5);
         int end = n.indexOf(',');
-        if (end < 0) end = n.indexOf('}');
+        if (end < 0)
+            end = n.indexOf('}');
         return Long.parseLong(n.substring(0, end).trim());
     }
 
     /** Create a user with specific roles and optional department. */
     private User createUser(String username, String password, List<String> roleCodes, String deptCode) {
-        if (!roleCodes.contains("ADMIN") && (roleCodes.contains("FINANCE_MANAGER") || roleCodes.contains("JUNIOR_APPROVER"))) {
+        if (!roleCodes.contains("ADMIN")
+                && (roleCodes.contains("FINANCE_MANAGER") || roleCodes.contains("JUNIOR_APPROVER"))) {
             participationRole = roleCodes.getFirst();
         }
         Set<Role> roleSet = roleCodes.stream()
-                .map(code -> roles.findByCode(code)
-                        .orElseThrow(() -> new IllegalStateException("Role not found: " + code)))
-                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
-        com.flowops.domain.organization.Department dept = (deptCode != null)
-                ? departments.findByCode(deptCode)
-                        .orElseThrow(() -> new IllegalStateException("Dept not found: " + deptCode))
-                : null;
+            .map(code -> roles.findByCode(code).orElseThrow(() -> new IllegalStateException("Role not found: " + code)))
+            .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+        com.flowops.domain.organization.Department dept = (deptCode != null) ? departments.findByCode(deptCode)
+            .orElseThrow(() -> new IllegalStateException("Dept not found: " + deptCode)) : null;
         User user = User.newUser(username, username, null, dept, roleSet, encoder.encode(password));
         return users.save(user);
     }
 
     private String userToken(String username, String password) throws Exception {
-        String json = mvc.perform(post("/api/v1/auth/token")
-                        .contentType("application/json")
-                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        String json = mvc
+            .perform(post("/api/v1/auth/token").contentType("application/json")
+                .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         return extractToken(json);
     }
 
     /**
-     * Create a draft + submit for a given requester.
-     * The payload must match the required_fields for the type:
-     *   EXPENSE:  {"amount": <number>, "description": "<string>"}
-     *   IT_ACCESS: {"resource": "<string>", "duration": "<e.g. 30d>"}
+     * Create a draft + submit for a given requester. The payload must match the
+     * required_fields for the type: EXPENSE: {"amount": <number>, "description":
+     * "<string>"} IT_ACCESS: {"resource": "<string>", "duration": "<e.g. 30d>"}
      */
     private long createAndSubmit(String requesterToken, String typeCode, String payload) throws Exception {
-        String body = mvc.perform(post("/api/v1/requests")
-                        .header("Authorization", "Bearer " + requesterToken)
-                        .contentType("application/json")
-                        .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        String body = mvc
+            .perform(post("/api/v1/requests").header("Authorization", "Bearer " + requesterToken)
+                .contentType("application/json")
+                .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         long id = extractId(body);
 
-        // Scope tests explicitly assign workflow responsibility to the scoped role being tested.
+        // Scope tests explicitly assign workflow responsibility to the scoped role being
+        // tested.
         if (participationRole != null) {
-            // Keep another genuinely authorized participant available, so negative scope tests
+            // Keep another genuinely authorized participant available, so negative scope
+            // tests
             // exercise decision authorization rather than a correctly blocked activation.
             var adminUser = users.findByUsername("admin").orElseThrow();
             var assigned = new java.util.LinkedHashSet<>(adminUser.getRoles());
@@ -129,12 +150,11 @@ class ScopedAuthzTest extends AbstractIntegrationTest {
             adminUser.setRoles(assigned);
             users.save(adminUser);
             var type = requestTypes.findByCode(typeCode).orElseThrow();
-            jdbc.update("UPDATE workflow_steps SET required_role=? WHERE workflow_id=?",
-                    participationRole, type.getDefaultWorkflow().getId());
+            jdbc.update("UPDATE workflow_steps SET required_role=? WHERE workflow_id=?", participationRole,
+                    type.getDefaultWorkflow().getId());
         }
-        mvc.perform(post("/api/v1/requests/" + id + "/submit")
-                        .header("Authorization", "Bearer " + requesterToken))
-                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/requests/" + id + "/submit").header("Authorization", "Bearer " + requesterToken))
+            .andExpect(status().isOk());
         return id;
     }
 
@@ -145,11 +165,14 @@ class ScopedAuthzTest extends AbstractIntegrationTest {
     }
 
     private int decide(String approverToken, long requestId, String action) throws Exception {
-        return mvc.perform(post("/api/v1/requests/" + requestId + "/decisions")
-                        .header("Authorization", "Bearer " + approverToken)
-                        .contentType("application/json")
-                        .content("{\"action\":\"" + action + "\",\"justification\":\"test\"}"))
-                .andReturn().getResponse().getStatus();
+        return mvc
+            .perform(post("/api/v1/requests/" + requestId + "/decisions")
+                .header("Authorization", "Bearer " + approverToken)
+                .contentType("application/json")
+                .content("{\"action\":\"" + action + "\",\"justification\":\"test\"}"))
+            .andReturn()
+            .getResponse()
+            .getStatus();
     }
 
     // ── tests ──────────────────────────────────────────────────────────
@@ -184,6 +207,7 @@ class ScopedAuthzTest extends AbstractIntegrationTest {
             assertThat(roles.findByCode("FINANCE_MANAGER")).isPresent();
             assertThat(roles.findByCode("JUNIOR_APPROVER")).isPresent();
         }
+
     }
 
     @Nested
@@ -202,12 +226,14 @@ class ScopedAuthzTest extends AbstractIntegrationTest {
             assertThat(status).isEqualTo(403);
 
             // Verify the 403 body mentions SoD
-            String body = mvc.perform(post("/api/v1/requests/" + id + "/decisions")
-                            .header("Authorization", "Bearer " + alice)
-                            .contentType("application/json")
-                            .content("{\"action\":\"APPROVE\",\"justification\":\"self\"}"))
-                    .andExpect(status().isForbidden())
-                    .andReturn().getResponse().getContentAsString();
+            String body = mvc
+                .perform(post("/api/v1/requests/" + id + "/decisions").header("Authorization", "Bearer " + alice)
+                    .contentType("application/json")
+                    .content("{\"action\":\"APPROVE\",\"justification\":\"self\"}"))
+                .andExpect(status().isForbidden())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
             assertThat(body).containsIgnoringCase("SoD");
         }
 
@@ -218,9 +244,11 @@ class ScopedAuthzTest extends AbstractIntegrationTest {
             User overrideUser = createUser("override1", "pass123456", List.of("ADMIN"), null);
             // Grant request:override:sod explicitly
             Role adminRole = roles.findByCode("ADMIN").orElseThrow();
-            Permission sodOverride = permissions.findAll().stream()
-                    .filter(p -> p.getCode().equals("request:override:sod"))
-                    .findFirst().orElseThrow();
+            Permission sodOverride = permissions.findAll()
+                .stream()
+                .filter(p -> p.getCode().equals("request:override:sod"))
+                .findFirst()
+                .orElseThrow();
             if (!adminRole.getPermissions().contains(sodOverride)) {
                 adminRole.getPermissions().add(sodOverride);
                 roles.save(adminRole);
@@ -233,6 +261,7 @@ class ScopedAuthzTest extends AbstractIntegrationTest {
             int status = decide(overrideToken, id, "APPROVE");
             assertThat(status).as("Ordinary self-approval remains denied").isEqualTo(403);
         }
+
     }
 
     @Nested
@@ -282,6 +311,7 @@ class ScopedAuthzTest extends AbstractIntegrationTest {
             int status = decide(fmToken, id, "APPROVE");
             assertThat(status).as("Departmentless user should be denied (default deny)").isEqualTo(403);
         }
+
     }
 
     @Nested
@@ -315,6 +345,7 @@ class ScopedAuthzTest extends AbstractIntegrationTest {
             int status = decide(jaToken, id, "APPROVE");
             assertThat(status).as("Exceeding threshold should be denied").isEqualTo(403);
         }
+
     }
 
     @Nested
@@ -332,14 +363,17 @@ class ScopedAuthzTest extends AbstractIntegrationTest {
             assertThat(status).isEqualTo(200);
 
             // Fetch the request detail and check evidence
-            String body = mvc.perform(get("/api/v1/requests/" + id)
-                            .header("Authorization", "Bearer " + alice))
-                    .andExpect(status().isOk())
-                    .andReturn().getResponse().getContentAsString();
+            String body = mvc.perform(get("/api/v1/requests/" + id).header("Authorization", "Bearer " + alice))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
 
             // The response should contain evidence
             assertThat(body).containsIgnoringCase("evidence");
             assertThat(body).containsIgnoringCase("permission");
         }
+
     }
+
 }

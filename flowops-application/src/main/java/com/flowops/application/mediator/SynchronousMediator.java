@@ -6,9 +6,13 @@ import java.util.Map;
 import java.util.Objects;
 import org.springframework.stereotype.Component;
 
-/** Dispatches on the caller's thread, preserving handler proxies, transactions and exceptions. */
+/**
+ * Dispatches on the caller's thread, preserving handler proxies, transactions and
+ * exceptions.
+ */
 @Component
 public class SynchronousMediator implements Mediator {
+
     private final Map<Class<?>, MessageHandler<?, ?>> handlers;
 
     public SynchronousMediator(List<MessageHandler<?, ?>> handlers) {
@@ -37,4 +41,5 @@ public class SynchronousMediator implements Mediator {
         // Registration binds M to its Class<M>; lookup uses that exact concrete class.
         return ((MessageHandler<Message<R>, R>) handler).handle(message);
     }
+
 }

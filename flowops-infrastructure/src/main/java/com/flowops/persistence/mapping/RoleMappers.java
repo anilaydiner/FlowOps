@@ -5,13 +5,13 @@ import com.flowops.persistence.entity.RoleEntity;
 import java.util.LinkedHashSet;
 
 /**
- * Maps the {@link Role} aggregate to and from its JPA entity.
- * Stateless — safe to call from any thread.
+ * Maps the {@link Role} aggregate to and from its JPA entity. Stateless — safe to call
+ * from any thread.
  *
- * <p>{@code fromEntity} runs inside the persistence adapter (i.e. inside the
- * transaction), so lazy associations (notably {@code permissions}) are
- * safely resolved here and the resulting domain object needs no live
- * persistence context.
+ * <p>
+ * {@code fromEntity} runs inside the persistence adapter (i.e. inside the transaction),
+ * so lazy associations (notably {@code permissions}) are safely resolved here and the
+ * resulting domain object needs no live persistence context.
  */
 public final class RoleMappers {
 
@@ -30,9 +30,10 @@ public final class RoleMappers {
         e.setDescription(d.getDescription());
         e.setCreatedAt(d.getCreatedAt());
         if (d.getPermissions() != null) {
-            e.setPermissions(d.getPermissions().stream()
-                    .map(PermissionMappers::toEntity)
-                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)));
+            e.setPermissions(d.getPermissions()
+                .stream()
+                .map(PermissionMappers::toEntity)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)));
         }
         return e;
     }
@@ -49,10 +50,12 @@ public final class RoleMappers {
         d.rehydrateDescription(e.getDescription());
         d.setCreatedAt(e.getCreatedAt());
         if (e.getPermissions() != null) {
-            d.rehydratePermissions(e.getPermissions().stream()
-                    .map(PermissionMappers::fromEntity)
-                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)));
+            d.rehydratePermissions(e.getPermissions()
+                .stream()
+                .map(PermissionMappers::fromEntity)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)));
         }
         return d;
     }
+
 }

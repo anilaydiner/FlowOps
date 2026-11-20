@@ -3,12 +3,13 @@ package com.flowops.application.notification.model;
 import java.time.Instant;
 
 /**
- * Simulated email store — records every "sent" email for test verification.
- * A real deployment would swap the gateway; this table stays as an audit trail.
+ * Simulated email store — records every "sent" email for test verification. A real
+ * deployment would swap the gateway; this table stays as an audit trail.
  *
- * <p>Application delivery audit record — no persistence annotations. The JPA mapping
- * lives in {@code persistence.entity.EmailLogEntryEntity}; the
- * rehydration constructor and setters exist solely for that mapper.
+ * <p>
+ * Application delivery audit record — no persistence annotations. The JPA mapping lives
+ * in {@code persistence.entity.EmailLogEntryEntity}; the rehydration constructor and
+ * setters exist solely for that mapper.
  */
 public class EmailLogEntry {
 
@@ -40,23 +41,66 @@ public class EmailLogEntry {
 
     // ── Getters ──────────────────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public String getToAddress() { return toAddress; }
-    public String getSubject() { return subject; }
-    public String getBody() { return body; }
-    public String getStatus() { return status; }
-    public Long getOutboxId() { return outboxId; }
-    public Instant getCreatedAt() { return createdAt; }
+    public Long getId() {
+        return id;
+    }
 
-    public void setStatus(String status) { this.status = status; }
+    public String getToAddress() {
+        return toAddress;
+    }
+
+    public String getSubject() {
+        return subject;
+    }
+
+    public String getBody() {
+        return body;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public Long getOutboxId() {
+        return outboxId;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
 
     // ── Setters (persistence rehydration only) ─────────────────────────
 
-    public void setId(Long id) { this.id = id; }
-    public void setToAddress(String toAddress) { this.toAddress = toAddress; }
-    public void setSubject(String subject) { this.subject = subject; }
-    public void setBody(String body) { this.body = body; }
-    public void rehydrateStatus(String status) { this.status = status; }
-    public void setOutboxId(Long outboxId) { this.outboxId = outboxId; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setToAddress(String toAddress) {
+        this.toAddress = toAddress;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
+
+    public void setBody(String body) {
+        this.body = body;
+    }
+
+    public void rehydrateStatus(String status) {
+        this.status = status;
+    }
+
+    public void setOutboxId(Long outboxId) {
+        this.outboxId = outboxId;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
 }

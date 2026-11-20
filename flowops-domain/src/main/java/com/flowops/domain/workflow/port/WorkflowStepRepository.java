@@ -6,8 +6,9 @@ import java.util.List;
 /**
  * Persistence port for {@link WorkflowStep} definitions.
  *
- * <p>Implemented by the JPA adapter in {@code persistence}; the domain
- * layer only sees this contract — no Spring Data types.
+ * <p>
+ * Implemented by the JPA adapter in {@code persistence}; the domain layer only sees this
+ * contract — no Spring Data types.
  */
 public interface WorkflowStepRepository {
 
@@ -21,4 +22,5 @@ public interface WorkflowStepRepository {
 
     /** Steps of a workflow in configured execution order. */
     List<WorkflowStep> findInExecutionOrder(Long workflowId);
+
 }

@@ -10,9 +10,8 @@ import java.time.Instant;
 
 /**
  * JPA entity backing the {@link com.flowops.domain.identity.PasswordResetToken} aggregate
- * (table {@code password_reset_tokens}). Pure data carrier — all business
- * behavior lives on the domain aggregate; field mapping is identical to
- * the schema.
+ * (table {@code password_reset_tokens}). Pure data carrier — all business behavior lives
+ * on the domain aggregate; field mapping is identical to the schema.
  */
 @Entity(name = "PasswordResetToken")
 @Table(name = "password_reset_tokens")
@@ -45,21 +44,52 @@ public class PasswordResetTokenEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getTokenHash() { return tokenHash; }
-    public void setTokenHash(String tokenHash) { this.tokenHash = tokenHash; }
+    public Long getUserId() {
+        return userId;
+    }
 
-    public Instant getExpiresAt() { return expiresAt; }
-    public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
 
-    public Instant getUsedAt() { return usedAt; }
-    public void setUsedAt(Instant usedAt) { this.usedAt = usedAt; }
+    public String getTokenHash() {
+        return tokenHash;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setTokenHash(String tokenHash) {
+        this.tokenHash = tokenHash;
+    }
+
+    public Instant getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(Instant expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    public Instant getUsedAt() {
+        return usedAt;
+    }
+
+    public void setUsedAt(Instant usedAt) {
+        this.usedAt = usedAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
 }

@@ -5,9 +5,9 @@ import java.util.List;
 /**
  * The result of an authorization check (PLAN §7).
  *
- * @param allowed  whether the action is permitted
- * @param evidence explainable trace: which permission, which role,
- *                 which scope matched (or why it didn't)
+ * @param allowed whether the action is permitted
+ * @param evidence explainable trace: which permission, which role, which scope matched
+ * (or why it didn't)
  */
 public record AuthorizationDecision(boolean allowed, List<String> evidence) {
 
@@ -26,9 +26,6 @@ public record AuthorizationDecision(boolean allowed, List<String> evidence) {
 
     /** Merge this decision's evidence into a map for JSONB storage. */
     public java.util.Map<String, Object> toEvidenceMap() {
-        return java.util.Map.of(
-                "allowed", allowed,
-                "evidence", evidence
-        );
+        return java.util.Map.of("allowed", allowed, "evidence", evidence);
     }
 }

@@ -11,7 +11,10 @@ import java.util.Optional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 
-/** JPA adapter for the {@link OutboxMessageRepository} port. Maps application delivery records ↔ entities. */
+/**
+ * JPA adapter for the {@link OutboxMessageRepository} port. Maps application delivery
+ * records ↔ entities.
+ */
 @Repository
 public class SpringOutboxMessageRepository implements OutboxMessageRepository {
 
@@ -37,7 +40,8 @@ public class SpringOutboxMessageRepository implements OutboxMessageRepository {
             OutboxMessageEntity saved = jpaRepository.saveAndFlush(OutboxMessageMappers.toEntity(message));
             backfill(message, saved);
             return Optional.of(message);
-        } catch (DataIntegrityViolationException e) {
+        }
+        catch (DataIntegrityViolationException e) {
             // Concurrent insert of the same idempotency key — safe to skip.
             return Optional.empty();
         }
@@ -45,8 +49,8 @@ public class SpringOutboxMessageRepository implements OutboxMessageRepository {
 
     @Override
     public List<OutboxMessage> saveAll(List<OutboxMessage> messages) {
-        List<OutboxMessageEntity> saved = jpaRepository.saveAllAndFlush(
-                messages.stream().map(OutboxMessageMappers::toEntity).toList());
+        List<OutboxMessageEntity> saved = jpaRepository
+            .saveAllAndFlush(messages.stream().map(OutboxMessageMappers::toEntity).toList());
         for (int i = 0; i < messages.size(); i++) {
             messages.get(i).setId(saved.get(i).getId());
         }
@@ -91,4 +95,5 @@ public class SpringOutboxMessageRepository implements OutboxMessageRepository {
     private static void backfill(OutboxMessage d, OutboxMessageEntity e) {
         d.setId(e.getId());
     }
+
 }

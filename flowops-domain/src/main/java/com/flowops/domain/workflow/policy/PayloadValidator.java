@@ -6,15 +6,16 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Validates a request payload against a request type's
- * JSONB-driven {@code required_fields} and {@code validation_rules}.
+ * Validates a request payload against a request type's JSONB-driven
+ * {@code required_fields} and {@code validation_rules}.
  *
- * <p>Pure domain service — no framework dependencies.
+ * <p>
+ * Pure domain service — no framework dependencies.
  *
  * Supported rule objects (per field):
  * <ul>
- *   <li>{@code {"type": "number", "min": 1}} — value must be a number ≥ min</li>
- *   <li>{@code {"pattern": "^[0-9]+d$"}} — string value must match the regex</li>
+ * <li>{@code {"type": "number", "min": 1}} — value must be a number ≥ min</li>
+ * <li>{@code {"pattern": "^[0-9]+d$"}} — string value must match the regex</li>
  * </ul>
  */
 public class PayloadValidator {
@@ -31,7 +32,8 @@ public class PayloadValidator {
             Object value = fields.get(field);
             if (value == null) {
                 violations.put(field, requiredMessage(type, field, "is required"));
-            } else if (value instanceof String s && s.isBlank()) {
+            }
+            else if (value instanceof String s && s.isBlank()) {
                 violations.put(field, requiredMessage(type, field, "must not be blank"));
             }
         }
@@ -68,4 +70,5 @@ public class PayloadValidator {
         String base = description instanceof String s && !s.isBlank() ? s : field;
         return base + " — " + suffix;
     }
+
 }

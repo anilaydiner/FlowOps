@@ -8,7 +8,10 @@ import java.util.List;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
-/** JPA adapter for the {@link EmailLogEntryRepository} port. Maps application delivery records ↔ entities. */
+/**
+ * JPA adapter for the {@link EmailLogEntryRepository} port. Maps application delivery
+ * records ↔ entities.
+ */
 @Repository
 public class SpringEmailLogEntryRepository implements EmailLogEntryRepository {
 
@@ -28,7 +31,9 @@ public class SpringEmailLogEntryRepository implements EmailLogEntryRepository {
     @Override
     public List<EmailLogEntry> findByToAddressOrderByCreatedAtDesc(String toAddress) {
         return jpaRepository.findByToAddressOrderByCreatedAtDesc(toAddress)
-                .stream().map(EmailLogEntryMappers::fromEntity).toList();
+            .stream()
+            .map(EmailLogEntryMappers::fromEntity)
+            .toList();
     }
 
     @Override
@@ -45,4 +50,5 @@ public class SpringEmailLogEntryRepository implements EmailLogEntryRepository {
     public List<EmailLogEntry> findAll() {
         return jpaRepository.findAll().stream().map(EmailLogEntryMappers::fromEntity).toList();
     }
+
 }

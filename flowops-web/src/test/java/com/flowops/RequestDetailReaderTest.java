@@ -17,15 +17,17 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class RequestDetailReaderTest {
+
     @Test
     void batchesAndGroupsInterleavedDecisionsWhileKeepingStepsWithoutDecisions() {
         var steps = mock(StepInstanceRepository.class);
         var decisions = mock(DecisionRepository.class);
-        var execution=mock(com.flowops.application.request.port.RequestExecutionQueries.class);
-        when(execution.findByRequestIds(List.of(12L))).thenReturn(Map.of(12L,
-                com.flowops.application.request.model.ExecutionProgress.unplanned(com.flowops.domain.request.RequestStatus.DRAFT,null)));
-        var reader = new RequestDetailReader(steps, decisions,
-                mock(ClarificationRepository.class), mock(ExecutionJobRepository.class),execution);
+        var execution = mock(com.flowops.application.request.port.RequestExecutionQueries.class);
+        when(execution.findByRequestIds(List.of(12L)))
+            .thenReturn(Map.of(12L, com.flowops.application.request.model.ExecutionProgress
+                .unplanned(com.flowops.domain.request.RequestStatus.DRAFT, null)));
+        var reader = new RequestDetailReader(steps, decisions, mock(ClarificationRepository.class),
+                mock(ExecutionJobRepository.class), execution);
         Request request = Request.newDraft(null, null, null, null);
         request.recordPersistence(12L, 0L);
         StepInstance first = new StepInstance();
@@ -49,4 +51,5 @@ class RequestDetailReaderTest {
         verify(decisions).findByRequestIdOrderById(12L);
         verify(decisions, never()).findByStepInstanceIdOrderById(anyLong());
     }
+
 }

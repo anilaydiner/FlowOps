@@ -19,8 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Audit timeline API (PLAN §8, iteration 8).
  *
- * <p>Read-only, append-only-backed history of one request:
- * status transitions, submission, decisions, execution jobs, SLA events.
+ * <p>
+ * Read-only, append-only-backed history of one request: status transitions, submission,
+ * decisions, execution jobs, SLA events.
  */
 @RestController
 @RequestMapping("/api/v1/requests")
@@ -50,18 +51,16 @@ public class AuditController {
                     Request owners require audit:read; other callers require audit:read:any.
                     Approval participation alone does not grant audit access.
                     """)
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Audit timeline (oldest first)"),
+    @ApiResponses({ @ApiResponse(responseCode = "200", description = "Audit timeline (oldest first)"),
             @ApiResponse(responseCode = "400", description = "Unknown `type` filter"),
             @ApiResponse(responseCode = "403", description = "Audit permission not granted"),
-            @ApiResponse(responseCode = "404", description = "Request not found")
-    })
-    public List<AuditEvent> audit(
-            @Parameter(description = "Request ID") @PathVariable Long id,
+            @ApiResponse(responseCode = "404", description = "Request not found") })
+    public List<AuditEvent> audit(@Parameter(description = "Request ID") @PathVariable Long id,
             @Parameter(description = "Inclusive lower bound (ISO-8601)") @RequestParam(required = false) Instant from,
             @Parameter(description = "Inclusive upper bound (ISO-8601)") @RequestParam(required = false) Instant to,
             @Parameter(description = "Event type filter") @RequestParam(required = false) String type,
             @AuthenticationPrincipal UserPrincipal caller) {
         return auditService.timeline(id, from, to, type, caller.toIdentity());
     }
+
 }

@@ -4,8 +4,8 @@ import com.flowops.domain.identity.Permission;
 import com.flowops.persistence.entity.PermissionEntity;
 
 /**
- * Maps the {@link Permission} aggregate to and from its JPA entity.
- * Stateless — safe to call from any thread.
+ * Maps the {@link Permission} aggregate to and from its JPA entity. Stateless — safe to
+ * call from any thread.
  */
 public final class PermissionMappers {
 
@@ -43,4 +43,5 @@ public final class PermissionMappers {
         d.setCreatedAt(e.getCreatedAt());
         return d;
     }
+
 }

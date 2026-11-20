@@ -35,25 +35,55 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-/** No test transaction: commands must commit or roll back through their actual Spring proxies. */
+/**
+ * No test transaction: commands must commit or roll back through their actual Spring
+ * proxies.
+ */
 class LifecycleCommandTransactionTest extends AbstractIntegrationTest {
+
     // These contexts exercise commands/API reads, not scheduled delivery. Other cached
     // contexts share PostgreSQL, so polling here would race the manual failure drills.
-    @MockitoBean JobWorker backgroundJobs;
-    @MockitoBean OutboxDispatcher backgroundOutbox;
-    @MockitoBean SlaScanner backgroundSla;
+    @MockitoBean
+    JobWorker backgroundJobs;
 
-    @Autowired Mediator mediator;
-    @Autowired DomainEventPublisher events;
-    @Autowired com.flowops.domain.execution.port.ExecutionPlanRepository plans;
-    @Autowired UserRepository users;
-    @Autowired RequestRepository requests;
-    @Autowired StepInstanceRepository steps;
-    @Autowired DecisionRepository decisions;
-    @Autowired ExecutionJobRepository jobs;
-    @Autowired OutboxMessageRepository outbox;
-    @Autowired PlatformTransactionManager transactions;
-    @MockitoBean RequestDetailReader details;
+    @MockitoBean
+    OutboxDispatcher backgroundOutbox;
+
+    @MockitoBean
+    SlaScanner backgroundSla;
+
+    @Autowired
+    Mediator mediator;
+
+    @Autowired
+    DomainEventPublisher events;
+
+    @Autowired
+    com.flowops.domain.execution.port.ExecutionPlanRepository plans;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    RequestRepository requests;
+
+    @Autowired
+    StepInstanceRepository steps;
+
+    @Autowired
+    DecisionRepository decisions;
+
+    @Autowired
+    ExecutionJobRepository jobs;
+
+    @Autowired
+    OutboxMessageRepository outbox;
+
+    @Autowired
+    PlatformTransactionManager transactions;
+
+    @MockitoBean
+    RequestDetailReader details;
 
     private CallerIdentity caller(String username) {
         return new TransactionTemplate(transactions).execute(status -> {
@@ -63,8 +93,10 @@ class LifecycleCommandTransactionTest extends AbstractIntegrationTest {
     }
 
     private Request draft(CallerIdentity owner) {
-        return mediator.send(new CreateDraftCommand("EXPENSE",
-                Map.of("amount", 150, "description", "command transaction test"), owner)).request();
+        return mediator
+            .send(new CreateDraftCommand("EXPENSE", Map.of("amount", 150, "description", "command transaction test"),
+                    owner))
+            .request();
     }
 
     private void successfulDetailAssembly() {
@@ -101,14 +133,14 @@ class LifecycleCommandTransactionTest extends AbstractIntegrationTest {
         Request draft = draft(owner);
         successfulDetailAssembly();
         Request submitted = mediator.send(new SubmitRequestCommand(draft.getId(), owner)).request();
-        var before = new TransactionTemplate(transactions).execute(status ->
-                outbox.findByKeyPrefix("req:" + draft.getId() + ":").stream().map(m -> m.getId()).toList());
+        var before = new TransactionTemplate(transactions).execute(
+                status -> outbox.findByKeyPrefix("req:" + draft.getId() + ":").stream().map(m -> m.getId()).toList());
         RuntimeException failure = new IllegalStateException("detail assembly failed");
         when(details.load(any(Request.class))).thenThrow(failure);
 
         CallerIdentity approver = caller("admin");
-        assertSame(failure, assertThrows(IllegalStateException.class, () -> mediator.send(
-                new DecideStepCommand(draft.getId(), DecisionAction.APPROVE, "approved", null, approver))));
+        assertSame(failure, assertThrows(IllegalStateException.class, () -> mediator
+            .send(new DecideStepCommand(draft.getId(), DecisionAction.APPROVE, "approved", null, approver))));
 
         new TransactionTemplate(transactions).executeWithoutResult(status -> {
             Request stored = requests.findById(draft.getId()).orElseThrow();
@@ -119,15 +151,15 @@ class LifecycleCommandTransactionTest extends AbstractIntegrationTest {
             assertEquals(StepState.PENDING, instances.getFirst().getState());
             assertTrue(decisions.findByStepInstanceIdOrderById(instances.getFirst().getId()).isEmpty());
             assertTrue(jobs.findByRequestIdOrderByCreatedAtAsc(draft.getId()).isEmpty());
-            assertEquals(before, outbox.findByKeyPrefix("req:" + draft.getId() + ":")
-                    .stream().map(m -> m.getId()).toList());
+            assertEquals(before,
+                    outbox.findByKeyPrefix("req:" + draft.getId() + ":").stream().map(m -> m.getId()).toList());
         });
     }
 
     @Test
     void approvalEventsRequireAnExistingTransaction() {
-        assertThrows(IllegalTransactionStateException.class,
-                () -> events.publish(new RequestApproved(-1L,java.util.UUID.randomUUID(),com.flowops.domain.request.ApprovalEvidence.allSkipped(null,null))));
+        assertThrows(IllegalTransactionStateException.class, () -> events.publish(new RequestApproved(-1L,
+                java.util.UUID.randomUUID(), com.flowops.domain.request.ApprovalEvidence.allSkipped(null, null))));
     }
 
     @Test
@@ -136,8 +168,7 @@ class LifecycleCommandTransactionTest extends AbstractIntegrationTest {
         Request draft = draft(owner);
         successfulDetailAssembly();
         mediator.send(new SubmitRequestCommand(draft.getId(), owner));
-        mediator.send(new DecideStepCommand(draft.getId(), DecisionAction.APPROVE,
-                "approved", null, caller("admin")));
+        mediator.send(new DecideStepCommand(draft.getId(), DecisionAction.APPROVE, "approved", null, caller("admin")));
 
         new TransactionTemplate(transactions).executeWithoutResult(status -> {
             assertEquals(RequestStatus.APPROVED, requests.findById(draft.getId()).orElseThrow().getStatus());
@@ -147,15 +178,20 @@ class LifecycleCommandTransactionTest extends AbstractIntegrationTest {
             assertFalse(jobs.findByRequestIdOrderByCreatedAtAsc(draft.getId()).isEmpty());
             assertFalse(outbox.findByKeyPrefix("req:" + draft.getId() + ":").isEmpty());
             var messagesBefore = outbox.findByKeyPrefix("req:" + draft.getId() + ":")
-                    .stream().map(m -> m.getId()).toList();
+                .stream()
+                .map(m -> m.getId())
+                .toList();
             var jobsBefore = jobs.findByRequestIdOrderByCreatedAtAsc(draft.getId())
-                    .stream().map(job -> job.getId()).toList();
-            var plan=plans.findByRequestId(draft.getId()).orElseThrow();
-            events.publish(new RequestApproved(draft.getId(),plan.id(),plan.approval()));
-            assertEquals(messagesBefore, outbox.findByKeyPrefix("req:" + draft.getId() + ":")
-                    .stream().map(m -> m.getId()).toList());
-            assertEquals(jobsBefore, jobs.findByRequestIdOrderByCreatedAtAsc(draft.getId())
-                    .stream().map(job -> job.getId()).toList());
+                .stream()
+                .map(job -> job.getId())
+                .toList();
+            var plan = plans.findByRequestId(draft.getId()).orElseThrow();
+            events.publish(new RequestApproved(draft.getId(), plan.id(), plan.approval()));
+            assertEquals(messagesBefore,
+                    outbox.findByKeyPrefix("req:" + draft.getId() + ":").stream().map(m -> m.getId()).toList());
+            assertEquals(jobsBefore,
+                    jobs.findByRequestIdOrderByCreatedAtAsc(draft.getId()).stream().map(job -> job.getId()).toList());
         });
     }
+
 }

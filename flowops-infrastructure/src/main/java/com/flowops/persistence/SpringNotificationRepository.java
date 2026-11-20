@@ -31,8 +31,8 @@ public class SpringNotificationRepository implements NotificationRepository {
 
     @Override
     public List<Notification> saveAll(List<Notification> notifications) {
-        List<NotificationEntity> saved = jpaRepository.saveAllAndFlush(
-                notifications.stream().map(NotificationMappers::toEntity).toList());
+        List<NotificationEntity> saved = jpaRepository
+            .saveAllAndFlush(notifications.stream().map(NotificationMappers::toEntity).toList());
         for (int i = 0; i < notifications.size(); i++) {
             notifications.get(i).setId(saved.get(i).getId());
         }
@@ -69,10 +69,12 @@ public class SpringNotificationRepository implements NotificationRepository {
     @Override
     public List<Notification> findByRecipientId(Long recipientId) {
         return jpaRepository.findByRecipientId(recipientId, Pageable.unpaged())
-                .map(NotificationMappers::fromEntity).toList();
+            .map(NotificationMappers::fromEntity)
+            .toList();
     }
 
     private static void backfill(Notification d, NotificationEntity e) {
         d.setId(e.getId());
     }
+
 }

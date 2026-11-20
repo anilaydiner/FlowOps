@@ -27,4 +27,5 @@ public interface ExecutionJobJpaRepository extends JpaRepository<ExecutionJobEnt
     @Modifying
     @Query(value = "UPDATE execution_jobs SET next_retry_at = :ts WHERE id = :id", nativeQuery = true)
     void resetNextRetryAt(@Param("id") Long id, @Param("ts") Instant ts);
+
 }

@@ -14,20 +14,23 @@ import org.springframework.stereotype.Component;
 /**
  * Composes rich email content (subject + plain text + HTML) for workflow events.
  *
- * <p>Each event type gets a consistent layout with:
+ * <p>
+ * Each event type gets a consistent layout with:
  * <ul>
- *   <li>Clear subject line</li>
- *   <li>Request context (type, ID, payload details)</li>
- *   <li>Action taken by whom</li>
- *   <li>Link back to the FlowOps UI</li>
+ * <li>Clear subject line</li>
+ * <li>Request context (type, ID, payload details)</li>
+ * <li>Action taken by whom</li>
+ * <li>Link back to the FlowOps UI</li>
  * </ul>
  *
- * <p>HTML is inline-styled (no external CSS) for maximum mail-client compatibility.
+ * <p>
+ * HTML is inline-styled (no external CSS) for maximum mail-client compatibility.
  */
 @Component
 public class EmailComposer {
 
     private final String baseUrl;
+
     private final String feBaseUrl;
 
     public EmailComposer(FlowOpsUrls urls) {
@@ -42,7 +45,8 @@ public class EmailComposer {
     /**
      * Result of composing an email: subject, plain-text body, and HTML body.
      */
-    public record ComposedEmail(String subject, String text, String html) {}
+    public record ComposedEmail(String subject, String text, String html) {
+    }
 
     // ── Event composers ─────────────────────────────────────────────────
 
@@ -63,12 +67,7 @@ public class EmailComposer {
                 %s
 
                 — FlowOps
-                """.formatted(
-                displayName(request),
-                request.getId(),
-                describeRequest(request),
-                link
-        );
+                """.formatted(displayName(request), request.getId(), describeRequest(request), link);
 
         String html = """
                 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width:560px; margin:0 auto; padding:24px;">
@@ -78,32 +77,38 @@ public class EmailComposer {
                   <a href="%s" style="display:inline-block; margin-top:16px; padding:10px 24px; background:#2563eb; color:#fff; text-decoration:none; border-radius:6px; font-size:14px;">View request</a>
                   <p style="margin-top:24px; font-size:12px; color:#999;">— FlowOps Request &amp; Approval</p>
                 </div>
-                """.formatted(
-                displayName(request),
-                requestDetailTable(request, "IN_REVIEW", "#e0e7ff", "#3730a3"),
-                link
-        );
+                """
+            .formatted(displayName(request), requestDetailTable(request, "IN_REVIEW", "#e0e7ff", "#3730a3"), link);
 
         return new ComposedEmail(subject, text, html);
     }
 
-    public ComposedEmail approved(Request request,com.flowops.domain.request.ApprovalEvidence approval,int expectedActions) {
-        String subject="Request #"+request.getId()+" has been approved";
-        String actor=approval.actorKind()==com.flowops.domain.request.ApprovalEvidence.ActorKind.SYSTEM
-                ?"Automatically approved because no review step applied.":"Approved by "+approval.actorName()+".";
-        String next=expectedActions==0?"No execution actions are required.":"The actions in your approved execution plan will now be processed.";
-        String link=baseUrl+"/requests/"+request.getId();
-        String text="Hi "+displayName(request)+",\n\nYour request #"+request.getId()+" has been fully approved.\n"+actor+"\n"+next+"\n\n"+link+"\n\n— FlowOps";
-        String html="<h2>Request Approved</h2><p>"+escapeHtml(actor)+"</p>"+requestDetailTable(request,"APPROVED","#dcfce7","#166534")
-                +"<p>"+escapeHtml(next)+"</p><a href=\""+escapeHtml(link)+"\">View request</a>";
-        return new ComposedEmail(subject,text,html);
+    public ComposedEmail approved(Request request, com.flowops.domain.request.ApprovalEvidence approval,
+            int expectedActions) {
+        String subject = "Request #" + request.getId() + " has been approved";
+        String actor = approval.actorKind() == com.flowops.domain.request.ApprovalEvidence.ActorKind.SYSTEM
+                ? "Automatically approved because no review step applied."
+                : "Approved by " + approval.actorName() + ".";
+        String next = expectedActions == 0 ? "No execution actions are required."
+                : "The actions in your approved execution plan will now be processed.";
+        String link = baseUrl + "/requests/" + request.getId();
+        String text = "Hi " + displayName(request) + ",\n\nYour request #" + request.getId()
+                + " has been fully approved.\n" + actor + "\n" + next + "\n\n" + link + "\n\n— FlowOps";
+        String html = "<h2>Request Approved</h2><p>" + escapeHtml(actor) + "</p>"
+                + requestDetailTable(request, "APPROVED", "#dcfce7", "#166534") + "<p>" + escapeHtml(next)
+                + "</p><a href=\"" + escapeHtml(link) + "\">View request</a>";
+        return new ComposedEmail(subject, text, html);
     }
-    public ComposedEmail executed(Request request,int completedActions) {
-        String subject="Request #"+request.getId()+" execution is complete";
-        String result=completedActions==0?"No execution actions were required. Your approved request is complete.":"Every action in your approved execution plan has completed.";
-        String link=baseUrl+"/requests/"+request.getId();
-        String text="Hi "+displayName(request)+",\n\nRequest #"+request.getId()+": "+result+"\n\n"+link+"\n\n— FlowOps";
-        return new ComposedEmail(subject,text,"<h2>Request execution complete</h2><p>"+escapeHtml(result)+"</p><a href=\""+escapeHtml(link)+"\">View request</a>");
+
+    public ComposedEmail executed(Request request, int completedActions) {
+        String subject = "Request #" + request.getId() + " execution is complete";
+        String result = completedActions == 0 ? "No execution actions were required. Your approved request is complete."
+                : "Every action in your approved execution plan has completed.";
+        String link = baseUrl + "/requests/" + request.getId();
+        String text = "Hi " + displayName(request) + ",\n\nRequest #" + request.getId() + ": " + result + "\n\n" + link
+                + "\n\n— FlowOps";
+        return new ComposedEmail(subject, text, "<h2>Request execution complete</h2><p>" + escapeHtml(result)
+                + "</p><a href=\"" + escapeHtml(link) + "\">View request</a>");
     }
 
     public ComposedEmail rejected(Request request, String rejectorUsername, String justification) {
@@ -124,14 +129,8 @@ public class EmailComposer {
                 %s
 
                 — FlowOps
-                """.formatted(
-                displayName(request),
-                request.getId(),
-                describeRequest(request),
-                rejectorUsername,
-                justification != null ? justification : "No reason provided",
-                link
-        );
+                """.formatted(displayName(request), request.getId(), describeRequest(request), rejectorUsername,
+                justification != null ? justification : "No reason provided", link);
 
         String html = """
                 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width:560px; margin:0 auto; padding:24px;">
@@ -147,12 +146,9 @@ public class EmailComposer {
                   <a href="%s" style="display:inline-block; margin-top:16px; padding:10px 24px; background:#6b7280; color:#fff; text-decoration:none; border-radius:6px; font-size:14px;">View request</a>
                   <p style="margin-top:24px; font-size:12px; color:#999;">— FlowOps Request &amp; Approval</p>
                 </div>
-                """.formatted(
-                displayName(request),
-                requestDetailTable(request, "REJECTED", "#fee2e2", "#991b1b"),
-                justification != null ? justification : "No reason provided",
-                link
-        );
+                """
+            .formatted(displayName(request), requestDetailTable(request, "REJECTED", "#fee2e2", "#991b1b"),
+                    justification != null ? justification : "No reason provided", link);
 
         return new ComposedEmail(subject, text, html);
     }
@@ -175,16 +171,8 @@ public class EmailComposer {
                 %s
 
                 — FlowOps
-                """.formatted(
-                toUsername,
-                fromUsername,
-                request.getId(),
-                request.getId(),
-                describeRequest(request),
-                stepCode,
-                fromUsername,
-                link
-        );
+                """.formatted(toUsername, fromUsername, request.getId(), request.getId(), describeRequest(request),
+                stepCode, fromUsername, link);
 
         String html = """
                 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width:560px; margin:0 auto; padding:24px;">
@@ -197,13 +185,9 @@ public class EmailComposer {
                   <a href="%s" style="display:inline-block; margin-top:16px; padding:10px 24px; background:#2563eb; color:#fff; text-decoration:none; border-radius:6px; font-size:14px;">Review request</a>
                   <p style="margin-top:24px; font-size:12px; color:#999;">— FlowOps Request &amp; Approval</p>
                 </div>
-                """.formatted(
-                toUsername,
-                fromUsername,
-                requestDetailTable(request, "IN_REVIEW", "#e0e7ff", "#3730a3"),
-                stepCode,
-                link
-        );
+                """
+            .formatted(toUsername, fromUsername, requestDetailTable(request, "IN_REVIEW", "#e0e7ff", "#3730a3"),
+                    stepCode, link);
 
         return new ComposedEmail(subject, text, html);
     }
@@ -234,11 +218,8 @@ public class EmailComposer {
                   <a href="%s" style="display:inline-block; margin-top:16px; padding:10px 24px; background:#d97706; color:#fff; text-decoration:none; border-radius:6px; font-size:14px;">Review request</a>
                   <p style="margin-top:24px; font-size:12px; color:#999;">— FlowOps Request &amp; Approval</p>
                 </div>
-                """.formatted(
-                requestDetailTable(request, "IN_REVIEW", "#fef3c7", "#92400e"),
-                message,
-                link
-        );
+                """
+            .formatted(requestDetailTable(request, "IN_REVIEW", "#fef3c7", "#92400e"), message, link);
 
         return new ComposedEmail(subject, text, html);
     }
@@ -261,13 +242,8 @@ public class EmailComposer {
                 %s
 
                 — FlowOps
-                """.formatted(
-                request.getId(),
-                describeRequest(request),
-                displayName(request),
-                stepCode != null ? "Step:           " + stepCode + System.lineSeparator() : "",
-                link
-        );
+                """.formatted(request.getId(), describeRequest(request), displayName(request),
+                stepCode != null ? "Step:           " + stepCode + System.lineSeparator() : "", link);
 
         String html = """
                 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width:560px; margin:0 auto; padding:24px;">
@@ -280,21 +256,17 @@ public class EmailComposer {
                   <a href="%s" style="display:inline-block; margin-top:16px; padding:10px 24px; background:#2563eb; color:#fff; text-decoration:none; border-radius:6px; font-size:14px;">Review request</a>
                   <p style="margin-top:24px; font-size:12px; color:#999;">— FlowOps Request &amp; Approval</p>
                 </div>
-                """.formatted(
-                escapeHtml(displayName(request)),
-                requestDetailTable(request, "IN_REVIEW", "#e0e7ff", "#3730a3"),
-                link
-        );
+                """
+            .formatted(escapeHtml(displayName(request)), requestDetailTable(request, "IN_REVIEW", "#e0e7ff", "#3730a3"),
+                    link);
 
         return new ComposedEmail(subject, text, html);
     }
 
     public ComposedEmail welcome(User user, String initialPassword) {
-        String name = (user.getDisplayName() != null && !user.getDisplayName().isBlank())
-                ? user.getDisplayName() : user.getUsername();
-        String roles = user.roleCodes().stream()
-                .sorted()
-                .collect(java.util.stream.Collectors.joining(", "));
+        String name = (user.getDisplayName() != null && !user.getDisplayName().isBlank()) ? user.getDisplayName()
+                : user.getUsername();
+        String roles = user.roleCodes().stream().sorted().collect(java.util.stream.Collectors.joining(", "));
         String link = baseUrl + "/";
 
         String text = """
@@ -310,8 +282,7 @@ public class EmailComposer {
                 Please change your password after your first sign-in.
 
                 — FlowOps Request & Approval
-                """.formatted(name, user.getUsername(), initialPassword,
-                roles.isEmpty() ? "(none)" : roles, link);
+                """.formatted(name, user.getUsername(), initialPassword, roles.isEmpty() ? "(none)" : roles, link);
 
         String html = """
                 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width:560px; margin:0 auto; padding:24px;">
@@ -330,29 +301,28 @@ public class EmailComposer {
                   </p>
                   <p style="margin-top:24px; font-size:12px; color:#999;">— FlowOps Request &amp; Approval</p>
                 </div>
-                """.formatted(escapeHtml(name), escapeHtml(user.getUsername()),
-                escapeHtml(initialPassword), escapeHtml(roles.isEmpty() ? "(none)" : roles),
-                link);
+                """
+            .formatted(escapeHtml(name), escapeHtml(user.getUsername()), escapeHtml(initialPassword),
+                    escapeHtml(roles.isEmpty() ? "(none)" : roles), link);
 
         return new ComposedEmail("Your FlowOps account is ready — sign-in details", text, html);
     }
 
     /**
-     * Compose a "reset your password" email. The {@code resetUrl} is the full
-     * link to the front-end reset form (host + path + {@code ?token=...}),
-     * built by the caller so this composer stays free of FE-host config.
-     *
-     * @param user       the account owner (for greeting)
-     * @param resetUrl   full reset link to embed in the email
-     * @param expiresAt  when the link stops working (shown to the user)
+     * Compose a "reset your password" email. The {@code resetUrl} is the full link to the
+     * front-end reset form (host + path + {@code ?token=...}), built by the caller so
+     * this composer stays free of FE-host config.
+     * @param user the account owner (for greeting)
+     * @param resetUrl full reset link to embed in the email
+     * @param expiresAt when the link stops working (shown to the user)
      */
     public ComposedEmail passwordReset(User user, String resetUrl, Instant expiresAt) {
-        String name = (user.getDisplayName() != null && !user.getDisplayName().isBlank())
-                ? user.getDisplayName() : user.getUsername();
-        String expiry = DateTimeFormatter.ISO_INSTANT
-                .withZone(ZoneId.of("UTC"))
-                .format(expiresAt)
-                .replace("T", " ").replace("Z", " UTC");
+        String name = (user.getDisplayName() != null && !user.getDisplayName().isBlank()) ? user.getDisplayName()
+                : user.getUsername();
+        String expiry = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("UTC"))
+            .format(expiresAt)
+            .replace("T", " ")
+            .replace("Z", " UTC");
 
         String text = """
                 Hi %s,
@@ -381,7 +351,8 @@ public class EmailComposer {
                   <p style="margin:16px 0 0 0; font-size:13px; color:#6b7280;">If you did not request a reset, ignore this email — your password will not change.</p>
                   <p style="margin-top:24px; font-size:12px; color:#999;">— FlowOps Request &amp; Approval</p>
                 </div>
-                """.formatted(escapeHtml(name), escapeHtml(resetUrl), escapeHtml(expiry));
+                """
+            .formatted(escapeHtml(name), escapeHtml(resetUrl), escapeHtml(expiry));
 
         return new ComposedEmail("Reset your FlowOps password", text, html);
     }
@@ -390,7 +361,8 @@ public class EmailComposer {
 
     private String displayName(Request request) {
         String name = request.getRequester().getDisplayName();
-        if (name != null && !name.isBlank()) return name;
+        if (name != null && !name.isBlank())
+            return name;
         return request.getRequester().getUsername();
     }
 
@@ -401,7 +373,8 @@ public class EmailComposer {
 
         if (payload != null && !payload.isEmpty()) {
             String summary = summarizePayload(payload);
-            if (!summary.isEmpty()) sb.append(" (").append(summary).append(")");
+            if (!summary.isEmpty())
+                sb.append(" (").append(summary).append(")");
         }
         return sb.toString();
     }
@@ -411,8 +384,10 @@ public class EmailComposer {
         StringBuilder sb = new StringBuilder();
         int count = 0;
         for (Map.Entry<String, Object> e : payload.entrySet()) {
-            if (count >= 3) break;
-            if (!sb.isEmpty()) sb.append(", ");
+            if (count >= 3)
+                break;
+            if (!sb.isEmpty())
+                sb.append(", ");
             sb.append(e.getKey()).append(": ").append(e.getValue());
             count++;
         }
@@ -428,33 +403,56 @@ public class EmailComposer {
         Map<String, Object> payload = request.getPayload();
 
         StringBuilder rows = new StringBuilder();
-        rows.append("<tr><td style='padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#999;'>Request ID</td>")
-            .append("<td style='padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#1a1a1a; font-weight:600;'>#").append(request.getId()).append("</td></tr>");
-        rows.append("<tr><td style='padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#999;'>Type</td>")
-            .append("<td style='padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#1a1a1a;'>").append(typeName).append("</td></tr>");
+        rows.append(
+                "<tr><td style='padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#999;'>Request ID</td>")
+            .append("<td style='padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#1a1a1a; font-weight:600;'>#")
+            .append(request.getId())
+            .append("</td></tr>");
+        rows.append(
+                "<tr><td style='padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#999;'>Type</td>")
+            .append("<td style='padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#1a1a1a;'>")
+            .append(typeName)
+            .append("</td></tr>");
 
         if (payload != null) {
             for (Map.Entry<String, Object> e : payload.entrySet()) {
-                rows.append("<tr><td style='padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#999;'>").append(escapeHtml(e.getKey())).append("</td>")
-                    .append("<td style='padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#1a1a1a;'>").append(escapeHtml(String.valueOf(e.getValue()))).append("</td></tr>");
+                rows.append(
+                        "<tr><td style='padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#999;'>")
+                    .append(escapeHtml(e.getKey()))
+                    .append("</td>")
+                    .append("<td style='padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:13px; color:#1a1a1a;'>")
+                    .append(escapeHtml(String.valueOf(e.getValue())))
+                    .append("</td></tr>");
             }
         }
 
         rows.append("<tr><td style='padding:8px 12px; font-size:13px; color:#999;'>Status</td>")
             .append("<td style='padding:8px 12px; font-size:13px;'>")
-            .append("<span style='display:inline-block; padding:2px 10px; border-radius:12px; background:").append(badgeBg).append("; color:").append(badgeColor).append("; font-size:12px; font-weight:600;'>").append(status).append("</span>")
+            .append("<span style='display:inline-block; padding:2px 10px; border-radius:12px; background:")
+            .append(badgeBg)
+            .append("; color:")
+            .append(badgeColor)
+            .append("; font-size:12px; font-weight:600;'>")
+            .append(status)
+            .append("</span>")
             .append("</td></tr>");
 
         return """
                 <table style="width:100%%; border-collapse:collapse; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden; margin:16px 0;">
                   %s
                 </table>
-                """.formatted(rows);
+                """
+            .formatted(rows);
     }
 
     private String escapeHtml(String s) {
-        if (s == null) return "";
-        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                .replace("\"", "&quot;").replace("'", "&#39;");
+        if (s == null)
+            return "";
+        return s.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&#39;");
     }
+
 }

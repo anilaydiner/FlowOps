@@ -7,15 +7,18 @@ import java.util.Map;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/** Thin scheduling shell for bounded pending/blocked review escalation and independent business expiry. */
+/**
+ * Thin scheduling shell for bounded pending/blocked review escalation and independent
+ * business expiry.
+ */
 @Component
 public class SlaScanner {
 
     private final ScanSla scanSla;
+
     private final FlowOpsSpans spans;
 
-    public SlaScanner(ScanSla scanSla,
-                      FlowOpsSpans spans) {
+    public SlaScanner(ScanSla scanSla, FlowOpsSpans spans) {
         this.scanSla = scanSla;
         this.spans = spans;
     }
@@ -38,20 +41,21 @@ public class SlaScanner {
     }
 
     /**
-     * Scan a bounded batch of due PENDING/BLOCKED review work.
-     * Called by the scheduler (when running) or directly by tests.
+     * Scan a bounded batch of due PENDING/BLOCKED review work. Called by the scheduler
+     * (when running) or directly by tests.
      */
     public void scan() {
-        io.opentelemetry.api.trace.Span span =
-                spans.start(SpanNames.SLA_SCAN, Map.of("component", "sla-scanner"));
+        io.opentelemetry.api.trace.Span span = spans.start(SpanNames.SLA_SCAN, Map.of("component", "sla-scanner"));
         try {
             ScanSla.Result result = scanSla.scan();
             span.setAttribute("sla.breaches", result.breaches());
             span.setAttribute("sla.expiries", result.expiries());
             spans.success(span);
-        } catch (RuntimeException e) {
+        }
+        catch (RuntimeException e) {
             spans.error(span, e);
             throw e;
         }
     }
+
 }

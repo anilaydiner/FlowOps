@@ -4,12 +4,13 @@ import com.flowops.domain.workflow.RequestType;
 import com.flowops.persistence.entity.RequestTypeEntity;
 
 /**
- * Maps the {@link RequestType} aggregate to and from its JPA entity.
- * Stateless — safe to call from any thread.
+ * Maps the {@link RequestType} aggregate to and from its JPA entity. Stateless — safe to
+ * call from any thread.
  *
- * <p>{@code fromEntity} runs inside the persistence adapter (i.e. inside the
- * transaction), so lazy associations are safely resolved here and the
- * resulting domain object needs no live persistence context.
+ * <p>
+ * {@code fromEntity} runs inside the persistence adapter (i.e. inside the transaction),
+ * so lazy associations are safely resolved here and the resulting domain object needs no
+ * live persistence context.
  */
 public final class RequestTypeMappers {
 
@@ -57,4 +58,5 @@ public final class RequestTypeMappers {
         d.setUpdatedAt(e.getUpdatedAt());
         return d;
     }
+
 }

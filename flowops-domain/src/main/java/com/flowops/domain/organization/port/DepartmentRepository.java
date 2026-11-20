@@ -9,8 +9,9 @@ import java.util.Optional;
 /**
  * Persistence port for the {@link Department} aggregate.
  *
- * <p>Implemented by the JPA adapter in {@code persistence}; the domain
- * layer only sees this contract — no Spring Data types.
+ * <p>
+ * Implemented by the JPA adapter in {@code persistence}; the domain layer only sees this
+ * contract — no Spring Data types.
  */
 public interface DepartmentRepository {
 
@@ -18,4 +19,5 @@ public interface DepartmentRepository {
     PageResult<Department> findAll(DepartmentFilter filter, PageQuery query);
 
     Optional<Department> findByCode(String code);
+
 }

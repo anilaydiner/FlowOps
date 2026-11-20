@@ -27,8 +27,7 @@ public class SpringDepartmentRepository implements DepartmentRepository {
     public PageResult<Department> findAll(DepartmentFilter filter, PageQuery query) {
         Pageable pageable = Paging.toPageable(query);
         Specification<DepartmentEntity> spec = DepartmentSpecifications.from(filter);
-        Page<DepartmentEntity> page = (spec == null)
-                ? jpaRepository.findAll(pageable)
+        Page<DepartmentEntity> page = (spec == null) ? jpaRepository.findAll(pageable)
                 : jpaRepository.findAll(spec, pageable);
         return Paging.toPageResult(page.map(DepartmentMappers::fromEntity));
     }
@@ -37,4 +36,5 @@ public class SpringDepartmentRepository implements DepartmentRepository {
     public Optional<Department> findByCode(String code) {
         return jpaRepository.findByCode(code).map(DepartmentMappers::fromEntity);
     }
+
 }

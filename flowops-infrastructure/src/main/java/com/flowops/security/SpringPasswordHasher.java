@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 final class SpringPasswordHasher implements PasswordHasher {
+
     private final PasswordEncoder encoder;
 
     SpringPasswordHasher(PasswordEncoder encoder) {
@@ -21,4 +22,5 @@ final class SpringPasswordHasher implements PasswordHasher {
     public boolean matches(String password, String hash) {
         return encoder.matches(password, hash);
     }
+
 }

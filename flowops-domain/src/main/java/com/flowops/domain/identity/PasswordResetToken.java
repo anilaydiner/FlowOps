@@ -5,21 +5,24 @@ import java.time.Instant;
 /**
  * A single-use, expiring password-reset token (PLAN §9).
  *
- * <p>Security model:
+ * <p>
+ * Security model:
  * <ul>
- *   <li>The <b>raw</b> random token is delivered to the user's email (in the
- *       reset link) and is <b>never persisted</b>.</li>
- *   <li>Only the SHA-256 <b>hash</b> of the raw token is stored, so a database
- *       leak does not expose usable reset links.</li>
- *   <li>Each token is valid until {@code expiresAt} and is single-use
- *       ({@link #markUsed()}).</li>
+ * <li>The <b>raw</b> random token is delivered to the user's email (in the reset link)
+ * and is <b>never persisted</b>.</li>
+ * <li>Only the SHA-256 <b>hash</b> of the raw token is stored, so a database leak does
+ * not expose usable reset links.</li>
+ * <li>Each token is valid until {@code expiresAt} and is single-use
+ * ({@link #markUsed()}).</li>
  * </ul>
  *
- * <p>Pure-Java aggregate — no Spring types (enforced by the architecture tests).
+ * <p>
+ * Pure-Java aggregate — no Spring types (enforced by the architecture tests).
  *
- * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
- * lives in {@code persistence.entity.PasswordResetTokenEntity}; the
- * rehydration constructor and setters exist solely for that mapper.
+ * <p>
+ * Pure domain aggregate — no persistence annotations. The JPA mapping lives in
+ * {@code persistence.entity.PasswordResetTokenEntity}; the rehydration constructor and
+ * setters exist solely for that mapper.
  */
 public class PasswordResetToken {
 
@@ -42,9 +45,12 @@ public class PasswordResetToken {
     }
 
     public PasswordResetToken(Long userId, String tokenHash, Instant expiresAt) {
-        if (userId == null) throw new IllegalArgumentException("userId is required");
-        if (tokenHash == null || tokenHash.isBlank()) throw new IllegalArgumentException("tokenHash is required");
-        if (expiresAt == null) throw new IllegalArgumentException("expiresAt is required");
+        if (userId == null)
+            throw new IllegalArgumentException("userId is required");
+        if (tokenHash == null || tokenHash.isBlank())
+            throw new IllegalArgumentException("tokenHash is required");
+        if (expiresAt == null)
+            throw new IllegalArgumentException("expiresAt is required");
         this.userId = userId;
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
@@ -71,19 +77,54 @@ public class PasswordResetToken {
 
     // ── Getters ──────────────────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public Long getUserId() { return userId; }
-    public String getTokenHash() { return tokenHash; }
-    public Instant getExpiresAt() { return expiresAt; }
-    public Instant getUsedAt() { return usedAt; }
-    public Instant getCreatedAt() { return createdAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public String getTokenHash() {
+        return tokenHash;
+    }
+
+    public Instant getExpiresAt() {
+        return expiresAt;
+    }
+
+    public Instant getUsedAt() {
+        return usedAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
 
     // ── Setters (persistence rehydration only) ─────────────────────────
 
-    public void setId(Long id) { this.id = id; }
-    public void setUserId(Long userId) { this.userId = userId; }
-    public void setTokenHash(String tokenHash) { this.tokenHash = tokenHash; }
-    public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
-    public void setUsedAt(Instant usedAt) { this.usedAt = usedAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public void setTokenHash(String tokenHash) {
+        this.tokenHash = tokenHash;
+    }
+
+    public void setExpiresAt(Instant expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    public void setUsedAt(Instant usedAt) {
+        this.usedAt = usedAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
 }

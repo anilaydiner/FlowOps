@@ -29,4 +29,5 @@ public interface OutboxMessageJpaRepository extends JpaRepository<OutboxMessageE
     @Query(value = "SELECT * FROM outbox WHERE idempotency_key LIKE :prefix || '%' ORDER BY created_at ASC, id ASC",
             nativeQuery = true)
     List<OutboxMessageEntity> findByKeyPrefix(@Param("prefix") String prefix);
+
 }

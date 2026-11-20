@@ -9,9 +9,9 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * JPA entity backing the {@link com.flowops.domain.workflow.Workflow} aggregate
- * (table {@code workflows}). Pure data carrier — all business behavior lives
- * on the domain aggregate; field mapping is identical to the schema.
+ * JPA entity backing the {@link com.flowops.domain.workflow.Workflow} aggregate (table
+ * {@code workflows}). Pure data carrier — all business behavior lives on the domain
+ * aggregate; field mapping is identical to the schema.
  */
 @Entity(name = "Workflow")
 @Table(name = "workflows")
@@ -44,24 +44,60 @@ public class WorkflowEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getCode() { return code; }
-    public void setCode(String code) { this.code = code; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getCode() {
+        return code;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public void setCode(String code) {
+        this.code = code;
+    }
 
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
+    public String getName() {
+        return name;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    public Instant getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
 }

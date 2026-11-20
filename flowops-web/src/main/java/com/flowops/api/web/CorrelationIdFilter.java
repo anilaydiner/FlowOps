@@ -17,11 +17,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Ensures every request carries a correlation ID:
- * - uses inbound X-Correlation-Id header when present (sanitized),
- * - otherwise generates a UUID,
- * - stores it in MDC for structured logging,
- * - echoes it back in the response header.
+ * Ensures every request carries a correlation ID: - uses inbound X-Correlation-Id header
+ * when present (sanitized), - otherwise generates a UUID, - stores it in MDC for
+ * structured logging, - echoes it back in the response header.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -32,9 +30,8 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
     private static final int MAX_LENGTH = 64;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain chain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
         String id = sanitize(request.getHeader(CorrelationId.HEADER));
         if (id == null) {
             id = UUID.randomUUID().toString();
@@ -44,7 +41,8 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
         log.debug("Processing {} {} with correlationId {}", request.getMethod(), request.getRequestURI(), id);
         try (var origin = AuditRequestOrigin.open(id, request.getRemoteAddr(), request.getHeader("User-Agent"))) {
             chain.doFilter(request, response);
-        } finally {
+        }
+        finally {
             MDC.remove(CorrelationId.MDC_KEY);
         }
     }
@@ -59,4 +57,5 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
         }
         return cleaned.length() > MAX_LENGTH ? cleaned.substring(0, MAX_LENGTH) : cleaned;
     }
+
 }

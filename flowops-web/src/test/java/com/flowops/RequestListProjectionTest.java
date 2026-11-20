@@ -62,37 +62,83 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(properties = {
-        "spring.jpa.properties.hibernate.generate_statistics=true",
-        "logging.level.org.hibernate.engine.internal.StatisticalLoggingSessionEventListener=OFF"
-})
+@SpringBootTest(properties = { "spring.jpa.properties.hibernate.generate_statistics=true",
+        "logging.level.org.hibernate.engine.internal.StatisticalLoggingSessionEventListener=OFF" })
 class RequestListProjectionTest extends AbstractIntegrationTest {
+
     // Isolate SessionFactory-wide SQL statistics from scheduled polling.
-    @MockitoBean JobWorker jobWorker;
-    @MockitoBean OutboxDispatcher outboxDispatcher;
-    @MockitoBean SlaScanner slaScanner;
-    @Autowired RequestDetailQueries detailQueries;
-    @Autowired RequestDetailReader detailReader;
-    @Autowired ClarificationRepository clarificationRepository;
-    @Autowired ExecutionJobRepository jobRepository;
-    @Autowired ApprovalQueueQueries queue;
-    @Autowired WorkflowRepository workflows;
-    @Autowired WorkflowStepRepository workflowSteps;
-    @Autowired StepInstanceRepository stepInstances;
-    @Autowired DecisionRepository decisions;
-    @Autowired RequestListQueries lists;
-    @Autowired RequestRepository requests;
-    @Autowired RequestWriteLock requestWriteLock;
-    @Autowired RequestTypeRepository types;
-    @Autowired UserRepository users;
-    @Autowired Mediator mediator;
-    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
-    @Autowired EntityManager entityManager;
-    @Autowired EntityManagerFactory entityManagerFactory;
-    @Autowired PlatformTransactionManager transactions;
+    @MockitoBean
+    JobWorker jobWorker;
+
+    @MockitoBean
+    OutboxDispatcher outboxDispatcher;
+
+    @MockitoBean
+    SlaScanner slaScanner;
+
+    @Autowired
+    RequestDetailQueries detailQueries;
+
+    @Autowired
+    RequestDetailReader detailReader;
+
+    @Autowired
+    ClarificationRepository clarificationRepository;
+
+    @Autowired
+    ExecutionJobRepository jobRepository;
+
+    @Autowired
+    ApprovalQueueQueries queue;
+
+    @Autowired
+    WorkflowRepository workflows;
+
+    @Autowired
+    WorkflowStepRepository workflowSteps;
+
+    @Autowired
+    StepInstanceRepository stepInstances;
+
+    @Autowired
+    DecisionRepository decisions;
+
+    @Autowired
+    RequestListQueries lists;
+
+    @Autowired
+    RequestRepository requests;
+
+    @Autowired
+    RequestWriteLock requestWriteLock;
+
+    @Autowired
+    RequestTypeRepository types;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    Mediator mediator;
+
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
+
+    @Autowired
+    EntityManager entityManager;
+
+    @Autowired
+    EntityManagerFactory entityManagerFactory;
+
+    @Autowired
+    PlatformTransactionManager transactions;
+
     private String typeCode;
+
     private CallerIdentity admin;
+
     private CallerIdentity alice;
+
     private List<RequestResponse> expected;
 
     @BeforeEach
@@ -103,7 +149,8 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
             admin = new CallerIdentity(owner.getId(), owner.getUsername());
             alice = new CallerIdentity(other.getId(), other.getUsername());
             typeCode = "READ_" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-            // Nullable department and nested JSON exercise the projection's left join and JSON mapping.
+            // Nullable department and nested JSON exercise the projection's left join and
+            // JSON mapping.
             RequestType type = types.save(new RequestType(typeCode, "Read projection", null, null));
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("items", Arrays.asList(Map.of("amount", 12), null));
@@ -113,8 +160,10 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
             third.cancel();
             requests.save(third);
             entityManager.clear();
-            expected = List.of(third.getId(), second.getId(), first.getId()).stream()
-                    .map(id -> RequestResponse.from(RequestDetail.of(requests.findById(id).orElseThrow()))).toList();
+            expected = List.of(third.getId(), second.getId(), first.getId())
+                .stream()
+                .map(id -> RequestResponse.from(RequestDetail.of(requests.findById(id).orElseThrow())))
+                .toList();
         });
     }
 
@@ -124,18 +173,19 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
         new TransactionTemplate(transactions).executeWithoutResult(status -> {
             entityManager.clear();
             stats.clear();
-            var result = lists.findAll(new RequestFilter(null, typeCode, null),
-                    PageQuery.of(0, 2, "id", true), admin.id(), true);
+            var result = lists.findAll(new RequestFilter(null, typeCode, null), PageQuery.of(0, 2, "id", true),
+                    admin.id(), true);
             assertEquals(3, result.totalElements());
             assertEquals(2, result.getTotalPages());
             assertEquals(expected.subList(0, 2), result.content().stream().map(RequestResponse::from).toList());
             assertEquals(0, stats.getEntityLoadCount());
             assertEquals(0, stats.getCollectionFetchCount());
-            assertEquals(3, stats.getPrepareStatementCount()); // header, count, batched execution summary
+            assertEquals(3, stats.getPrepareStatementCount()); // header, count, batched
+                                                               // execution summary
         });
         // Returned values remain usable after the persistence context closes.
-        var tail = new TransactionTemplate(transactions).execute(status -> lists.findAll(
-                new RequestFilter(null, typeCode, null), PageQuery.of(1, 2, "id", true), admin.id(), true));
+        var tail = new TransactionTemplate(transactions).execute(status -> lists
+            .findAll(new RequestFilter(null, typeCode, null), PageQuery.of(1, 2, "id", true), admin.id(), true));
         assertNotNull(tail);
         assertEquals(List.of(expected.get(2)), tail.content().stream().map(RequestResponse::from).toList());
     }
@@ -146,7 +196,8 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
         var own = mediator.send(new ListRequests(filter, PageQuery.first(10), admin));
         assertEquals(1, own.totalElements());
         assertEquals(List.of(expected.get(2).id()), own.content().stream().map(RequestListItem::id).toList());
-        var member = mediator.send(new ListRequests(new RequestFilter(null, typeCode, false), PageQuery.first(10), alice));
+        var member = mediator
+            .send(new ListRequests(new RequestFilter(null, typeCode, false), PageQuery.first(10), alice));
         assertEquals(1, member.totalElements());
         assertEquals(List.of(expected.get(1).id()), member.content().stream().map(RequestListItem::id).toList());
         var beyond = mediator.send(new ListRequests(filter, PageQuery.of(3, 1, "id", false), admin));
@@ -158,27 +209,36 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
     @Test
     void listAllKeepsCombinedSortOrderAndFilters() {
         var result = mediator.send(new ListRequests(new RequestFilter(null, typeCode, false),
-                new PageQuery(0, 10, List.of(new PageQuery.Order("status", false), new PageQuery.Order("id", true))), admin));
+                new PageQuery(0, 10, List.of(new PageQuery.Order("status", false), new PageQuery.Order("id", true))),
+                admin));
         assertEquals(3, result.totalElements());
         // CANCELLED sorts before DRAFT; matching DRAFT rows use descending ids.
-        assertEquals(expected.stream().map(RequestResponse::id).toList(), result.content().stream().map(RequestListItem::id).toList());
+        assertEquals(expected.stream().map(RequestResponse::id).toList(),
+                result.content().stream().map(RequestListItem::id).toList());
     }
-    private record QueueFixture(Request request, StepInstance step) {}
 
-    private QueueFixture fixture(RequestType type, User owner, WorkflowStep definition,
-                                 RequestStatus status, StepState state) {
+    private record QueueFixture(Request request, StepInstance step) {
+    }
+
+    private QueueFixture fixture(RequestType type, User owner, WorkflowStep definition, RequestStatus status,
+            StepState state) {
         Request request = Request.newDraft(type, owner, Map.of(), null);
         if (status != RequestStatus.DRAFT) {
             request.markSubmitted(java.time.Instant.now());
             request.beginReview(java.time.Instant.now());
-            if (status == RequestStatus.REJECTED) request.reject(java.time.Instant.now());
+            if (status == RequestStatus.REJECTED)
+                request.reject(java.time.Instant.now());
         }
         requests.save(request);
         StepInstance instance = new StepInstance(request, definition);
-        instance.setRosterSnapshotted(false); // Explicit legacy fixture: no historical activation roster.
-        if (state == StepState.BLOCKED) instance.block(com.flowops.domain.request.BlockReason.NO_ELIGIBLE_APPROVER, "test",
-                users.findByUsername("admin").orElseThrow().getId(), "WORKFLOW_OPERATIONS", java.time.Instant.now());
-        if (state == StepState.SATISFIED) instance.satisfy(owner.getId());
+        instance.setRosterSnapshotted(false); // Explicit legacy fixture: no historical
+                                              // activation roster.
+        if (state == StepState.BLOCKED)
+            instance.block(com.flowops.domain.request.BlockReason.NO_ELIGIBLE_APPROVER, "test",
+                    users.findByUsername("admin").orElseThrow().getId(), "WORKFLOW_OPERATIONS",
+                    java.time.Instant.now());
+        if (state == StepState.SATISFIED)
+            instance.satisfy(owner.getId());
         stepInstances.save(instance);
         return new QueueFixture(request, instance);
     }
@@ -188,8 +248,8 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
         new TransactionTemplate(transactions).executeWithoutResult(status -> {
             status.setRollbackOnly();
             String unique = UUID.randomUUID().toString().substring(0, 8);
-            User viewer = users.save(User.newUser("queue_" + unique, "Queue viewer",
-                    unique + "@example.com", null, Set.of(), "unused"));
+            User viewer = users.save(
+                    User.newUser("queue_" + unique, "Queue viewer", unique + "@example.com", null, Set.of(), "unused"));
             User owner = users.findByUsername("alice").orElseThrow();
             RequestType type = types.findByCode(typeCode).orElseThrow();
             Workflow workflow = workflows.save(new Workflow("Q_" + unique, "Queue test", null));
@@ -197,7 +257,8 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
             WorkflowStep matching = workflowSteps.save(new WorkflowStep(workflow, 1, "MATCH", "Match", role));
             WorkflowStep other = workflowSteps.save(new WorkflowStep(workflow, 2, "OTHER", "Other", "OTHER_" + unique));
             QueueFixture matched = fixture(type, owner, matching, RequestStatus.IN_REVIEW, StepState.PENDING);
-            // Historical matching rows must not duplicate the request or inflate the count.
+            // Historical matching rows must not duplicate the request or inflate the
+            // count.
             StepInstance duplicate = new StepInstance(matched.request(), matching);
             duplicate.setRosterSnapshotted(false);
             duplicate.satisfy(owner.getId());
@@ -207,7 +268,8 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
                 decisions.save(new Decision(delegated.request(), delegated.step(), owner.getId(), owner.getUsername(),
                         DecisionAction.DELEGATE, "delegate", Map.of(), viewer.getId()));
             }
-            fixture(type, viewer, matching, RequestStatus.IN_REVIEW, StepState.PENDING); // own request
+            fixture(type, viewer, matching, RequestStatus.IN_REVIEW, StepState.PENDING); // own
+                                                                                         // request
             fixture(type, owner, matching, RequestStatus.DRAFT, StepState.PENDING);
             fixture(type, owner, matching, RequestStatus.REJECTED, StepState.PENDING);
             fixture(type, owner, matching, RequestStatus.IN_REVIEW, StepState.BLOCKED);
@@ -218,30 +280,34 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
             StepInstance fresh = new StepInstance(old.request(), other);
             fresh.setRosterSnapshotted(false);
             stepInstances.save(fresh); // no delegation on this pending instance
-            fixture(type, owner, other, RequestStatus.IN_REVIEW, StepState.PENDING); // no matching role/delegation
+            fixture(type, owner, other, RequestStatus.IN_REVIEW, StepState.PENDING); // no
+                                                                                     // matching
+                                                                                     // role/delegation
             entityManager.flush();
             entityManager.clear();
             var stats = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
             stats.clear();
-            var first = queue.findPage(PageQuery.of(0, 1, "id", true), new Authority(viewer.getId(), true, Set.of(role), null,
-                    List.of(new Grant("request:approve", role, new PermissionScope(null, null)))));
+            var first = queue.findPage(PageQuery.of(0, 1, "id", true), new Authority(viewer.getId(), true, Set.of(role),
+                    null, List.of(new Grant("request:approve", role, new PermissionScope(null, null)))));
             assertEquals(2, first.totalElements());
-            assertEquals(List.of(delegated.request().getId()), first.content().stream().map(RequestListItem::id).toList());
+            assertEquals(List.of(delegated.request().getId()),
+                    first.content().stream().map(RequestListItem::id).toList());
             assertEquals(0, stats.getEntityLoadCount());
             assertEquals(3, stats.getPrepareStatementCount());
-            var second = queue.findPage(PageQuery.of(1, 1, "id", true), new Authority(viewer.getId(), true, Set.of(role), null,
-                    List.of(new Grant("request:approve", role, new PermissionScope(null, null)))));
+            var second = queue.findPage(PageQuery.of(1, 1, "id", true), new Authority(viewer.getId(), true,
+                    Set.of(role), null, List.of(new Grant("request:approve", role, new PermissionScope(null, null)))));
             assertEquals(2, second.totalElements());
-            assertEquals(List.of(matched.request().getId()), second.content().stream().map(RequestListItem::id).toList());
-            var beyond = queue.findPage(PageQuery.of(2, 1, "id", true), new Authority(viewer.getId(), true, Set.of(role), null,
-                    List.of(new Grant("request:approve", role, new PermissionScope(null, null)))));
+            assertEquals(List.of(matched.request().getId()),
+                    second.content().stream().map(RequestListItem::id).toList());
+            var beyond = queue.findPage(PageQuery.of(2, 1, "id", true), new Authority(viewer.getId(), true,
+                    Set.of(role), null, List.of(new Grant("request:approve", role, new PermissionScope(null, null)))));
             assertTrue(beyond.content().isEmpty());
             assertEquals(2, beyond.totalElements());
         });
     }
 
     @ParameterizedTest
-    @ValueSource(ints = {1, 4})
+    @ValueSource(ints = { 1, 4 })
     void detailProjectionPreservesAuditAndCollectionOrderWithFixedQueryCount(int stepCount) {
         var result = new TransactionTemplate(transactions).execute(status -> {
             status.setRollbackOnly();
@@ -254,19 +320,22 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
             requests.save(request);
             Workflow workflow = workflows.save(new Workflow("DETAIL_" + typeCode, "Detail test", null));
             for (int i = 0; i < stepCount; i++) {
-                // Insert in reverse position order: the existing contract orders instances by id.
-                WorkflowStep definition = workflowSteps.save(new WorkflowStep(workflow, stepCount - i,
-                        "STEP_" + i, "Step " + i, "ADMIN"));
+                // Insert in reverse position order: the existing contract orders
+                // instances by id.
+                WorkflowStep definition = workflowSteps
+                    .save(new WorkflowStep(workflow, stepCount - i, "STEP_" + i, "Step " + i, "ADMIN"));
                 StepInstance instance = new StepInstance(request, definition);
-                instance.setRosterSnapshotted(false); // Explicit legacy fixture: no historical activation roster.
-                if (i < stepCount - 1 || stepCount == 1) instance.satisfy(actor.getId());
+                instance.setRosterSnapshotted(false); // Explicit legacy fixture: no
+                                                      // historical activation roster.
+                if (i < stepCount - 1 || stepCount == 1)
+                    instance.satisfy(actor.getId());
                 stepInstances.save(instance);
-                decisions.save(new Decision(request, instance, actor.getId(), "historical_" + i,
-                        DecisionAction.APPROVE, "approved " + i,
+                decisions.save(new Decision(request, instance, actor.getId(), "historical_" + i, DecisionAction.APPROVE,
+                        "approved " + i,
                         Map.of("authorization", Map.of("allowed", true, "evidence", List.of("role=ADMIN")))));
-                decisions.save(new Decision(request, instance, actor.getId(), "historical_" + i,
-                        DecisionAction.DELEGATE, "delegated " + i,
-                        Map.of("delegatedTo", String.valueOf(owner.getId())), owner.getId()));
+                decisions
+                    .save(new Decision(request, instance, actor.getId(), "historical_" + i, DecisionAction.DELEGATE,
+                            "delegated " + i, Map.of("delegatedTo", String.valueOf(owner.getId())), owner.getId()));
             }
             Instant earlier = Instant.parse("2026-01-01T00:00:00Z");
             Clarification answered = new Clarification(request.getId(), actor.getId(), "Earlier question");
@@ -276,22 +345,25 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
             Clarification latest = new Clarification(request.getId(), actor.getId(), "Latest question");
             latest.setCreatedAt(earlier.plusSeconds(1));
             clarificationRepository.save(latest);
-            ExecutionJob completed = new ExecutionJob("detail:" + request.getId() + ":one", request.getId(), "EXPORT", "detail-correlation");
+            ExecutionJob completed = new ExecutionJob("detail:" + request.getId() + ":one", request.getId(), "EXPORT",
+                    "detail-correlation");
             completed.setCreatedAt(earlier);
             LegacyRequestFixtures.approveWithoutManifest(jdbc, request.getId(), Instant.now(), true);
             var legacy = requestWriteLock.findByIdForUpdate(request.getId()).orElseThrow();
             legacy.observeReconciledExecutionStart(Instant.now());
             requests.save(legacy);
             completed.freezeInput(request.getPayload());
-            completed.markStarted(Instant.now(),java.util.UUID.randomUUID(),Instant.now().plusSeconds(60));
-            completed.markCompleted(Map.of("reference", "result-1", "count", 2),Instant.now());
+            completed.markStarted(Instant.now(), java.util.UUID.randomUUID(), Instant.now().plusSeconds(60));
+            completed.markCompleted(Map.of("reference", "result-1", "count", 2), Instant.now());
             jobRepository.save(completed);
-            ExecutionJob planned = new ExecutionJob("detail:" + request.getId() + ":two", request.getId(), "OTHER", null);
+            ExecutionJob planned = new ExecutionJob("detail:" + request.getId() + ":two", request.getId(), "OTHER",
+                    null);
             planned.setCreatedAt(earlier.plusSeconds(1));
             jobRepository.save(planned);
             entityManager.flush();
             entityManager.clear();
-            RequestResponse expected = RequestResponse.from(detailReader.load(requests.findById(request.getId()).orElseThrow()));
+            RequestResponse expected = RequestResponse
+                .from(detailReader.load(requests.findById(request.getId()).orElseThrow()));
             entityManager.clear();
             var stats = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
             stats.clear();
@@ -304,7 +376,8 @@ class RequestListProjectionTest extends AbstractIntegrationTest {
             return view;
         });
         assertNotNull(result);
-        RequestResponse response = RequestResponse.from(result); // usable after session closes
+        RequestResponse response = RequestResponse.from(result); // usable after session
+                                                                 // closes
         assertEquals(stepCount, response.steps().size());
         assertEquals("STEP_0", response.steps().getFirst().code());
         for (int i = 0; i < stepCount; i++) {

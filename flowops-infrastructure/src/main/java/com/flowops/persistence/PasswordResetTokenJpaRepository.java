@@ -12,4 +12,5 @@ public interface PasswordResetTokenJpaRepository extends JpaRepository<PasswordR
     List<PasswordResetTokenEntity> findAllByUserIdOrderByCreatedAtDesc(Long userId);
 
     void deleteAllByUserId(Long userId);
+
 }

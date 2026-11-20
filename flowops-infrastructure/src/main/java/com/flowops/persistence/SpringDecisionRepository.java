@@ -29,7 +29,9 @@ public class SpringDecisionRepository implements DecisionRepository {
     @Override
     public List<Decision> findByStepInstanceIdOrderById(Long stepInstanceId) {
         return jpaRepository.findByStepInstanceIdOrderById(stepInstanceId)
-                .stream().map(DecisionMappers::fromEntity).toList();
+            .stream()
+            .map(DecisionMappers::fromEntity)
+            .toList();
     }
 
     @Override
@@ -56,4 +58,5 @@ public class SpringDecisionRepository implements DecisionRepository {
     public Optional<Decision> findById(Long id) {
         return jpaRepository.findById(id).map(DecisionMappers::fromEntity);
     }
+
 }

@@ -4,12 +4,13 @@ import com.flowops.domain.request.Decision;
 import com.flowops.persistence.entity.DecisionEntity;
 
 /**
- * Maps the {@link Decision} aggregate to and from its JPA entity.
- * Stateless — safe to call from any thread.
+ * Maps the {@link Decision} aggregate to and from its JPA entity. Stateless — safe to
+ * call from any thread.
  *
- * <p>{@code fromEntity} runs inside the persistence adapter (i.e. inside the
- * transaction), so lazy associations are safely resolved here and the
- * resulting domain object needs no live persistence context.
+ * <p>
+ * {@code fromEntity} runs inside the persistence adapter (i.e. inside the transaction),
+ * so lazy associations are safely resolved here and the resulting domain object needs no
+ * live persistence context.
  */
 public final class DecisionMappers {
 
@@ -53,4 +54,5 @@ public final class DecisionMappers {
         d.setCreatedAt(e.getCreatedAt());
         return d;
     }
+
 }

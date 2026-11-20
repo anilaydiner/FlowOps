@@ -13,11 +13,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class GetApprovalQueueHandler implements MessageHandler<GetApprovalQueue, PageResult<RequestListItem>> {
+
     private final ApprovalQueueQueries queue;
+
     private final AuthorizationEvaluator authz;
+
     private final ApprovalEligibilityService eligibility;
 
-    public GetApprovalQueueHandler(ApprovalQueueQueries queue, AuthorizationEvaluator authz, ApprovalEligibilityService eligibility) {
+    public GetApprovalQueueHandler(ApprovalQueueQueries queue, AuthorizationEvaluator authz,
+            ApprovalEligibilityService eligibility) {
         this.queue = queue;
         this.authz = authz;
         this.eligibility = eligibility;
@@ -29,9 +33,10 @@ public class GetApprovalQueueHandler implements MessageHandler<GetApprovalQueue,
     }
 
     @Override
-    @Transactional(readOnly = true,isolation=org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    @Transactional(readOnly = true, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
     public PageResult<RequestListItem> handle(GetApprovalQueue query) {
         authz.require(query.caller(), PermissionCodes.REQUEST_QUEUE);
         return queue.findPage(query.page(), eligibility.authority(query.caller().id(), DecisionAction.APPROVE));
     }
+
 }

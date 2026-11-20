@@ -24,10 +24,12 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Use case: submit a DRAFT request into its default workflow.
  *
- * <p>DRAFT → IN_REVIEW with the first applicable step materialized (or APPROVED
- * when every step is skipped). Requires {@code request:submit:own} for the
- * requester or {@code request:submit} for others. On success, the submitter
- * is notified via the transactional outbox (FEED + EMAIL).</p>
+ * <p>
+ * DRAFT → IN_REVIEW with the first applicable step materialized (or APPROVED when every
+ * step is skipped). Requires {@code request:submit:own} for the requester or
+ * {@code request:submit} for others. On success, the submitter is notified via the
+ * transactional outbox (FEED + EMAIL).
+ * </p>
  */
 @Service
 public class SubmitRequest {
@@ -35,19 +37,25 @@ public class SubmitRequest {
     private final LifecycleAuditRecorder audit;
 
     private final RequestRepository requests;
+
     private final RequestWriteLock requestWriteLock;
+
     private final StepMaterializer materializer;
+
     private final DomainEventPublisher events;
+
     private final AuthorizationEvaluator authz;
+
     private final FinalizeApproval finalization;
+
     private final java.time.Clock clock;
 
-    public SubmitRequest(RequestRepository requests,
-                         RequestWriteLock requestWriteLock,
-                         StepMaterializer materializer,
-                         DomainEventPublisher events,
-                         AuthorizationEvaluator authz, LifecycleAuditRecorder audit,FinalizeApproval finalization,java.time.Clock clock) {
-        this.audit = audit;this.finalization=finalization;this.clock=clock;
+    public SubmitRequest(RequestRepository requests, RequestWriteLock requestWriteLock, StepMaterializer materializer,
+            DomainEventPublisher events, AuthorizationEvaluator authz, LifecycleAuditRecorder audit,
+            FinalizeApproval finalization, java.time.Clock clock) {
+        this.audit = audit;
+        this.finalization = finalization;
+        this.clock = clock;
         this.requests = requests;
         this.requestWriteLock = requestWriteLock;
         this.materializer = materializer;
@@ -60,7 +68,8 @@ public class SubmitRequest {
         Request request = load(requestId);
         boolean isOwn = caller.id().equals(request.getRequester().getId());
         TargetContext target = RequestTargets.from(request, null);
-        authz.require(caller, isOwn ? PermissionCodes.REQUEST_SUBMIT_OWN : PermissionCodes.REQUEST_SUBMIT, target, isOwn);
+        authz.require(caller, isOwn ? PermissionCodes.REQUEST_SUBMIT_OWN : PermissionCodes.REQUEST_SUBMIT, target,
+                isOwn);
         if (!request.isDraft()) {
             throw new ConflictException("Only DRAFT requests can be submitted (current: " + request.getStatus() + ")");
         }
@@ -78,7 +87,8 @@ public class SubmitRequest {
         audit.transition(request, caller, beforeSubmit, null);
         var submittedState = LifecycleAuditRecorder.state(request);
         boolean active = materializer.materializeNext(request, workflow, caller);
-        if (active) request.beginReview(clock.instant());
+        if (active)
+            request.beginReview(clock.instant());
         Request saved = requests.save(request);
         audit.transition(saved, caller, submittedState, null);
         events.publish(new RequestSubmitted(saved.getId()));
@@ -90,6 +100,7 @@ public class SubmitRequest {
 
     private Request load(Long id) {
         return requestWriteLock.findByIdForUpdate(id)
-                .orElseThrow(() -> new NotFoundException("Request not found: " + id));
+            .orElseThrow(() -> new NotFoundException("Request not found: " + id));
     }
+
 }

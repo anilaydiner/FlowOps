@@ -9,16 +9,20 @@ import com.flowops.domain.request.StepInstance;
 import com.flowops.domain.request.StepState;
 
 /**
- * Applies the business effect of an authorized, recorded workflow decision.
- * The application owns authorization, decision persistence and the enclosing transaction.
- * This policy performs no I/O; its outcome tells the application whether to advance the workflow.
+ * Applies the business effect of an authorized, recorded workflow decision. The
+ * application owns authorization, decision persistence and the enclosing transaction.
+ * This policy performs no I/O; its outcome tells the application whether to advance the
+ * workflow.
  */
 public final class WorkflowDecisionPolicy {
+
     private WorkflowDecisionPolicy() {
     }
 
     public enum Outcome {
+
         DELEGATED, REJECTED, APPROVAL_RECORDED, STEP_COMPLETED
+
     }
 
     public static void validateAction(DecisionAction action, Long delegatedTo) {
@@ -37,16 +41,18 @@ public final class WorkflowDecisionPolicy {
     }
 
     /**
-     * approvalsIncludingDecision is the effective distinct-person vote count for this step, including
-     * the decision just recorded. The materialized step's threshold is authoritative for
-     * ANY_OF, ALL_OF and K_OF_N; later definition edits must not change that threshold.
+     * approvalsIncludingDecision is the effective distinct-person vote count for this
+     * step, including the decision just recorded. The materialized step's threshold is
+     * authoritative for ANY_OF, ALL_OF and K_OF_N; later definition edits must not change
+     * that threshold.
      */
     public static Outcome apply(Request request, StepInstance current, DecisionAction action,
-                                long approvalsIncludingDecision, Long actorId) {
-        return apply(request,current,action,approvalsIncludingDecision,actorId,java.time.Instant.now());
+            long approvalsIncludingDecision, Long actorId) {
+        return apply(request, current, action, approvalsIncludingDecision, actorId, java.time.Instant.now());
     }
+
     public static Outcome apply(Request request, StepInstance current, DecisionAction action,
-                                long approvalsIncludingDecision, Long actorId,java.time.Instant at) {
+            long approvalsIncludingDecision, Long actorId, java.time.Instant at) {
         requireInReview(request);
         if (current.getState() != StepState.PENDING) {
             throw new InvalidStateTransitionException("step instance", current.getState(), "decide");
@@ -68,4 +74,5 @@ public final class WorkflowDecisionPolicy {
             case OVERRIDE -> throw new ConflictException("OVERRIDE not available yet");
         };
     }
+
 }

@@ -3,9 +3,8 @@ package com.flowops.domain.exception;
 import java.util.Map;
 
 /**
- * Thrown when a request payload fails per-type validation.
- * Carries field → message violations, rendered as a 400
- * ProblemDetail with a {@code violations} property.
+ * Thrown when a request payload fails per-type validation. Carries field → message
+ * violations, rendered as a 400 ProblemDetail with a {@code violations} property.
  */
 public class RequestValidationException extends RuntimeException {
 
@@ -19,4 +18,5 @@ public class RequestValidationException extends RuntimeException {
     public Map<String, String> getViolations() {
         return violations;
     }
+
 }

@@ -9,28 +9,16 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.Map;
 
-public record WorkflowRequest(
-        @NotBlank @Pattern(regexp = "^[A-Z][A-Z0-9_]{2,63}$") String code,
-        @NotBlank @Size(max = 100) String name,
-        @Size(max = 2000) String description,
-        @NotNull @Valid @Size(min = 1, message = "at least one step is required")
-        List<StepDefinition> steps,
-        Boolean active
-) {
-    public record StepDefinition(
-            Integer position,
-            @NotBlank @Pattern(regexp = "^[A-Z][A-Z0-9_]{2,63}$") String code,
-            @NotBlank @Size(max = 100) String name,
-            @NotBlank @Size(max = 64) String requiredRole,
-            CompletionRule completionRule,
-            Integer requiredApprovals,
-            Map<String, Object> condition,
-            Integer slaMinutes,
-            @Size(max = 64) String escalationRole,
-            Boolean terminal,
+public record WorkflowRequest(@NotBlank @Pattern(regexp = "^[A-Z][A-Z0-9_]{2,63}$") String code,
+        @NotBlank @Size(max = 100) String name, @Size(max = 2000) String description,
+        @NotNull @Valid @Size(min = 1, message = "at least one step is required") List<StepDefinition> steps,
+        Boolean active) {
+    public record StepDefinition(Integer position, @NotBlank @Pattern(regexp = "^[A-Z][A-Z0-9_]{2,63}$") String code,
+            @NotBlank @Size(max = 100) String name, @NotBlank @Size(max = 64) String requiredRole,
+            CompletionRule completionRule, Integer requiredApprovals, Map<String, Object> condition, Integer slaMinutes,
+            @Size(max = 64) String escalationRole, Boolean terminal,
             @jakarta.validation.constraints.Positive Integer expiryMinutes,
             @jakarta.validation.constraints.Positive Integer escalationIntervalMinutes,
-            @jakarta.validation.constraints.Positive Integer maxEscalationLevels
-    ) {
+            @jakarta.validation.constraints.Positive Integer maxEscalationLevels) {
     }
 }

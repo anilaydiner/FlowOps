@@ -23,12 +23,16 @@ import org.springframework.transaction.annotation.Transactional;
 public class RoleService {
 
     private final com.flowops.application.identity.IdentityReconciliationSignals reconciliation;
+
     private final RoleRepository roles;
+
     private final PermissionRepository permissions;
+
     private final AuthorizationEvaluator authz;
 
-    public RoleService(RoleRepository roles, PermissionRepository permissions, AuthorizationEvaluator authz, com.flowops.application.identity.IdentityReconciliationSignals reconciliation) {
-        this.reconciliation=reconciliation;
+    public RoleService(RoleRepository roles, PermissionRepository permissions, AuthorizationEvaluator authz,
+            com.flowops.application.identity.IdentityReconciliationSignals reconciliation) {
+        this.reconciliation = reconciliation;
         this.roles = roles;
         this.permissions = permissions;
         this.authz = authz;
@@ -46,8 +50,7 @@ public class RoleService {
     @Transactional(readOnly = true)
     public Role get(Long id, CallerIdentity caller) {
         authz.require(caller, PermissionCodes.ROLES_READ);
-        Role role = roles.findById(id)
-                .orElseThrow(() -> new NotFoundException("Role not found: " + id));
+        Role role = roles.findById(id).orElseThrow(() -> new NotFoundException("Role not found: " + id));
         // Trigger lazy-load of permissions while the tx is still open
         role.getPermissions().size();
         return role;
@@ -61,8 +64,8 @@ public class RoleService {
             throw new ConflictException("Role already exists: " + code);
         }
         Role role = new Role(code, request.name().strip(),
-                (request.description() != null && !request.description().isBlank())
-                        ? request.description().strip() : null);
+                (request.description() != null && !request.description().isBlank()) ? request.description().strip()
+                        : null);
         Set<Permission> permSet = resolvePermissions(request.permissions());
         if (!permSet.isEmpty()) {
             role.setPermissions(permSet);
@@ -75,9 +78,11 @@ public class RoleService {
     @Transactional
     public Role update(Long id, RoleSpec request, CallerIdentity caller) {
         authz.require(caller, PermissionCodes.ROLES_UPDATE);
-        Role role = roles.findById(id)
-                .orElseThrow(() -> new NotFoundException("Role not found: " + id));
-        var previousPermissions=role.getPermissions().stream().map(Permission::getId).collect(java.util.stream.Collectors.toSet());
+        Role role = roles.findById(id).orElseThrow(() -> new NotFoundException("Role not found: " + id));
+        var previousPermissions = role.getPermissions()
+            .stream()
+            .map(Permission::getId)
+            .collect(java.util.stream.Collectors.toSet());
         if (request.name() != null && !request.name().isBlank()) {
             role.setName(request.name().strip());
         }
@@ -88,16 +93,19 @@ public class RoleService {
         }
         Role saved = roles.save(role);
         saved.getPermissions().size();
-        var currentPermissions=saved.getPermissions().stream().map(Permission::getId).collect(java.util.stream.Collectors.toSet());
-        if(!previousPermissions.equals(currentPermissions)) reconciliation.roleChanged(id);
+        var currentPermissions = saved.getPermissions()
+            .stream()
+            .map(Permission::getId)
+            .collect(java.util.stream.Collectors.toSet());
+        if (!previousPermissions.equals(currentPermissions))
+            reconciliation.roleChanged(id);
         return saved;
     }
 
     @Transactional
     public void delete(Long id, CallerIdentity caller) {
         authz.require(caller, PermissionCodes.ROLES_DELETE);
-        Role role = roles.findById(id)
-                .orElseThrow(() -> new NotFoundException("Role not found: " + id));
+        Role role = roles.findById(id).orElseThrow(() -> new NotFoundException("Role not found: " + id));
         // Prevent deletion of built-in roles that users depend on
         if ("ADMIN".equals(role.getCode()) || "MEMBER".equals(role.getCode())) {
             throw new ConflictException("Cannot delete built-in role: " + role.getCode());
@@ -112,11 +120,13 @@ public class RoleService {
         }
         Set<Permission> result = new LinkedHashSet<>();
         for (String code : codes) {
-            if (code == null || code.isBlank()) continue;
+            if (code == null || code.isBlank())
+                continue;
             Permission p = permissions.findByCode(code.strip())
-                    .orElseThrow(() -> new NotFoundException("Permission not found: " + code));
+                .orElseThrow(() -> new NotFoundException("Permission not found: " + code));
             result.add(p);
         }
         return result;
     }
+
 }

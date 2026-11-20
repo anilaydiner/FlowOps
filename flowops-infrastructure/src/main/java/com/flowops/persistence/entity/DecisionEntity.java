@@ -19,9 +19,9 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * JPA entity backing the {@link com.flowops.domain.request.Decision} aggregate
- * (table {@code decisions}). Pure data carrier — all business behavior
- * lives on the domain aggregate; field mapping is identical to the schema.
+ * JPA entity backing the {@link com.flowops.domain.request.Decision} aggregate (table
+ * {@code decisions}). Pure data carrier — all business behavior lives on the domain
+ * aggregate; field mapping is identical to the schema.
  */
 @Entity(name = "Decision")
 @Table(name = "decisions")
@@ -69,33 +69,84 @@ public class DecisionEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public RequestEntity getRequest() { return request; }
-    public void setRequest(RequestEntity request) { this.request = request; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public StepInstanceEntity getStepInstance() { return stepInstance; }
-    public void setStepInstance(StepInstanceEntity stepInstance) { this.stepInstance = stepInstance; }
+    public RequestEntity getRequest() {
+        return request;
+    }
 
-    public Long getActorId() { return actorId; }
-    public void setActorId(Long actorId) { this.actorId = actorId; }
+    public void setRequest(RequestEntity request) {
+        this.request = request;
+    }
 
-    public String getActorUsername() { return actorUsername; }
-    public void setActorUsername(String actorUsername) { this.actorUsername = actorUsername; }
+    public StepInstanceEntity getStepInstance() {
+        return stepInstance;
+    }
 
-    public DecisionAction getAction() { return action; }
-    public void setAction(DecisionAction action) { this.action = action; }
+    public void setStepInstance(StepInstanceEntity stepInstance) {
+        this.stepInstance = stepInstance;
+    }
 
-    public String getJustification() { return justification; }
-    public void setJustification(String justification) { this.justification = justification; }
+    public Long getActorId() {
+        return actorId;
+    }
 
-    public Map<String, Object> getEvidence() { return evidence; }
-    public void setEvidence(Map<String, Object> evidence) { this.evidence = evidence; }
+    public void setActorId(Long actorId) {
+        this.actorId = actorId;
+    }
 
-    public Long getDelegatedTo() { return delegatedTo; }
-    public void setDelegatedTo(Long delegatedTo) { this.delegatedTo = delegatedTo; }
+    public String getActorUsername() {
+        return actorUsername;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setActorUsername(String actorUsername) {
+        this.actorUsername = actorUsername;
+    }
+
+    public DecisionAction getAction() {
+        return action;
+    }
+
+    public void setAction(DecisionAction action) {
+        this.action = action;
+    }
+
+    public String getJustification() {
+        return justification;
+    }
+
+    public void setJustification(String justification) {
+        this.justification = justification;
+    }
+
+    public Map<String, Object> getEvidence() {
+        return evidence;
+    }
+
+    public void setEvidence(Map<String, Object> evidence) {
+        this.evidence = evidence;
+    }
+
+    public Long getDelegatedTo() {
+        return delegatedTo;
+    }
+
+    public void setDelegatedTo(Long delegatedTo) {
+        this.delegatedTo = delegatedTo;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
 }

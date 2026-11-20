@@ -10,9 +10,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Explicit synchronous fan-out, independent of Spring's configurable event multicaster. */
+/**
+ * Explicit synchronous fan-out, independent of Spring's configurable event multicaster.
+ */
 @Component
 public class SynchronousDomainEventPublisher implements DomainEventPublisher {
+
     private final Map<Class<?>, List<DomainEventHandler<?>>> handlers;
 
     public SynchronousDomainEventPublisher(List<DomainEventHandler<?>> handlers) {
@@ -44,4 +47,5 @@ public class SynchronousDomainEventPublisher implements DomainEventPublisher {
         // Registration binds E to Class<E>; dispatch uses exact-class lookup.
         ((DomainEventHandler<E>) handler).handle(event);
     }
+
 }

@@ -39,8 +39,7 @@ public class SpringWorkflowRepository implements WorkflowRepository {
     public PageResult<Workflow> findAll(WorkflowFilter filter, PageQuery query) {
         Pageable pageable = Paging.toPageable(query);
         Specification<WorkflowEntity> spec = WorkflowSpecifications.from(filter);
-        Page<WorkflowEntity> page = (spec == null)
-                ? jpaRepository.findAll(pageable)
+        Page<WorkflowEntity> page = (spec == null) ? jpaRepository.findAll(pageable)
                 : jpaRepository.findAll(spec, pageable);
         return Paging.toPageResult(page.map(WorkflowMappers::fromEntity));
     }
@@ -58,4 +57,5 @@ public class SpringWorkflowRepository implements WorkflowRepository {
     private static void backfill(Workflow d, WorkflowEntity e) {
         d.setId(e.getId());
     }
+
 }

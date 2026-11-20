@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/requests/{requestId}/legacy-plan-dispositions")
 public class LegacyPlanDispositionController {
+
     private final DisposeLegacyExecutionPlan disposition;
 
     public LegacyPlanDispositionController(DisposeLegacyExecutionPlan disposition) {
@@ -27,8 +28,8 @@ public class LegacyPlanDispositionController {
     @PostMapping
     @Operation(summary = "Review and adopt a historical approval's complete execution manifest, or keep it quarantined",
             description = "Requires scoped execution:plan:dispose. Unresolved jobs remain held.")
-    public LegacyPlanDispositionResponse dispose(@PathVariable Long requestId, @RequestBody LegacyPlanDispositionRequest input,
-                                                @AuthenticationPrincipal UserPrincipal caller) {
+    public LegacyPlanDispositionResponse dispose(@PathVariable Long requestId,
+            @RequestBody LegacyPlanDispositionRequest input, @AuthenticationPrincipal UserPrincipal caller) {
         return LegacyPlanDispositionResponse.from(disposition.dispose(requestId, input.toInput(), caller.toIdentity()));
     }
 
@@ -36,10 +37,11 @@ public class LegacyPlanDispositionController {
     @Operation(summary = "Read immutable legacy-plan disposition receipts",
             description = "Requires scoped execution:read. Receipts omit action input payloads.")
     public List<LegacyPlanDispositionResponse.Receipt> history(@PathVariable Long requestId,
-                                                               @RequestParam(defaultValue = "50") int limit,
-                                                               @AuthenticationPrincipal UserPrincipal caller) {
-        return disposition.history(requestId, limit, caller.toIdentity()).stream()
-                .map(LegacyPlanDispositionResponse.Receipt::from)
-                .toList();
+            @RequestParam(defaultValue = "50") int limit, @AuthenticationPrincipal UserPrincipal caller) {
+        return disposition.history(requestId, limit, caller.toIdentity())
+            .stream()
+            .map(LegacyPlanDispositionResponse.Receipt::from)
+            .toList();
     }
+
 }

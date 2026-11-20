@@ -4,12 +4,13 @@ import com.flowops.domain.workflow.WorkflowStep;
 import com.flowops.persistence.entity.WorkflowStepEntity;
 
 /**
- * Maps the {@link WorkflowStep} aggregate to and from its JPA entity.
- * Stateless — safe to call from any thread.
+ * Maps the {@link WorkflowStep} aggregate to and from its JPA entity. Stateless — safe to
+ * call from any thread.
  *
- * <p>{@code fromEntity} runs inside the persistence adapter (i.e. inside the
- * transaction), so lazy associations are safely resolved here and the
- * resulting domain object needs no live persistence context.
+ * <p>
+ * {@code fromEntity} runs inside the persistence adapter (i.e. inside the transaction),
+ * so lazy associations are safely resolved here and the resulting domain object needs no
+ * live persistence context.
  */
 public final class WorkflowStepMappers {
 
@@ -46,10 +47,11 @@ public final class WorkflowStepMappers {
         if (e == null) {
             return null;
         }
-        return WorkflowStep.restore(new WorkflowStep.Snapshot(e.getId(), WorkflowMappers.fromEntity(e.getWorkflow()),
-                e.getPosition(), e.getCode(), e.getName(), e.getRequiredRole(), e.getCompletionRule(),
-                e.getRequiredApprovals(), e.getCondition(), e.getSlaMinutes(), e.getExpiryMinutes(),
-                e.getEscalationIntervalMinutes(), e.getMaxEscalationLevels(), e.getEscalationRole(),
-                e.isTerminal(), e.getCreatedAt()));
+        return WorkflowStep
+            .restore(new WorkflowStep.Snapshot(e.getId(), WorkflowMappers.fromEntity(e.getWorkflow()), e.getPosition(),
+                    e.getCode(), e.getName(), e.getRequiredRole(), e.getCompletionRule(), e.getRequiredApprovals(),
+                    e.getCondition(), e.getSlaMinutes(), e.getExpiryMinutes(), e.getEscalationIntervalMinutes(),
+                    e.getMaxEscalationLevels(), e.getEscalationRole(), e.isTerminal(), e.getCreatedAt()));
     }
+
 }

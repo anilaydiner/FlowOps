@@ -23,4 +23,5 @@ public interface DecisionRepository {
     List<Decision> findAll();
 
     Optional<Decision> findById(Long id);
+
 }

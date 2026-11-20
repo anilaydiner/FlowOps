@@ -49,28 +49,65 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @Import(LifecycleEventTransactionTest.ProbeConfiguration.class)
 class LifecycleEventTransactionTest extends AbstractIntegrationTest {
+
     // These contexts exercise commands/API reads, not scheduled delivery. Other cached
     // contexts share PostgreSQL, so polling here would race the manual failure drills.
-    @MockitoBean JobWorker backgroundJobs;
-    @MockitoBean OutboxDispatcher backgroundOutbox;
-    @MockitoBean SlaScanner backgroundSla;
+    @MockitoBean
+    JobWorker backgroundJobs;
 
-    enum Kind { SUBMITTED, REJECTED, DELEGATED }
+    @MockitoBean
+    OutboxDispatcher backgroundOutbox;
 
-    @Autowired Mediator mediator;
-    @Autowired DomainEventPublisher events;
-    @Autowired RequestRepository requests;
-    @Autowired UserRepository users;
-    @Autowired RoleRepository roles;
-    @Autowired com.flowops.domain.organization.port.DepartmentRepository departments;
-    @Autowired StepInstanceRepository steps;
-    @Autowired DecisionRepository decisions;
-    @Autowired com.flowops.domain.request.port.StepParticipantRepository participants;
-    @Autowired ExecutionJobRepository jobs;
-    @Autowired OutboxMessageRepository outbox;
-    @Autowired PlatformTransactionManager transactions;
-    @Autowired EventProbe probe;
-    @Autowired com.flowops.application.audit.port.LifecycleAuditRepository auditHistory;
+    @MockitoBean
+    SlaScanner backgroundSla;
+
+    enum Kind {
+
+        SUBMITTED, REJECTED, DELEGATED
+
+    }
+
+    @Autowired
+    Mediator mediator;
+
+    @Autowired
+    DomainEventPublisher events;
+
+    @Autowired
+    RequestRepository requests;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    RoleRepository roles;
+
+    @Autowired
+    com.flowops.domain.organization.port.DepartmentRepository departments;
+
+    @Autowired
+    StepInstanceRepository steps;
+
+    @Autowired
+    DecisionRepository decisions;
+
+    @Autowired
+    com.flowops.domain.request.port.StepParticipantRepository participants;
+
+    @Autowired
+    ExecutionJobRepository jobs;
+
+    @Autowired
+    OutboxMessageRepository outbox;
+
+    @Autowired
+    PlatformTransactionManager transactions;
+
+    @Autowired
+    EventProbe probe;
+
+    @Autowired
+    com.flowops.application.audit.port.LifecycleAuditRepository auditHistory;
 
     @BeforeEach
     void resetProbe() {
@@ -86,29 +123,33 @@ class LifecycleEventTransactionTest extends AbstractIntegrationTest {
     }
 
     private Long delegatee(Kind kind) {
-        if (kind != Kind.DELEGATED) return null;
+        if (kind != Kind.DELEGATED)
+            return null;
         return new TransactionTemplate(transactions).execute(status -> {
             String name = "delegate_" + UUID.randomUUID().toString().substring(0, 8);
-            User user = User.newUser(name, "Delegate", name + "@example.com", departments.findByCode("FINANCE").orElseThrow(),
+            User user = User.newUser(name, "Delegate", name + "@example.com",
+                    departments.findByCode("FINANCE").orElseThrow(),
                     Set.of(roles.findByCode("FINANCE_MANAGER").orElseThrow()), "unused");
             return users.save(user).getId();
         });
     }
 
     private Request prepare(Kind kind, CallerIdentity owner) {
-        Request draft = mediator.send(new CreateDraftCommand("EXPENSE",
-                Map.of("amount", 150, "description", "lifecycle event test"), owner)).request();
-        return kind == Kind.SUBMITTED ? draft
-                : mediator.send(new SubmitRequestCommand(draft.getId(), owner)).request();
+        Request draft = mediator
+            .send(new CreateDraftCommand("EXPENSE", Map.of("amount", 150, "description", "lifecycle event test"),
+                    owner))
+            .request();
+        return kind == Kind.SUBMITTED ? draft : mediator.send(new SubmitRequestCommand(draft.getId(), owner)).request();
     }
 
     private void perform(Kind kind, Long id, CallerIdentity owner, Long delegatee) {
         if (kind == Kind.SUBMITTED) {
             mediator.send(new SubmitRequestCommand(id, owner));
-        } else {
-            mediator.send(new DecideStepCommand(id,
-                    kind == Kind.REJECTED ? DecisionAction.REJECT : DecisionAction.DELEGATE,
-                    "test justification", delegatee, caller("admin")));
+        }
+        else {
+            mediator
+                .send(new DecideStepCommand(id, kind == Kind.REJECTED ? DecisionAction.REJECT : DecisionAction.DELEGATE,
+                        "test justification", delegatee, caller("admin")));
         }
     }
 
@@ -142,7 +183,9 @@ class LifecycleEventTransactionTest extends AbstractIntegrationTest {
             for (var instance : instances) {
                 assertEquals(StepState.PENDING, instance.getState());
                 assertTrue(decisions.findByStepInstanceIdOrderById(instance.getId()).isEmpty());
-                assertTrue(participants.findByStepInstanceId(instance.getId()).stream().noneMatch(p -> p.predecessorId() != null));
+                assertTrue(participants.findByStepInstanceId(instance.getId())
+                    .stream()
+                    .noneMatch(p -> p.predecessorId() != null));
             }
             assertTrue(jobs.findByRequestIdOrderByCreatedAtAsc(before.getId()).isEmpty());
             assertEquals(messagesBefore, messageIds(before.getId()));
@@ -164,10 +207,12 @@ class LifecycleEventTransactionTest extends AbstractIntegrationTest {
             assertEquals(kind == Kind.REJECTED ? RequestStatus.REJECTED : RequestStatus.IN_REVIEW, stored.getStatus());
             var instances = steps.findByRequestIdOrderById(before.getId());
             assertEquals(1, instances.size());
-            assertEquals(kind == Kind.REJECTED ? StepState.REJECTED : StepState.PENDING, instances.getFirst().getState());
+            assertEquals(kind == Kind.REJECTED ? StepState.REJECTED : StepState.PENDING,
+                    instances.getFirst().getState());
             var recorded = decisions.findByStepInstanceIdOrderById(instances.getFirst().getId());
             assertEquals(kind == Kind.SUBMITTED ? 0 : 1, recorded.size());
-            if (kind == Kind.DELEGATED) assertEquals(delegatee, recorded.getFirst().getDelegatedTo());
+            if (kind == Kind.DELEGATED)
+                assertEquals(delegatee, recorded.getFirst().getDelegatedTo());
             List<Long> messagesBefore = messageIds(before.getId());
             events.publish(event);
             assertEquals(messagesBefore, messageIds(before.getId()));
@@ -176,9 +221,13 @@ class LifecycleEventTransactionTest extends AbstractIntegrationTest {
     }
 
     static class EventProbe {
+
         Kind failOn;
+
         final Map<Kind, DomainEvent> observed = new EnumMap<>(Kind.class);
+
         private final RequestRepository requests;
+
         private final OutboxMessageRepository outbox;
 
         EventProbe(RequestRepository requests, OutboxMessageRepository outbox) {
@@ -197,12 +246,15 @@ class LifecycleEventTransactionTest extends AbstractIntegrationTest {
                 assertTrue(outbox.findByKeyPrefix("req:" + id + ":NOTIFY_APPROVER_REQUEST:").size() > 0);
             }
             observed.put(kind, event);
-            if (failOn == kind) throw new IllegalStateException("lifecycle subscriber failed");
+            if (failOn == kind)
+                throw new IllegalStateException("lifecycle subscriber failed");
         }
+
     }
 
     @TestConfiguration
     static class ProbeConfiguration {
+
         @Bean
         EventProbe eventProbe(RequestRepository requests, OutboxMessageRepository outbox) {
             return new EventProbe(requests, outbox);
@@ -210,30 +262,37 @@ class LifecycleEventTransactionTest extends AbstractIntegrationTest {
 
         private static <E extends DomainEvent> DomainEventHandler<E> handler(Class<E> type, Consumer<E> callback) {
             return new DomainEventHandler<>() {
-                public Class<E> eventType() { return type; }
-                public void handle(E event) { callback.accept(event); }
+                public Class<E> eventType() {
+                    return type;
+                }
+
+                public void handle(E event) {
+                    callback.accept(event);
+                }
             };
         }
 
         @Bean
         @Order(300)
         DomainEventHandler<RequestSubmitted> submittedProbe(EventProbe probe) {
-            return handler(RequestSubmitted.class, event -> probe.observe(Kind.SUBMITTED, event,
-                    event.requestId(), null, "NOTIFY_SUBMIT", "SUBMITTED"));
+            return handler(RequestSubmitted.class, event -> probe.observe(Kind.SUBMITTED, event, event.requestId(),
+                    null, "NOTIFY_SUBMIT", "SUBMITTED"));
         }
 
         @Bean
         @Order(300)
         DomainEventHandler<RequestRejected> rejectedProbe(EventProbe probe) {
-            return handler(RequestRejected.class, event -> probe.observe(Kind.REJECTED, event,
-                    event.requestId(), null, "NOTIFY_REJECT", "REJECTED"));
+            return handler(RequestRejected.class,
+                    event -> probe.observe(Kind.REJECTED, event, event.requestId(), null, "NOTIFY_REJECT", "REJECTED"));
         }
 
         @Bean
         @Order(300)
         DomainEventHandler<DecisionDelegated> delegatedProbe(EventProbe probe) {
-            return handler(DecisionDelegated.class, event -> probe.observe(Kind.DELEGATED, event,
-                    event.requestId(), event.delegatedTo(), "NOTIFY_DELEGATE", "DELEGATED"));
+            return handler(DecisionDelegated.class, event -> probe.observe(Kind.DELEGATED, event, event.requestId(),
+                    event.delegatedTo(), "NOTIFY_DELEGATE", "DELEGATED"));
         }
+
     }
+
 }

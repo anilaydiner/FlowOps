@@ -9,13 +9,13 @@ import java.util.function.Supplier;
 import org.springframework.stereotype.Component;
 
 /**
- * Small helper that opens one span per request-lifecycle event (PLAN §8,
- * iteration 8) and records outcome/status on the way out.
+ * Small helper that opens one span per request-lifecycle event (PLAN §8, iteration 8) and
+ * records outcome/status on the way out.
  *
- * <p>Convention: span names are dotted lifecycle events
- * ({@code request.submit}, {@code request.decide}, {@code job.execute},
- * {@code outbox.deliver}, {@code sla.scan}); attributes use dotted keys
- * ({@code request.id}, {@code user}, {@code outcome}, …).
+ * <p>
+ * Convention: span names are dotted lifecycle events ({@code request.submit},
+ * {@code request.decide}, {@code job.execute}, {@code outbox.deliver}, {@code sla.scan});
+ * attributes use dotted keys ({@code request.id}, {@code user}, {@code outcome}, …).
  */
 @Component
 public class FlowOpsSpans {
@@ -27,8 +27,8 @@ public class FlowOpsSpans {
     }
 
     /**
-     * Run {@code body} inside a span. The span is marked OK on success,
-     * ERROR (with the exception recorded) on failure, and always ended.
+     * Run {@code body} inside a span. The span is marked OK on success, ERROR (with the
+     * exception recorded) on failure, and always ended.
      */
     public <T> T run(String spanName, Map<String, String> attributes, Supplier<T> body) {
         Span span = start(spanName, attributes);
@@ -36,11 +36,13 @@ public class FlowOpsSpans {
             T result = body.get();
             span.setStatus(StatusCode.OK);
             return result;
-        } catch (RuntimeException e) {
+        }
+        catch (RuntimeException e) {
             span.recordException(e);
             span.setStatus(StatusCode.ERROR, e.getMessage());
             throw e;
-        } finally {
+        }
+        finally {
             span.end();
         }
     }
@@ -64,4 +66,5 @@ public class FlowOpsSpans {
         span.setStatus(StatusCode.ERROR, t.getMessage());
         span.end();
     }
+
 }

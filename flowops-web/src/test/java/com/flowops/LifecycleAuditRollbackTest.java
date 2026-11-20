@@ -15,12 +15,24 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.junit.jupiter.api.Assertions.*;
 
 class LifecycleAuditRollbackTest extends AbstractIntegrationTest {
-    @MockitoBean JobWorker backgroundJobs;
-    @MockitoBean OutboxDispatcher backgroundOutbox;
-    @MockitoBean SlaScanner backgroundSla;
-    @Autowired Mediator mediator;
-    @Autowired UserRepository users;
-    @Autowired JdbcTemplate jdbc;
+
+    @MockitoBean
+    JobWorker backgroundJobs;
+
+    @MockitoBean
+    OutboxDispatcher backgroundOutbox;
+
+    @MockitoBean
+    SlaScanner backgroundSla;
+
+    @Autowired
+    Mediator mediator;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     @Test
     void failedAuditWriteRollsBackBusinessStateAndCoverage() {
@@ -35,14 +47,17 @@ class LifecycleAuditRollbackTest extends AbstractIntegrationTest {
         try {
             jdbc.execute("CREATE TRIGGER " + fault + " BEFORE INSERT ON lifecycle_audit_events FOR EACH ROW "
                     + "WHEN (NEW.action = 'CREATED') EXECUTE FUNCTION " + fault + "()");
-            assertThrows(org.springframework.dao.DataAccessException.class, () -> mediator.send(new CreateDraftCommand("EXPENSE",
-                    Map.of("amount", 100, "description", "must roll back"), caller)));
+            assertThrows(org.springframework.dao.DataAccessException.class, () -> mediator.send(
+                    new CreateDraftCommand("EXPENSE", Map.of("amount", 100, "description", "must roll back"), caller)));
             assertEquals(beforeRequests, jdbc.queryForObject("SELECT count(*) FROM requests", Long.class));
-            assertEquals(beforeCoverage, jdbc.queryForObject("SELECT count(*) FROM request_audit_coverage", Long.class));
+            assertEquals(beforeCoverage,
+                    jdbc.queryForObject("SELECT count(*) FROM request_audit_coverage", Long.class));
             assertEquals(beforeEvents, jdbc.queryForObject("SELECT count(*) FROM lifecycle_audit_events", Long.class));
-        } finally {
+        }
+        finally {
             jdbc.execute("DROP TRIGGER IF EXISTS " + fault + " ON lifecycle_audit_events");
             jdbc.execute("DROP FUNCTION " + fault + "()");
         }
     }
+
 }

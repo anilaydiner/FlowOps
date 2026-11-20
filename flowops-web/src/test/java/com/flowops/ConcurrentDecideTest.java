@@ -31,20 +31,26 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Optimistic-lock concurrency (iteration 4): multiple approvers race on the
- * same step. All read the same {@code @Version}; whichever commits second
- * hits {@code ObjectOptimisticLockingFailureException} → 409 at the API level.
+ * Optimistic-lock concurrency (iteration 4): multiple approvers race on the same step.
+ * All read the same {@code @Version}; whichever commits second hits
+ * {@code ObjectOptimisticLockingFailureException} → 409 at the API level.
  *
- * Uses the service layer directly (no HTTP) so the race window is the pure
- * DB transaction window: all threads read version N, then contend on the
- * UPDATE ... WHERE version=N. Only one commits; the rest get the exception.
+ * Uses the service layer directly (no HTTP) so the race window is the pure DB transaction
+ * window: all threads read version N, then contend on the UPDATE ... WHERE version=N.
+ * Only one commits; the rest get the exception.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ConcurrentDecideTest extends AbstractIntegrationTest {
+
     // Keep this cached context from polling the database used by manual worker tests.
-    @MockitoBean JobWorker backgroundJobs;
-    @MockitoBean OutboxDispatcher backgroundOutbox;
-    @MockitoBean SlaScanner backgroundSla;
+    @MockitoBean
+    JobWorker backgroundJobs;
+
+    @MockitoBean
+    OutboxDispatcher backgroundOutbox;
+
+    @MockitoBean
+    SlaScanner backgroundSla;
 
     @LocalServerPort
     private int port;
@@ -67,9 +73,8 @@ class ConcurrentDecideTest extends AbstractIntegrationTest {
         if (bearer != null) {
             b.header("Authorization", "Bearer " + bearer);
         }
-        b.method(method, json == null
-                ? HttpRequest.BodyPublishers.noBody()
-                : HttpRequest.BodyPublishers.ofString(json));
+        b.method(method,
+                json == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(json));
         return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
     }
 
@@ -86,7 +91,8 @@ class ConcurrentDecideTest extends AbstractIntegrationTest {
         int i = body.indexOf("\"id\":");
         String n = body.substring(i + 5);
         int end = n.indexOf(',');
-        if (end < 0) end = n.indexOf('}');
+        if (end < 0)
+            end = n.indexOf('}');
         return Long.parseLong(n.substring(0, end).trim());
     }
 
@@ -130,7 +136,7 @@ class ConcurrentDecideTest extends AbstractIntegrationTest {
 
     private CallerIdentity principal(String username) {
         User u = users.findByUsername(username)
-                .orElseThrow(() -> new IllegalStateException("User not found: " + username));
+            .orElseThrow(() -> new IllegalStateException("User not found: " + username));
         return new CallerIdentity(u.getId(), u.getUsername(), Set.of("ADMIN"));
     }
 
@@ -170,9 +176,11 @@ class ConcurrentDecideTest extends AbstractIntegrationTest {
                         barrier.await();
                         decideStep.execute(requestId, DecisionAction.APPROVE, "race", ap);
                         sawSuccess.set(true);
-                    } catch (ObjectOptimisticLockingFailureException | com.flowops.domain.exception.ConflictException e) {
+                    }
+                    catch (ObjectOptimisticLockingFailureException | com.flowops.domain.exception.ConflictException e) {
                         sawConflict.set(true);
-                    } catch (Exception e) {
+                    }
+                    catch (Exception e) {
                         // Ignore other exceptions (e.g., step already satisfied)
                     }
                 }));
@@ -180,11 +188,13 @@ class ConcurrentDecideTest extends AbstractIntegrationTest {
             for (Future<?> f : futures) {
                 f.get();
             }
-        } finally {
+        }
+        finally {
             pool.shutdownNow();
         }
 
         assertThat(sawSuccess.get()).as("at least one concurrent approval should succeed").isTrue();
         assertThat(sawConflict.get()).as("at least one should hit a stale-version conflict").isTrue();
     }
+
 }

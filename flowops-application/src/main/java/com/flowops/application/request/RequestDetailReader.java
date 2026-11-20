@@ -16,23 +16,31 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
-/** Aggregate-based detail assembly for command responses; called within the write transaction. */
+/**
+ * Aggregate-based detail assembly for command responses; called within the write
+ * transaction.
+ */
 @Component
 public class RequestDetailReader {
+
     private final StepInstanceRepository stepInstances;
+
     private final DecisionRepository decisions;
+
     private final ClarificationRepository clarifications;
+
     private final ExecutionJobRepository executionJobs;
+
     private final com.flowops.application.request.port.RequestExecutionQueries execution;
 
     public RequestDetailReader(StepInstanceRepository stepInstances, DecisionRepository decisions,
-                               ClarificationRepository clarifications, ExecutionJobRepository executionJobs,
-                               com.flowops.application.request.port.RequestExecutionQueries execution) {
+            ClarificationRepository clarifications, ExecutionJobRepository executionJobs,
+            com.flowops.application.request.port.RequestExecutionQueries execution) {
         this.stepInstances = stepInstances;
         this.decisions = decisions;
         this.clarifications = clarifications;
         this.executionJobs = executionJobs;
-        this.execution=execution;
+        this.execution = execution;
     }
 
     public RequestDetail load(Request r) {
@@ -42,15 +50,21 @@ public class RequestDetailReader {
         if (!steps.isEmpty()) {
             for (Decision decision : decisions.findByRequestIdOrderById(r.getId())) {
                 List<Decision> bucket = byStep.get(decision.getStepInstance().getId());
-                if (bucket != null) bucket.add(decision);
+                if (bucket != null)
+                    bucket.add(decision);
             }
         }
         List<Clarification> clari = clarifications.findByRequestIdOrderByCreatedAtDesc(r.getId());
         List<ExecutionJob> jobs = executionJobs.findByRequestIdOrderByCreatedAtAsc(r.getId());
         return RequestDetail.full(r, steps, byStep, clari, jobs).withExecutionProgress(progress(r));
     }
-    public RequestDetail summary(Request r){return RequestDetail.of(r).withExecutionProgress(progress(r));}
-    private com.flowops.application.request.model.ExecutionProgress progress(Request r){
+
+    public RequestDetail summary(Request r) {
+        return RequestDetail.of(r).withExecutionProgress(progress(r));
+    }
+
+    private com.flowops.application.request.model.ExecutionProgress progress(Request r) {
         return java.util.Objects.requireNonNull(execution.findByRequestIds(List.of(r.getId())).get(r.getId()));
     }
+
 }

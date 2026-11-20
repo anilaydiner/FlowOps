@@ -10,8 +10,10 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class StepInstanceSnapshotTest {
+
     private WorkflowStep definition(CompletionRule rule, int approvals) {
-        WorkflowStep step = new WorkflowStep(new Workflow("WF_SNAPSHOT", "Snapshot", null), 1, "REVIEW", "Review", "REVIEWER");
+        WorkflowStep step = new WorkflowStep(new Workflow("WF_SNAPSHOT", "Snapshot", null), 1, "REVIEW", "Review",
+                "REVIEWER");
         step.configure(rule, approvals, Map.of(), 10, "ESCALATOR", false);
         return step;
     }
@@ -43,14 +45,16 @@ class StepInstanceSnapshotTest {
         StepInstance step = new StepInstance(null, definition(CompletionRule.ALL_OF, 1));
         step.snapshotRoster(0);
         assertEquals(1, step.getRequiredApprovals());
-        step.block(com.flowops.domain.request.BlockReason.NO_ELIGIBLE_APPROVER, "No participants", 1L, "OPERATIONS", java.time.Instant.now());
+        step.block(com.flowops.domain.request.BlockReason.NO_ELIGIBLE_APPROVER, "No participants", 1L, "OPERATIONS",
+                java.time.Instant.now());
         assertEquals(StepState.BLOCKED, step.getState());
     }
 
     @Test
     void definitionEditsCannotChangeCapturedRoleConditionOrSla() {
         WorkflowStep definition = definition(CompletionRule.ALL_OF, 1);
-        var nested = new LinkedHashMap<String, Object>(); nested.put("amount", 100);
+        var nested = new LinkedHashMap<String, Object>();
+        nested.put("amount", 100);
         definition.configure(CompletionRule.ALL_OF, 1, Map.of("nested", nested), 10, "ESCALATOR", false);
         StepInstance step = new StepInstance(null, definition, Instant.parse("2026-01-01T00:00:00Z"));
         definition.configure(CompletionRule.ANY_OF, 1, Map.of("different", true), 999, "OTHER", false);
@@ -61,4 +65,5 @@ class StepInstanceSnapshotTest {
         assertEquals(Map.of("nested", Map.of("amount", 100)), step.getCondition());
         assertThrows(UnsupportedOperationException.class, () -> step.getCondition().put("new", 1));
     }
+
 }

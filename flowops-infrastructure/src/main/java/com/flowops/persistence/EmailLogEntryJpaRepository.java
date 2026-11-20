@@ -12,4 +12,5 @@ public interface EmailLogEntryJpaRepository extends JpaRepository<EmailLogEntryE
     Optional<EmailLogEntryEntity> findFirstByOutboxId(Long outboxId);
 
     long countByStatus(String status);
+
 }

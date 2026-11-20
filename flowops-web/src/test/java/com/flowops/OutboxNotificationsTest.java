@@ -46,10 +46,9 @@ class OutboxNotificationsTest {
     static final PostgreSQLContainer<?> POSTGRES;
 
     static {
-        POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine")
-                .withDatabaseName("flowops")
-                .withUsername("flowops")
-                .withPassword("flowops");
+        POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine").withDatabaseName("flowops")
+            .withUsername("flowops")
+            .withPassword("flowops");
         POSTGRES.start();
     }
 
@@ -60,23 +59,49 @@ class OutboxNotificationsTest {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
     }
 
-    @Autowired MockMvc mvc;
-    @Autowired OutboxMessageRepository outboxRepo;
-    @Autowired NotificationRepository notificationRepo;
-    @Autowired EmailLogEntryRepository emailLogRepo;
-    @Autowired OutboxDispatcher dispatcher;
-    @Autowired com.flowops.worker.JobWorker jobWorker;
-    @Autowired com.flowops.worker.SlaScanner slaScanner;
-    @Autowired OutboxService outbox;
-    @Autowired SimulatedEmailGateway emailGateway;
-    @Autowired UserRepository users;
-    @Autowired RoleRepository roles;
-    @Autowired DepartmentRepository departments;
-    @Autowired PasswordEncoder encoder;
+    @Autowired
+    MockMvc mvc;
+
+    @Autowired
+    OutboxMessageRepository outboxRepo;
+
+    @Autowired
+    NotificationRepository notificationRepo;
+
+    @Autowired
+    EmailLogEntryRepository emailLogRepo;
+
+    @Autowired
+    OutboxDispatcher dispatcher;
+
+    @Autowired
+    com.flowops.worker.JobWorker jobWorker;
+
+    @Autowired
+    com.flowops.worker.SlaScanner slaScanner;
+
+    @Autowired
+    OutboxService outbox;
+
+    @Autowired
+    SimulatedEmailGateway emailGateway;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    RoleRepository roles;
+
+    @Autowired
+    DepartmentRepository departments;
+
+    @Autowired
+    PasswordEncoder encoder;
 
     // ── Setup: create test users ─────────────────────────────────────────
 
     private String bobToken;
+
     private String approverToken;
 
     @BeforeEach
@@ -112,75 +137,83 @@ class OutboxNotificationsTest {
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private String userToken(String username, String password) throws Exception {
-        var resp = mvc.perform(post("/api/v1/auth/token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        var resp = mvc
+            .perform(post("/api/v1/auth/token").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         int idx = resp.indexOf("\"token\":\"");
         int start = idx + "\"token\":\"".length();
         int end = resp.indexOf("\"", start);
         return resp.substring(start, end);
     }
 
-    private String aliceToken() throws Exception { return userToken("alice", "alice123"); }
-    private String adminToken() throws Exception { return userToken("admin", "admin123"); }
+    private String aliceToken() throws Exception {
+        return userToken("alice", "alice123");
+    }
+
+    private String adminToken() throws Exception {
+        return userToken("admin", "admin123");
+    }
 
     private long createAndSubmit(String requesterToken, String typeCode, String payload) throws Exception {
-        var resp = mvc.perform(post("/api/v1/requests")
-                        .header("Authorization", "Bearer " + requesterToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
-                .andExpect(status().is2xxSuccessful())
-                .andReturn().getResponse().getContentAsString();
+        var resp = mvc
+            .perform(post("/api/v1/requests").header("Authorization", "Bearer " + requesterToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         int idIdx = resp.indexOf("\"id\":");
         long id = Long.parseLong(resp.substring(idIdx + 5).split("[,}\\s]")[0].trim());
 
-        mvc.perform(post("/api/v1/requests/" + id + "/submit")
-                        .header("Authorization", "Bearer " + requesterToken))
-                .andExpect(status().is2xxSuccessful());
+        mvc.perform(post("/api/v1/requests/" + id + "/submit").header("Authorization", "Bearer " + requesterToken))
+            .andExpect(status().is2xxSuccessful());
         return id;
     }
 
     private void approve(Long requestId, String approverToken) throws Exception {
-        mvc.perform(post("/api/v1/requests/" + requestId + "/decisions")
-                        .header("Authorization", "Bearer " + approverToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"action\":\"APPROVE\",\"justification\":\"looks good\"}"))
-                .andExpect(status().is2xxSuccessful());
+        mvc.perform(
+                post("/api/v1/requests/" + requestId + "/decisions").header("Authorization", "Bearer " + approverToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"action\":\"APPROVE\",\"justification\":\"looks good\"}"))
+            .andExpect(status().is2xxSuccessful());
     }
 
     private void reject(Long requestId, String approverToken) throws Exception {
-        mvc.perform(post("/api/v1/requests/" + requestId + "/decisions")
-                        .header("Authorization", "Bearer " + approverToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"action\":\"REJECT\",\"justification\":\"not needed\"}"))
-                .andExpect(status().is2xxSuccessful());
+        mvc.perform(
+                post("/api/v1/requests/" + requestId + "/decisions").header("Authorization", "Bearer " + approverToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"action\":\"REJECT\",\"justification\":\"not needed\"}"))
+            .andExpect(status().is2xxSuccessful());
     }
 
     /**
-     * True when the outbox row's JSON payload refers to the given request id.
-     * (Parses the JSONB properly — Hibernate re-serializes it on read-back,
-     * so raw string matching on the stored format is unreliable.)
+     * True when the outbox row's JSON payload refers to the given request id. (Parses the
+     * JSONB properly — Hibernate re-serializes it on read-back, so raw string matching on
+     * the stored format is unreliable.)
      */
     private boolean payloadRequestIs(OutboxMessage m, long reqId) {
         try {
-            Map<String, Object> p = new tools.jackson.databind.ObjectMapper()
-                    .readValue(m.getPayload(), Map.class);
+            Map<String, Object> p = new tools.jackson.databind.ObjectMapper().readValue(m.getPayload(), Map.class);
             Object rid = p.get("requestId");
             return rid instanceof Number n && n.longValue() == reqId;
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             return false;
         }
     }
 
     private String payloadType(OutboxMessage m) {
         try {
-            Map<String, Object> p = new tools.jackson.databind.ObjectMapper()
-                    .readValue(m.getPayload(), Map.class);
+            Map<String, Object> p = new tools.jackson.databind.ObjectMapper().readValue(m.getPayload(), Map.class);
             Object t = p.get("type");
             return t == null ? "" : t.toString();
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             return "";
         }
     }
@@ -194,13 +227,10 @@ class OutboxNotificationsTest {
         @Test
         @Order(1)
         void submit_createsOutboxEntries_forRequester() throws Exception {
-            long reqId = createAndSubmit(aliceToken(), "EXPENSE",
-                    "{\"amount\":250,\"description\":\"test\"}");
+            long reqId = createAndSubmit(aliceToken(), "EXPENSE", "{\"amount\":250,\"description\":\"test\"}");
 
             List<OutboxMessage> entries = outboxRepo.findAll();
-            List<OutboxMessage> forRequest = entries.stream()
-                    .filter(m -> payloadRequestIs(m, reqId))
-                    .toList();
+            List<OutboxMessage> forRequest = entries.stream().filter(m -> payloadRequestIs(m, reqId)).toList();
 
             assertThat(forRequest).isNotEmpty();
             assertThat(forRequest.stream().anyMatch(m -> m.getChannel().equals("FEED"))).isTrue();
@@ -211,16 +241,14 @@ class OutboxNotificationsTest {
         @Test
         @Order(2)
         void approve_createsOutboxEntries_forRequester() throws Exception {
-            long reqId = createAndSubmit(aliceToken(), "EXPENSE",
-                    "{\"amount\":300,\"description\":\"test approve\"}");
+            long reqId = createAndSubmit(aliceToken(), "EXPENSE", "{\"amount\":300,\"description\":\"test approve\"}");
 
             approve(reqId, approverToken);
 
             List<OutboxMessage> entries = outboxRepo.findAll();
             List<OutboxMessage> approvals = entries.stream()
-                    .filter(m -> payloadRequestIs(m, reqId)
-                            && payloadType(m).contains("APPROV"))
-                    .toList();
+                .filter(m -> payloadRequestIs(m, reqId) && payloadType(m).contains("APPROV"))
+                .toList();
 
             assertThat(approvals).isNotEmpty();
             assertThat(approvals.stream().anyMatch(m -> m.getChannel().equals("FEED"))).isTrue();
@@ -230,21 +258,20 @@ class OutboxNotificationsTest {
         @Test
         @Order(3)
         void reject_createsOutboxEntries_forRequester() throws Exception {
-            long reqId = createAndSubmit(aliceToken(), "EXPENSE",
-                    "{\"amount\":150,\"description\":\"test reject\"}");
+            long reqId = createAndSubmit(aliceToken(), "EXPENSE", "{\"amount\":150,\"description\":\"test reject\"}");
 
             reject(reqId, approverToken);
 
             List<OutboxMessage> entries = outboxRepo.findAll();
             List<OutboxMessage> rejections = entries.stream()
-                    .filter(m -> payloadRequestIs(m, reqId)
-                            && payloadType(m).contains("REJECT"))
-                    .toList();
+                .filter(m -> payloadRequestIs(m, reqId) && payloadType(m).contains("REJECT"))
+                .toList();
 
             assertThat(rejections).isNotEmpty();
             assertThat(rejections.stream().anyMatch(m -> m.getChannel().equals("FEED"))).isTrue();
             assertThat(rejections.stream().anyMatch(m -> m.getChannel().equals("EMAIL"))).isTrue();
         }
+
     }
 
     @Nested
@@ -254,29 +281,25 @@ class OutboxNotificationsTest {
         @Test
         @Order(1)
         void dispatch_feedsNotifications() throws Exception {
-            long reqId = createAndSubmit(aliceToken(), "EXPENSE",
-                    "{\"amount\":400,\"description\":\"dispatch test\"}");
+            long reqId = createAndSubmit(aliceToken(), "EXPENSE", "{\"amount\":400,\"description\":\"dispatch test\"}");
 
             dispatcher.dispatch();
 
             Long aliceId = users.findByUsername("alice").orElseThrow().getId();
             List<Notification> aliceNotifs = notificationRepo.findUnread(aliceId);
             assertThat(aliceNotifs).isNotEmpty();
-            assertThat(aliceNotifs.stream()
-                    .anyMatch(n -> n.getRequestId().equals(reqId))).isTrue();
+            assertThat(aliceNotifs.stream().anyMatch(n -> n.getRequestId().equals(reqId))).isTrue();
         }
 
         @Test
         @Order(2)
         void dispatch_sendsEmail_storedInLog() throws Exception {
-            long reqId = createAndSubmit(bobToken, "EXPENSE",
-                    "{\"amount\":500,\"description\":\"email dispatch\"}");
+            long reqId = createAndSubmit(bobToken, "EXPENSE", "{\"amount\":500,\"description\":\"email dispatch\"}");
 
             dispatcher.dispatch();
 
             var bobUser = users.findByUsername("bob").orElseThrow();
-            List<EmailLogEntry> emails = emailLogRepo
-                    .findByToAddressOrderByCreatedAtDesc(bobUser.getEmail());
+            List<EmailLogEntry> emails = emailLogRepo.findByToAddressOrderByCreatedAtDesc(bobUser.getEmail());
             assertThat(emails).isNotEmpty();
             assertThat(emails.get(0).getSubject()).contains("request");
         }
@@ -284,17 +307,15 @@ class OutboxNotificationsTest {
         @Test
         @Order(3)
         void dispatch_marksMessagesAsSent() throws Exception {
-            long reqId = createAndSubmit(aliceToken(), "EXPENSE",
-                    "{\"amount\":900,\"description\":\"mark sent\"}");
+            long reqId = createAndSubmit(aliceToken(), "EXPENSE", "{\"amount\":900,\"description\":\"mark sent\"}");
 
             dispatcher.dispatch();
 
-            List<OutboxMessage> mine = outboxRepo.findAll().stream()
-                    .filter(m -> payloadRequestIs(m, reqId))
-                    .toList();
+            List<OutboxMessage> mine = outboxRepo.findAll().stream().filter(m -> payloadRequestIs(m, reqId)).toList();
             assertThat(mine).isNotEmpty();
             mine.forEach(m -> assertThat(m.getStatus()).isEqualTo(OutboxStatus.SENT));
         }
+
     }
 
     @Nested
@@ -306,18 +327,17 @@ class OutboxNotificationsTest {
         void gatewayFailure_triggersRetry() throws Exception {
             emailGateway.setSimulatedFailure(true, 3);
 
-            long reqId = createAndSubmit(aliceToken(), "EXPENSE",
-                    "{\"amount\":600,\"description\":\"retry test\"}");
+            long reqId = createAndSubmit(aliceToken(), "EXPENSE", "{\"amount\":600,\"description\":\"retry test\"}");
 
             // Dispatch: email channel fails
             dispatcher.dispatch();
 
             // Email messages should be FAILED (retry < max)
-            List<OutboxMessage> failed = outboxRepo.findAll().stream()
-                    .filter(m -> m.getStatus() == OutboxStatus.FAILED
-                            && payloadRequestIs(m, reqId)
-                            && m.getChannel().equals("EMAIL"))
-                    .toList();
+            List<OutboxMessage> failed = outboxRepo.findAll()
+                .stream()
+                .filter(m -> m.getStatus() == OutboxStatus.FAILED && payloadRequestIs(m, reqId)
+                        && m.getChannel().equals("EMAIL"))
+                .toList();
             assertThat(failed).isNotEmpty();
             assertThat(failed.get(0).getRetryCount()).isEqualTo(1);
             assertThat(failed.get(0).getNextRetryAt()).isNotNull();
@@ -346,25 +366,27 @@ class OutboxNotificationsTest {
             // Dispatch multiple times to exhaust retries. Each round makes the
             // FAILED rows eligible again (saveAll, not flush — no active tx here).
             for (int i = 0; i < 6; i++) {
-                List<OutboxMessage> failed = outboxRepo.findAll().stream()
-                        .filter(m -> m.getStatus() == OutboxStatus.FAILED)
-                        .toList();
+                List<OutboxMessage> failed = outboxRepo.findAll()
+                    .stream()
+                    .filter(m -> m.getStatus() == OutboxStatus.FAILED)
+                    .toList();
                 failed.forEach(m -> m.setNextRetryAt(java.time.Instant.now().minusSeconds(1)));
                 outboxRepo.saveAll(failed);
                 dispatcher.dispatch();
             }
 
             // At least one EMAIL message should be DEAD_LETTER
-            List<OutboxMessage> dead = outboxRepo.findAll().stream()
-                    .filter(m -> m.getStatus() == OutboxStatus.DEAD_LETTER
-                            && payloadRequestIs(m, reqId)
-                            && m.getChannel().equals("EMAIL"))
-                    .toList();
+            List<OutboxMessage> dead = outboxRepo.findAll()
+                .stream()
+                .filter(m -> m.getStatus() == OutboxStatus.DEAD_LETTER && payloadRequestIs(m, reqId)
+                        && m.getChannel().equals("EMAIL"))
+                .toList();
             assertThat(dead).isNotEmpty();
             assertThat(dead.get(0).getRetryCount()).isGreaterThanOrEqualTo(5);
 
             emailGateway.clearSimulatedFailure();
         }
+
     }
 
     @Nested
@@ -379,11 +401,13 @@ class OutboxNotificationsTest {
             outbox.notifyFeed(reqId, recipientId, "NOTIFY_TEST", "Test", "First", null);
             outbox.notifyFeed(reqId, recipientId, "NOTIFY_TEST", "Test", "Second", null);
 
-            List<OutboxMessage> matches = outboxRepo.findAll().stream()
-                    .filter(m -> m.getIdempotencyKey().equals("req:99999:NOTIFY_TEST:" + recipientId))
-                    .toList();
+            List<OutboxMessage> matches = outboxRepo.findAll()
+                .stream()
+                .filter(m -> m.getIdempotencyKey().equals("req:99999:NOTIFY_TEST:" + recipientId))
+                .toList();
             assertThat(matches).hasSize(1);
         }
+
     }
 
     @Nested
@@ -399,23 +423,21 @@ class OutboxNotificationsTest {
                 dispatcher.dispatch();
             }
 
-            mvc.perform(get("/api/v1/notifications")
-                            .header("Authorization", "Bearer " + aliceToken()))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.totalElements").isNumber())
-                    .andExpect(jsonPath("$.totalElements").value(org.hamcrest.Matchers.greaterThan(0)))
-                    .andExpect(jsonPath("$.content[0].type").isString())
-                    .andExpect(jsonPath("$.content[0].title").isString())
-                    .andExpect(jsonPath("$.content[0].read").isBoolean());
+            mvc.perform(get("/api/v1/notifications").header("Authorization", "Bearer " + aliceToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").isNumber())
+                .andExpect(jsonPath("$.totalElements").value(org.hamcrest.Matchers.greaterThan(0)))
+                .andExpect(jsonPath("$.content[0].type").isString())
+                .andExpect(jsonPath("$.content[0].title").isString())
+                .andExpect(jsonPath("$.content[0].read").isBoolean());
         }
 
         @Test
         @Order(2)
         void unreadCount_returnsNumber() throws Exception {
-            mvc.perform(get("/api/v1/notifications/unread-count")
-                            .header("Authorization", "Bearer " + aliceToken()))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.count").isNumber());
+            mvc.perform(get("/api/v1/notifications/unread-count").header("Authorization", "Bearer " + aliceToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").isNumber());
         }
 
         @Test
@@ -431,11 +453,11 @@ class OutboxNotificationsTest {
             assertThat(unread).isNotEmpty();
 
             Long notifId = unread.get(0).getId();
-            mvc.perform(patch("/api/v1/notifications/" + notifId + "/read")
-                            .header("Authorization", "Bearer " + aliceToken()))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.read").value(true))
-                    .andExpect(jsonPath("$.readAt").isNotEmpty());
+            mvc.perform(patch("/api/v1/notifications/" + notifId + "/read").header("Authorization",
+                    "Bearer " + aliceToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.read").value(true))
+                .andExpect(jsonPath("$.readAt").isNotEmpty());
         }
 
         @Test
@@ -447,11 +469,11 @@ class OutboxNotificationsTest {
                 dispatcher.dispatch();
             }
 
-            mvc.perform(patch("/api/v1/notifications/read-all")
-                            .header("Authorization", "Bearer " + aliceToken()))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.count").value(0));
+            mvc.perform(patch("/api/v1/notifications/read-all").header("Authorization", "Bearer " + aliceToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count").value(0));
         }
+
     }
 
     @Nested
@@ -460,8 +482,7 @@ class OutboxNotificationsTest {
 
         @Test
         void unauthenticated_gets401() throws Exception {
-            mvc.perform(get("/api/v1/notifications"))
-                    .andExpect(status().isUnauthorized());
+            mvc.perform(get("/api/v1/notifications")).andExpect(status().isUnauthorized());
         }
 
         @Test
@@ -472,8 +493,9 @@ class OutboxNotificationsTest {
 
             var alice = users.findByUsername("alice").orElseThrow();
             List<Notification> aliceNotifs = notificationRepo.findByRecipientId(alice.getId());
-            assertThat(aliceNotifs.stream()
-                    .noneMatch(n -> n.getType().equals("NOTIFY_BOB_ONLY"))).isTrue();
+            assertThat(aliceNotifs.stream().noneMatch(n -> n.getType().equals("NOTIFY_BOB_ONLY"))).isTrue();
         }
+
     }
+
 }

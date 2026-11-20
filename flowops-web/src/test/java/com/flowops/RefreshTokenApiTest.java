@@ -44,26 +44,53 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(properties = {
-        "flowops.jwt.expiration-seconds=60", "flowops.auth.refresh-token-lifetime=2h",
-        "flowops.auth.maximum-session-lifetime=3h"
-})
+@SpringBootTest(properties = { "flowops.jwt.expiration-seconds=60", "flowops.auth.refresh-token-lifetime=2h",
+        "flowops.auth.maximum-session-lifetime=3h" })
 @AutoConfigureMockMvc
 class RefreshTokenApiTest extends AbstractIntegrationTest {
-    @MockitoBean Clock clock;
-    @MockitoBean JobWorker backgroundJobs;
-    @MockitoBean OutboxDispatcher backgroundOutbox;
-    @MockitoBean SlaScanner backgroundSla;
-    @Autowired MockMvc mvc;
-    @Autowired ObjectMapper json;
-    @Autowired JdbcTemplate jdbc;
-    @Autowired AuthenticationService authentication;
-    @Autowired ExpiredSessionCleanup cleanup;
-    @Autowired JwtService jwt;
-    @Autowired UserRepository users;
-    @Autowired RoleRepository roles;
-    @Autowired PasswordEncoder encoder;
-    @Autowired PlatformTransactionManager transactions;
+
+    @MockitoBean
+    Clock clock;
+
+    @MockitoBean
+    JobWorker backgroundJobs;
+
+    @MockitoBean
+    OutboxDispatcher backgroundOutbox;
+
+    @MockitoBean
+    SlaScanner backgroundSla;
+
+    @Autowired
+    MockMvc mvc;
+
+    @Autowired
+    ObjectMapper json;
+
+    @Autowired
+    JdbcTemplate jdbc;
+
+    @Autowired
+    AuthenticationService authentication;
+
+    @Autowired
+    ExpiredSessionCleanup cleanup;
+
+    @Autowired
+    JwtService jwt;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    RoleRepository roles;
+
+    @Autowired
+    PasswordEncoder encoder;
+
+    @Autowired
+    PlatformTransactionManager transactions;
+
     private final AtomicReference<Instant> now = new AtomicReference<>();
 
     @BeforeEach
@@ -73,32 +100,50 @@ class RefreshTokenApiTest extends AbstractIntegrationTest {
     }
 
     private JsonNode login(String username, String password) throws Exception {
-        MvcResult result = mvc.perform(post("/api/v1/auth/token").contentType(MediaType.APPLICATION_JSON)
-                        .content(json.writeValueAsString(Map.of("username", username, "password", password))))
-                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
-                .andExpect(header().string("Pragma", "no-cache")).andReturn();
+        MvcResult result = mvc
+            .perform(post("/api/v1/auth/token").contentType(MediaType.APPLICATION_JSON)
+                .content(json.writeValueAsString(Map.of("username", username, "password", password))))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Cache-Control", "no-store"))
+            .andExpect(header().string("Pragma", "no-cache"))
+            .andReturn();
         return json.readTree(result.getResponse().getContentAsString());
     }
 
-    private JsonNode login() throws Exception { return login("admin", "admin123"); }
-    private String access(JsonNode pair) { return pair.get("token").asText(); }
-    private String refresh(JsonNode pair) { return pair.get("refreshToken").asText(); }
-    private String body(String token) { return json.writeValueAsString(Map.of("refreshToken", token)); }
+    private JsonNode login() throws Exception {
+        return login("admin", "admin123");
+    }
+
+    private String access(JsonNode pair) {
+        return pair.get("token").asText();
+    }
+
+    private String refresh(JsonNode pair) {
+        return pair.get("refreshToken").asText();
+    }
+
+    private String body(String token) {
+        return json.writeValueAsString(Map.of("refreshToken", token));
+    }
 
     private JsonNode rotate(String raw) throws Exception {
-        var result = mvc.perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON).content(body(raw)))
-                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store")).andReturn();
+        var result = mvc
+            .perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON).content(body(raw)))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Cache-Control", "no-store"))
+            .andReturn();
         return json.readTree(result.getResponse().getContentAsString());
     }
 
     private void refreshRejected(String raw) throws Exception {
         mvc.perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON).content(body(raw)))
-                .andExpect(status().isUnauthorized()).andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(raw))));
+            .andExpect(status().isUnauthorized())
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString(raw))));
     }
 
     private void accessible(String token, boolean expected) throws Exception {
         mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + token))
-                .andExpect(expected ? status().isOk() : status().isUnauthorized());
+            .andExpect(expected ? status().isOk() : status().isUnauthorized());
     }
 
     private User uniqueUser() {
@@ -120,7 +165,8 @@ class RefreshTokenApiTest extends AbstractIntegrationTest {
         assertEquals(43, raw.length());
         assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM authentication_refresh_tokens WHERE token_hash=?",
                 Integer.class, TokenSecrets.hash(raw)));
-        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM authentication_refresh_tokens WHERE token_hash=?", Integer.class, raw));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM authentication_refresh_tokens WHERE token_hash=?",
+                Integer.class, raw));
         accessible(access(pair), true);
     }
 
@@ -181,13 +227,13 @@ class RefreshTokenApiTest extends AbstractIntegrationTest {
         JsonNode first = login();
         JsonNode otherSession = login();
         mvc.perform(post("/api/v1/auth/logout").header("Authorization", "Bearer " + access(first)))
-                .andExpect(status().isNoContent());
+            .andExpect(status().isNoContent());
         accessible(access(first), true);
         refreshRejected(refresh(first));
         accessible(access(otherSession), true);
         rotate(refresh(otherSession));
         mvc.perform(post("/api/v1/auth/logout").header("Authorization", "Bearer " + access(first)))
-                .andExpect(status().isNoContent());
+            .andExpect(status().isNoContent());
         now.set(now.get().plusSeconds(60));
         accessible(access(first), false);
     }
@@ -197,10 +243,10 @@ class RefreshTokenApiTest extends AbstractIntegrationTest {
         JsonNode pair = login();
         now.set(now.get().plusSeconds(61));
         mvc.perform(post("/api/v1/auth/logout").contentType(MediaType.APPLICATION_JSON).content(body(refresh(pair))))
-                .andExpect(status().isNoContent());
+            .andExpect(status().isNoContent());
         refreshRejected(refresh(pair));
         mvc.perform(post("/api/v1/auth/logout").contentType(MediaType.APPLICATION_JSON).content(body("unknown-token")))
-                .andExpect(status().isNoContent());
+            .andExpect(status().isNoContent());
         mvc.perform(post("/api/v1/auth/logout")).andExpect(status().isNoContent());
     }
 
@@ -211,7 +257,7 @@ class RefreshTokenApiTest extends AbstractIntegrationTest {
         User other = uniqueUser();
         JsonNode otherPair = login(other.getUsername(), "initial-password");
         mvc.perform(post("/api/v1/auth/logout-all").header("Authorization", "Bearer " + access(first)))
-                .andExpect(status().isNoContent());
+            .andExpect(status().isNoContent());
         accessible(access(first), true);
         accessible(access(second), true);
         refreshRejected(refresh(first));
@@ -251,9 +297,9 @@ class RefreshTokenApiTest extends AbstractIntegrationTest {
     void malformedMissingAndUnknownRefreshTokensAreRejectedWithoutLeakingSecrets() throws Exception {
         refreshRejected("unknown-refresh-secret");
         mvc.perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON).content("{}"))
-                .andExpect(status().isBadRequest());
-        mvc.perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON).content("{\"refreshToken\":\" \"}"))
-                .andExpect(status().isBadRequest());
+            .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/v1/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+            .content("{\"refreshToken\":\" \"}")).andExpect(status().isBadRequest());
     }
 
     @Test
@@ -264,17 +310,27 @@ class RefreshTokenApiTest extends AbstractIntegrationTest {
         try (var executor = Executors.newFixedThreadPool(2)) {
             var tasks = java.util.stream.IntStream.range(0, 2).mapToObj(index -> executor.submit(() -> {
                 barrier.await();
-                try { return (Object) authentication.refresh(refresh(original)); }
-                catch (InvalidRefreshTokenException failure) { return failure; }
+                try {
+                    return (Object) authentication.refresh(refresh(original));
+                }
+                catch (InvalidRefreshTokenException failure) {
+                    return failure;
+                }
             })).toList();
-            for (var task : tasks) outcomes.add(task.get(15, java.util.concurrent.TimeUnit.SECONDS));
+            for (var task : tasks)
+                outcomes.add(task.get(15, java.util.concurrent.TimeUnit.SECONDS));
         }
         assertEquals(1, outcomes.stream().filter(TokenPair.class::isInstance).count());
         assertEquals(1, outcomes.stream().filter(InvalidRefreshTokenException.class::isInstance).count());
-        TokenPair winner = outcomes.stream().filter(TokenPair.class::isInstance).map(TokenPair.class::cast).findFirst().orElseThrow();
+        TokenPair winner = outcomes.stream()
+            .filter(TokenPair.class::isInstance)
+            .map(TokenPair.class::cast)
+            .findFirst()
+            .orElseThrow();
         accessible(winner.token(), true);
         refreshRejected(winner.refreshToken());
     }
+
     @Test
     void refreshUsesCurrentRolesRatherThanStaleAccessClaims() throws Exception {
         User user = uniqueUser();
@@ -299,8 +355,10 @@ class RefreshTokenApiTest extends AbstractIntegrationTest {
         JsonNode live = login();
         now.set(start.plusSeconds(10800));
         cleanup.purge();
-        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM authentication_sessions WHERE id=?", Integer.class, id));
-        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM authentication_refresh_tokens WHERE session_id=?", Integer.class, id));
+        assertEquals(0,
+                jdbc.queryForObject("SELECT COUNT(*) FROM authentication_sessions WHERE id=?", Integer.class, id));
+        assertEquals(0, jdbc.queryForObject("SELECT COUNT(*) FROM authentication_refresh_tokens WHERE session_id=?",
+                Integer.class, id));
         rotate(refresh(live));
     }
 
@@ -311,8 +369,7 @@ class RefreshTokenApiTest extends AbstractIntegrationTest {
                 DELETE FROM authentication_sessions WHERE id=(
                     SELECT session_id FROM authentication_refresh_tokens WHERE token_hash=?)
                 """, TokenSecrets.hash(refresh(pair)));
-        mvc.perform(get("/actuator/info").header("Authorization", "Bearer " + access(pair)))
-                .andExpect(status().isOk());
+        mvc.perform(get("/actuator/info").header("Authorization", "Bearer " + access(pair))).andExpect(status().isOk());
         accessible(access(pair), true);
         refreshRejected(refresh(pair));
         now.set(now.get().plusSeconds(60));

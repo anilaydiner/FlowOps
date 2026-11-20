@@ -45,8 +45,7 @@ public class SpringRoleRepository implements RoleRepository {
     public PageResult<Role> findAll(RoleFilter filter, PageQuery query) {
         Pageable pageable = Paging.toPageable(query);
         Specification<RoleEntity> spec = RoleSpecifications.from(filter);
-        Page<RoleEntity> page = (spec == null)
-                ? jpaRepository.findAll(pageable)
+        Page<RoleEntity> page = (spec == null) ? jpaRepository.findAll(pageable)
                 : jpaRepository.findAll(spec, pageable);
         return Paging.toPageResult(page.map(RoleMappers::fromEntity));
     }
@@ -65,4 +64,5 @@ public class SpringRoleRepository implements RoleRepository {
     public boolean anyRoleHasPermission(Collection<String> roleCodes, String permissionCode) {
         return jpaRepository.anyRoleHasPermission(roleCodes, permissionCode);
     }
+
 }

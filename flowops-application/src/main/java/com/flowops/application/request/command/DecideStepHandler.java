@@ -11,12 +11,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class DecideStepHandler implements MessageHandler<DecideStepCommand, RequestDetail> {
+
     private final DecideStep useCase;
+
     private final RequestLifecycleObservability observability;
+
     private final RequestDetailReader details;
 
     public DecideStepHandler(DecideStep useCase, RequestLifecycleObservability observability,
-                              RequestDetailReader details) {
+            RequestDetailReader details) {
         this.useCase = useCase;
         this.observability = observability;
         this.details = details;
@@ -31,7 +34,9 @@ public class DecideStepHandler implements MessageHandler<DecideStepCommand, Requ
     @Transactional
     public RequestDetail handle(DecideStepCommand command) {
         Request result = observability.decide(command.id(), command.caller().username(), command.action(),
-                () -> useCase.execute(command.id(), command.action(), command.justification(), command.caller(), command.delegatedTo(), command.stepInstanceId(), command.expectedVersion()));
+                () -> useCase.execute(command.id(), command.action(), command.justification(), command.caller(),
+                        command.delegatedTo(), command.stepInstanceId(), command.expectedVersion()));
         return details.load(result);
     }
+
 }

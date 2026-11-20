@@ -27,4 +27,5 @@ public interface NotificationRepository {
 
     /** All notifications for a recipient (unpaged). */
     List<Notification> findByRecipientId(Long recipientId);
+
 }

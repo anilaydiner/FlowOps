@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class PermissionService {
 
     private final PermissionRepository permissions;
+
     private final AuthorizationEvaluator authz;
 
     public PermissionService(PermissionRepository permissions, AuthorizationEvaluator authz) {
@@ -32,7 +33,7 @@ public class PermissionService {
     @Transactional(readOnly = true)
     public Permission get(Long id, CallerIdentity caller) {
         authz.require(caller, PermissionCodes.PERMISSIONS_READ);
-        return permissions.findById(id)
-                .orElseThrow(() -> new NotFoundException("Permission not found: " + id));
+        return permissions.findById(id).orElseThrow(() -> new NotFoundException("Permission not found: " + id));
     }
+
 }

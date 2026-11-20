@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 public class SpringClarificationRepository implements ClarificationRepository {
 
     private final ClarificationJpaRepository jpaRepository;
+
     private final EntityManager entities;
 
     public SpringClarificationRepository(ClarificationJpaRepository jpaRepository, EntityManager entities) {
@@ -31,7 +32,9 @@ public class SpringClarificationRepository implements ClarificationRepository {
     @Override
     public List<Clarification> findByRequestIdOrderByCreatedAtDesc(Long requestId) {
         return jpaRepository.findByRequestIdOrderByCreatedAtDesc(requestId)
-                .stream().map(ClarificationMappers::fromEntity).toList();
+            .stream()
+            .map(ClarificationMappers::fromEntity)
+            .toList();
     }
 
     @Override
@@ -51,4 +54,5 @@ public class SpringClarificationRepository implements ClarificationRepository {
     public Optional<Clarification> findById(Long id) {
         return jpaRepository.findById(id).map(ClarificationMappers::fromEntity);
     }
+
 }

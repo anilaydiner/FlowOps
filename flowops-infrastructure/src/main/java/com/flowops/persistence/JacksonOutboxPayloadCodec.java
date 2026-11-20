@@ -11,10 +11,10 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Jackson-backed {@link OutboxPayloadCodec}.
  *
- * <p>Owns the on-disk JSON shape (field names and order). The encoder
- * writes only present (non-null) fields — matching the historical
- * payload format, so existing rows and any external consumers see an
- * unchanged shape.
+ * <p>
+ * Owns the on-disk JSON shape (field names and order). The encoder writes only present
+ * (non-null) fields — matching the historical payload format, so existing rows and any
+ * external consumers see an unchanged shape.
  */
 @Component
 public class JacksonOutboxPayloadCodec implements OutboxPayloadCodec {
@@ -33,7 +33,8 @@ public class JacksonOutboxPayloadCodec implements OutboxPayloadCodec {
         putIfPresent(fields, "step", p.step());
         try {
             return mapper.writeValueAsString(fields);
-        } catch (JacksonException e) {
+        }
+        catch (JacksonException e) {
             throw new IllegalStateException("Failed to encode outbox payload", e);
         }
     }
@@ -42,7 +43,8 @@ public class JacksonOutboxPayloadCodec implements OutboxPayloadCodec {
     public OutboxPayload decode(String json) {
         try {
             return mapper.readValue(json, OutboxPayload.class);
-        } catch (JacksonException e) {
+        }
+        catch (JacksonException e) {
             throw new IllegalStateException("Failed to decode outbox payload: " + json, e);
         }
     }
@@ -52,4 +54,5 @@ public class JacksonOutboxPayloadCodec implements OutboxPayloadCodec {
             fields.put(key, value);
         }
     }
+
 }

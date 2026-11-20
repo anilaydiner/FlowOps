@@ -9,9 +9,9 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * JPA entity backing the {@link com.flowops.application.notification.model.EmailLogEntry} application delivery record
- * (table {@code email_log}). Pure data carrier — all business behavior
- * lives on the application record; field mapping is identical to the schema.
+ * JPA entity backing the {@link com.flowops.application.notification.model.EmailLogEntry}
+ * application delivery record (table {@code email_log}). Pure data carrier — all business
+ * behavior lives on the application record; field mapping is identical to the schema.
  */
 @Entity(name = "EmailLogEntry")
 @Table(name = "email_log")
@@ -45,24 +45,60 @@ public class EmailLogEntryEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getToAddress() { return toAddress; }
-    public void setToAddress(String toAddress) { this.toAddress = toAddress; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getSubject() { return subject; }
-    public void setSubject(String subject) { this.subject = subject; }
+    public String getToAddress() {
+        return toAddress;
+    }
 
-    public String getBody() { return body; }
-    public void setBody(String body) { this.body = body; }
+    public void setToAddress(String toAddress) {
+        this.toAddress = toAddress;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public String getSubject() {
+        return subject;
+    }
 
-    public Long getOutboxId() { return outboxId; }
-    public void setOutboxId(Long outboxId) { this.outboxId = outboxId; }
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public String getBody() {
+        return body;
+    }
+
+    public void setBody(String body) {
+        this.body = body;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Long getOutboxId() {
+        return outboxId;
+    }
+
+    public void setOutboxId(Long outboxId) {
+        this.outboxId = outboxId;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
 }

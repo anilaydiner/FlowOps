@@ -36,36 +36,67 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Iteration 7 tests: SLA Scanner (PLAN §8).
  *
- * Verifies:
- * - SLA breach → escalation notification via outbox
- * - Review overrun alone never expires a request
- * - Steps without SLA → no breach
- * - Idempotent SLA notifications (no duplicates)
+ * Verifies: - SLA breach → escalation notification via outbox - Review overrun alone
+ * never expires a request - Steps without SLA → no breach - Idempotent SLA notifications
+ * (no duplicates)
  */
 @AutoConfigureMockMvc
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class SlaScannerTest extends AbstractIntegrationTest {
-    @org.springframework.test.context.bean.override.mockito.MockitoBean java.time.Clock clock;
-    private void now(Instant instant) { org.mockito.Mockito.when(clock.instant()).thenReturn(instant); }
 
+    @org.springframework.test.context.bean.override.mockito.MockitoBean
+    java.time.Clock clock;
 
-    @Autowired MockMvc mvc;
-    @Autowired SlaScanner slaScanner;
-    @Autowired OutboxDispatcher dispatcher;
-    @Autowired StepInstanceRepository stepRepo;
-    @Autowired WorkflowStepRepository stepDefRepo;
-    @Autowired RequestRepository requestRepo;
-    @Autowired OutboxMessageRepository outboxRepo;
-    @Autowired UserRepository users;
-    @Autowired RoleRepository roles;
-    @Autowired DepartmentRepository departments;
-    @Autowired PasswordEncoder encoder;
-    @Autowired RequestTypeRepository typeRepo;
-    @Autowired WorkflowRepository workflowRepo;
-    @Autowired org.springframework.transaction.support.TransactionTemplate txTemplate;
+    private void now(Instant instant) {
+        org.mockito.Mockito.when(clock.instant()).thenReturn(instant);
+    }
+
+    @Autowired
+    MockMvc mvc;
+
+    @Autowired
+    SlaScanner slaScanner;
+
+    @Autowired
+    OutboxDispatcher dispatcher;
+
+    @Autowired
+    StepInstanceRepository stepRepo;
+
+    @Autowired
+    WorkflowStepRepository stepDefRepo;
+
+    @Autowired
+    RequestRepository requestRepo;
+
+    @Autowired
+    OutboxMessageRepository outboxRepo;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    RoleRepository roles;
+
+    @Autowired
+    DepartmentRepository departments;
+
+    @Autowired
+    PasswordEncoder encoder;
+
+    @Autowired
+    RequestTypeRepository typeRepo;
+
+    @Autowired
+    WorkflowRepository workflowRepo;
+
+    @Autowired
+    org.springframework.transaction.support.TransactionTemplate txTemplate;
 
     private String bobToken;
+
     private Integer nextSlaMinutes;
+
     private String adminToken;
 
     @BeforeEach
@@ -87,11 +118,13 @@ class SlaScannerTest extends AbstractIntegrationTest {
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private String userToken(String username, String password) throws Exception {
-        var resp = mvc.perform(post("/api/v1/auth/token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        var resp = mvc
+            .perform(post("/api/v1/auth/token").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         int idx = resp.indexOf("\"token\":\"");
         int start = idx + "\"token\":\"".length();
         int end = resp.indexOf("\"", start);
@@ -99,29 +132,38 @@ class SlaScannerTest extends AbstractIntegrationTest {
     }
 
     private long createAndSubmit(String token, String typeCode, String payload) throws Exception {
-        var resp = mvc.perform(post("/api/v1/requests")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
-                .andExpect(status().is2xxSuccessful())
-                .andReturn().getResponse().getContentAsString();
+        var resp = mvc
+            .perform(post("/api/v1/requests").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         int idIdx = resp.indexOf("\"id\":");
         long id = Long.parseLong(resp.substring(idIdx + 5).split("[,}\\s]")[0].trim());
 
         Request draft = requestRepo.findById(id).orElseThrow();
-        WorkflowStep definition = stepDefRepo.findByWorkflowIdOrderById(draft.getType().getDefaultWorkflowId()).getFirst();
+        WorkflowStep definition = stepDefRepo.findByWorkflowIdOrderById(draft.getType().getDefaultWorkflowId())
+            .getFirst();
         Integer originalSla = definition.getSlaMinutes();
         definition.changeReviewSla(nextSlaMinutes);
         stepDefRepo.save(definition);
         try {
-            mvc.perform(post("/api/v1/requests/" + id + "/submit")
-                            .header("Authorization", "Bearer " + token))
-                    .andExpect(status().is2xxSuccessful());
-        } finally { definition.changeReviewSla(originalSla); stepDefRepo.save(definition); }
+            mvc.perform(post("/api/v1/requests/" + id + "/submit").header("Authorization", "Bearer " + token))
+                .andExpect(status().is2xxSuccessful());
+        }
+        finally {
+            definition.changeReviewSla(originalSla);
+            stepDefRepo.save(definition);
+        }
         return id;
     }
 
-    /** Set SLA on the first step of the request's workflow, then backdate the step instance. */
+    /**
+     * Set SLA on the first step of the request's workflow, then backdate the step
+     * instance.
+     */
     private void setupSla(long requestId, int slaMinutes) {
         setupSla(requestId, slaMinutes, (long) slaMinutes * 60 + 120);
     }
@@ -144,8 +186,7 @@ class SlaScannerTest extends AbstractIntegrationTest {
         @Order(1)
         void breachSendsEscalationNotification() throws Exception {
             nextSlaMinutes = 1;
-            long reqId = createAndSubmit(bobToken, "IT_ACCESS",
-                    "{\"resource\":\"Jira\",\"duration\":\"30d\"}");
+            long reqId = createAndSubmit(bobToken, "IT_ACCESS", "{\"resource\":\"Jira\",\"duration\":\"30d\"}");
 
             // Set 1-minute SLA and backdate the step instance to 3 minutes ago
             setupSla(reqId, 1);
@@ -157,9 +198,10 @@ class SlaScannerTest extends AbstractIntegrationTest {
             // (scoped by request id — the table is shared across tests, and each
             // breach enqueues both an EMAIL and a FEED variant, so get(0) on an
             // unordered findAll() is nondeterministic)
-            List<OutboxMessage> slaMessages = outboxRepo.findAll().stream()
-                    .filter(m -> m.getIdempotencyKey().startsWith("req:" + reqId + ":SLA_BREACH"))
-                    .toList();
+            List<OutboxMessage> slaMessages = outboxRepo.findAll()
+                .stream()
+                .filter(m -> m.getIdempotencyKey().startsWith("req:" + reqId + ":SLA_BREACH"))
+                .toList();
             assertThat(slaMessages).isNotEmpty();
             assertThat(slaMessages).extracting(OutboxMessage::getChannel).contains("EMAIL");
 
@@ -171,8 +213,7 @@ class SlaScannerTest extends AbstractIntegrationTest {
         @Order(2)
         void breachWithoutExpiry() throws Exception {
             nextSlaMinutes = 10;
-            long reqId = createAndSubmit(bobToken, "IT_ACCESS",
-                    "{\"resource\":\"Slack\",\"duration\":\"14d\"}");
+            long reqId = createAndSubmit(bobToken, "IT_ACCESS", "{\"resource\":\"Slack\",\"duration\":\"14d\"}");
 
             // Set 10-minute SLA, backdate to 15 minutes ago
             // Breach: 15 > 10 ✓
@@ -182,9 +223,10 @@ class SlaScannerTest extends AbstractIntegrationTest {
             slaScanner.scan();
 
             // Breach notification sent
-            List<OutboxMessage> slaMessages = outboxRepo.findAll().stream()
-                    .filter(m -> m.getIdempotencyKey().contains(":SLA_BREACH"))
-                    .toList();
+            List<OutboxMessage> slaMessages = outboxRepo.findAll()
+                .stream()
+                .filter(m -> m.getIdempotencyKey().contains(":SLA_BREACH"))
+                .toList();
             assertThat(slaMessages).isNotEmpty();
 
             // Request still IN_REVIEW (not expired)
@@ -196,27 +238,32 @@ class SlaScannerTest extends AbstractIntegrationTest {
         @Order(3)
         void slaNotificationsAreIdempotent() throws Exception {
             nextSlaMinutes = 10;
-            long reqId = createAndSubmit(bobToken, "IT_ACCESS",
-                    "{\"resource\":\"Figma\",\"duration\":\"30d\"}");
+            long reqId = createAndSubmit(bobToken, "IT_ACCESS", "{\"resource\":\"Figma\",\"duration\":\"30d\"}");
 
             setupSla(reqId, 10);
 
             // Scan twice — should not duplicate notifications
             slaScanner.scan();
-            int afterFirst = outboxRepo.findAll().stream()
-                    .filter(m -> m.getIdempotencyKey().contains(":SLA_BREACH"))
-                    .toList().size();
+            int afterFirst = outboxRepo.findAll()
+                .stream()
+                .filter(m -> m.getIdempotencyKey().contains(":SLA_BREACH"))
+                .toList()
+                .size();
 
             slaScanner.scan();
-            int afterSecond = outboxRepo.findAll().stream()
-                    .filter(m -> m.getIdempotencyKey().contains(":SLA_BREACH"))
-                    .toList().size();
+            int afterSecond = outboxRepo.findAll()
+                .stream()
+                .filter(m -> m.getIdempotencyKey().contains(":SLA_BREACH"))
+                .toList()
+                .size();
 
             assertThat(afterSecond).isEqualTo(afterFirst);
         }
+
     }
 
-    // ── No implicit business expiry ───────────────────────────────────────────────────────
+    // ── No implicit business expiry
+    // ───────────────────────────────────────────────────────
 
     @Nested
     @DisplayName("Independent business expiry")
@@ -226,8 +273,7 @@ class SlaScannerTest extends AbstractIntegrationTest {
         @Order(1)
         void reviewOverrunBeyond2xSlaDoesNotExpireWithoutBusinessDeadline() throws Exception {
             nextSlaMinutes = 5;
-            long reqId = createAndSubmit(bobToken, "IT_ACCESS",
-                    "{\"resource\":\"Notion\",\"duration\":\"7d\"}");
+            long reqId = createAndSubmit(bobToken, "IT_ACCESS", "{\"resource\":\"Notion\",\"duration\":\"7d\"}");
 
             // Set 5-minute SLA, backdate to 15 minutes ago (3× SLA)
             // Breach: 15 > 5 ✓
@@ -257,5 +303,7 @@ class SlaScannerTest extends AbstractIntegrationTest {
             Request req = requestRepo.findById(reqId).orElseThrow();
             assertThat(req.getStatus()).isEqualTo(RequestStatus.IN_REVIEW);
         }
+
     }
+
 }

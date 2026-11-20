@@ -4,8 +4,8 @@ import com.flowops.domain.organization.Department;
 import com.flowops.persistence.entity.DepartmentEntity;
 
 /**
- * Maps the {@link Department} aggregate to and from its JPA entity.
- * Stateless — safe to call from any thread.
+ * Maps the {@link Department} aggregate to and from its JPA entity. Stateless — safe to
+ * call from any thread.
  */
 public final class DepartmentMappers {
 
@@ -37,4 +37,5 @@ public final class DepartmentMappers {
         d.setCreatedAt(e.getCreatedAt());
         return d;
     }
+
 }

@@ -33,8 +33,7 @@ public class SpringPermissionRepository implements PermissionRepository {
     public PageResult<Permission> findAll(PermissionFilter filter, PageQuery query) {
         Pageable pageable = Paging.toPageable(query);
         Specification<PermissionEntity> spec = PermissionSpecifications.from(filter);
-        Page<PermissionEntity> page = (spec == null)
-                ? jpaRepository.findAll(pageable)
+        Page<PermissionEntity> page = (spec == null) ? jpaRepository.findAll(pageable)
                 : jpaRepository.findAll(spec, pageable);
         return Paging.toPageResult(page.map(PermissionMappers::fromEntity));
     }
@@ -53,4 +52,5 @@ public class SpringPermissionRepository implements PermissionRepository {
     public List<Permission> findAll() {
         return jpaRepository.findAll().stream().map(PermissionMappers::fromEntity).toList();
     }
+
 }

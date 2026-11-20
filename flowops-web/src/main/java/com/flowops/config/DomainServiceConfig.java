@@ -8,9 +8,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Provides stateless domain services as Spring beans.
- * The domain classes themselves carry no framework annotations —
- * this configuration is the application-layer wiring point.
+ * Provides stateless domain services as Spring beans. The domain classes themselves carry
+ * no framework annotations — this configuration is the application-layer wiring point.
  */
 @Configuration
 public class DomainServiceConfig {
@@ -29,4 +28,5 @@ public class DomainServiceConfig {
     public AuthorizationEvaluator authorizationEvaluator(UserRepository users) {
         return new AuthorizationEvaluator(users);
     }
+
 }

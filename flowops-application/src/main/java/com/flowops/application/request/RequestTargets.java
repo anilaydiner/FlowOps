@@ -5,7 +5,9 @@ import com.flowops.domain.request.Request;
 import com.flowops.domain.request.StepInstance;
 
 public final class RequestTargets {
-    private RequestTargets() {}
+
+    private RequestTargets() {
+    }
 
     public static TargetContext from(Request request, StepInstance step) {
         var type = request.getType();
@@ -14,4 +16,5 @@ public final class RequestTargets {
                 department == null ? null : department.getCode(), request.getPayload(),
                 step == null ? null : step.getStepCode());
     }
+
 }

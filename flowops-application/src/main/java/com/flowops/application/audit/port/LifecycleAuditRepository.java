@@ -5,8 +5,13 @@ import java.time.Instant;
 import java.util.List;
 
 public interface LifecycleAuditRepository {
+
     boolean beginCoverage(Long requestId, Instant at, boolean legacyPrefix);
+
     boolean hasCoverage(Long requestId);
+
     boolean appendIfAbsent(LifecycleAuditRecord record);
+
     List<LifecycleAuditRecord> findByRequestId(Long requestId);
+
 }

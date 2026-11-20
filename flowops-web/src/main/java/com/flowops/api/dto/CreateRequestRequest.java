@@ -7,11 +7,7 @@ import java.util.Map;
 
 public record CreateRequestRequest(
 
-        @NotBlank(message = "typeCode is required")
-        @Size(max = 32)
-        String typeCode,
+        @NotBlank(message = "typeCode is required") @Size(max = 32) String typeCode,
 
-        @NotNull(message = "payload is required (use {} for no fields)")
-        Map<String, Object> payload
-) {
+        @NotNull(message = "payload is required (use {} for no fields)") Map<String, Object> payload) {
 }

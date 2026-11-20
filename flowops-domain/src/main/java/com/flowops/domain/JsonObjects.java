@@ -8,7 +8,9 @@ import java.util.Map;
 
 /** Defensively copies nested JSON objects and arrays, preserving null values. */
 public final class JsonObjects {
-    private JsonObjects() {}
+
+    private JsonObjects() {
+    }
 
     public static Map<String, Object> immutableCopy(Map<String, Object> source) {
         Map<String, Object> copy = new LinkedHashMap<>();
@@ -32,4 +34,5 @@ public final class JsonObjects {
         }
         return value;
     }
+
 }

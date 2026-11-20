@@ -18,8 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Use case: close an EXECUTED or REJECTED request (terminal CLOSED state).
  *
- * <p>Requires {@code request:close:own} for the requester (SELF scope, SoD
- * skipped) or {@code request:close} for others (global scope).</p>
+ * <p>
+ * Requires {@code request:close:own} for the requester (SELF scope, SoD skipped) or
+ * {@code request:close} for others (global scope).
+ * </p>
  */
 @Service
 public class CloseRequest {
@@ -27,11 +29,15 @@ public class CloseRequest {
     private final LifecycleAuditRecorder audit;
 
     private final RequestRepository requests;
+
     private final RequestWriteLock requestWriteLock;
+
     private final AuthorizationEvaluator authz;
+
     private final java.time.Clock clock;
 
-    public CloseRequest(RequestRepository requests, RequestWriteLock requestWriteLock, AuthorizationEvaluator authz, LifecycleAuditRecorder audit,java.time.Clock clock) {
+    public CloseRequest(RequestRepository requests, RequestWriteLock requestWriteLock, AuthorizationEvaluator authz,
+            LifecycleAuditRecorder audit, java.time.Clock clock) {
         this.audit = audit;
         this.requests = requests;
         this.requestWriteLock = requestWriteLock;
@@ -43,8 +49,8 @@ public class CloseRequest {
     public Request execute(Long requestId, CallerIdentity caller) {
         Request request = load(requestId);
         if (!request.getStatus().canClose()) {
-            throw new ConflictException("Only EXECUTED or REJECTED requests can be closed (current: "
-                    + request.getStatus() + ")");
+            throw new ConflictException(
+                    "Only EXECUTED or REJECTED requests can be closed (current: " + request.getStatus() + ")");
         }
 
         boolean isOwn = caller.id().equals(request.getRequester().getId());
@@ -60,6 +66,7 @@ public class CloseRequest {
 
     private Request load(Long id) {
         return requestWriteLock.findByIdForUpdate(id)
-                .orElseThrow(() -> new NotFoundException("Request not found: " + id));
+            .orElseThrow(() -> new NotFoundException("Request not found: " + id));
     }
+
 }

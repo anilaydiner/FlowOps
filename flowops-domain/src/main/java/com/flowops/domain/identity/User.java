@@ -6,12 +6,13 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * A user account — authentication principal and authorization holder
- * (roles, active flag, password hash).
+ * A user account — authentication principal and authorization holder (roles, active flag,
+ * password hash).
  *
- * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
- * lives in {@code persistence.entity.UserEntity}; the rehydration
- * constructor and setters exist solely for that mapper.
+ * <p>
+ * Pure domain aggregate — no persistence annotations. The JPA mapping lives in
+ * {@code persistence.entity.UserEntity}; the rehydration constructor and setters exist
+ * solely for that mapper.
  */
 public class User {
 
@@ -40,12 +41,8 @@ public class User {
         // Rehydration only — used by the persistence mapper, not by business code.
     }
 
-    public static User newUser(String username,
-                               String displayName,
-                               String email,
-                               Department department,
-                               Set<Role> roles,
-                               String passwordHash) {
+    public static User newUser(String username, String displayName, String email, Department department,
+            Set<Role> roles, String passwordHash) {
         User user = new User();
         user.username = username;
         user.displayName = displayName;
@@ -87,33 +84,93 @@ public class User {
 
     /** Convenience: role codes as a sorted list. */
     public Set<String> roleCodes() {
-        if (roles == null) return Set.of();
+        if (roles == null)
+            return Set.of();
         return roles.stream().map(Role::getCode).collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
     }
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public String getUsername() { return username; }
-    public String getDisplayName() { return displayName; }
-    public String getEmail() { return email; }
-    public Department getDepartment() { return department; }
-    public Set<Role> getRoles() { return roles; }
-    public String getPasswordHash() { return passwordHash; }
-    public boolean isActive() { return active; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public Department getDepartment() {
+        return department;
+    }
+
+    public Set<Role> getRoles() {
+        return roles;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
 
     // ── Setters (persistence rehydration only) ─────────────────────────
 
-    public void setId(Long id) { this.id = id; }
-    public void setUsername(String username) { this.username = username; }
-    public void setDisplayName(String displayName) { this.displayName = displayName; }
-    public void setEmail(String email) { this.email = email; }
-    public void setDepartment(Department department) { this.department = department; }
-    public void rehydrateRoles(Set<Role> roles) { this.roles = roles; }
-    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
-    public void rehydrateActive(boolean active) { this.active = active; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setDepartment(Department department) {
+        this.department = department;
+    }
+
+    public void rehydrateRoles(Set<Role> roles) {
+        this.roles = roles;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
+    }
+
+    public void rehydrateActive(boolean active) {
+        this.active = active;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
 }

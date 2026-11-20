@@ -22,4 +22,5 @@ public interface RequestTypeRepository {
     boolean existsByCode(String code);
 
     long count();
+
 }

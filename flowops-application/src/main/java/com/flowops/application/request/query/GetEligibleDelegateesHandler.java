@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class GetEligibleDelegateesHandler implements MessageHandler<GetEligibleDelegatees, List<User>> {
+
     private final EligibleDelegatees useCase;
 
     public GetEligibleDelegateesHandler(EligibleDelegatees useCase) {
@@ -25,4 +26,5 @@ public class GetEligibleDelegateesHandler implements MessageHandler<GetEligibleD
     public List<User> handle(GetEligibleDelegatees query) {
         return useCase.list(query.id(), query.caller());
     }
+
 }

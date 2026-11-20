@@ -5,12 +5,13 @@ import com.flowops.persistence.entity.UserEntity;
 import java.util.LinkedHashSet;
 
 /**
- * Maps the {@link User} aggregate to and from its JPA entity.
- * Stateless — safe to call from any thread.
+ * Maps the {@link User} aggregate to and from its JPA entity. Stateless — safe to call
+ * from any thread.
  *
- * <p>{@code fromEntity} runs inside the persistence adapter (i.e. inside the
- * transaction), so lazy associations are safely resolved here and the
- * resulting domain object needs no live persistence context.
+ * <p>
+ * {@code fromEntity} runs inside the persistence adapter (i.e. inside the transaction),
+ * so lazy associations are safely resolved here and the resulting domain object needs no
+ * live persistence context.
  */
 public final class UserMappers {
 
@@ -29,9 +30,10 @@ public final class UserMappers {
         e.setEmail(d.getEmail());
         e.setDepartment(DepartmentMappers.toEntity(d.getDepartment()));
         if (d.getRoles() != null) {
-            e.setRoles(d.getRoles().stream()
-                    .map(RoleMappers::toEntity)
-                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)));
+            e.setRoles(d.getRoles()
+                .stream()
+                .map(RoleMappers::toEntity)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)));
         }
         e.setPasswordHash(d.getPasswordHash());
         e.setActive(d.isActive());
@@ -52,9 +54,10 @@ public final class UserMappers {
         d.setEmail(e.getEmail());
         d.setDepartment(DepartmentMappers.fromEntity(e.getDepartment()));
         if (e.getRoles() != null) {
-            d.rehydrateRoles(e.getRoles().stream()
-                    .map(RoleMappers::fromEntity)
-                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)));
+            d.rehydrateRoles(e.getRoles()
+                .stream()
+                .map(RoleMappers::fromEntity)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)));
         }
         d.setPasswordHash(e.getPasswordHash());
         d.rehydrateActive(e.isActive());
@@ -62,4 +65,5 @@ public final class UserMappers {
         d.setUpdatedAt(e.getUpdatedAt());
         return d;
     }
+
 }

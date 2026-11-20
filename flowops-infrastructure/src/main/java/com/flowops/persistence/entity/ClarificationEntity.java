@@ -10,8 +10,8 @@ import java.time.Instant;
 
 /**
  * JPA entity backing the {@link com.flowops.domain.request.Clarification} aggregate
- * (table {@code clarifications}). Pure data carrier — all business behavior
- * lives on the domain aggregate; field mapping is identical to the schema.
+ * (table {@code clarifications}). Pure data carrier — all business behavior lives on the
+ * domain aggregate; field mapping is identical to the schema.
  */
 @Entity(name = "Clarification")
 @Table(name = "clarifications")
@@ -48,27 +48,68 @@ public class ClarificationEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public Long getRequestId() { return requestId; }
-    public void setRequestId(Long requestId) { this.requestId = requestId; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public Long getAskedBy() { return askedBy; }
-    public void setAskedBy(Long askedBy) { this.askedBy = askedBy; }
+    public Long getRequestId() {
+        return requestId;
+    }
 
-    public String getQuestion() { return question; }
-    public void setQuestion(String question) { this.question = question; }
+    public void setRequestId(Long requestId) {
+        this.requestId = requestId;
+    }
 
-    public String getAnswer() { return answer; }
-    public void setAnswer(String answer) { this.answer = answer; }
+    public Long getAskedBy() {
+        return askedBy;
+    }
 
-    public Long getAnsweredBy() { return answeredBy; }
-    public void setAnsweredBy(Long answeredBy) { this.answeredBy = answeredBy; }
+    public void setAskedBy(Long askedBy) {
+        this.askedBy = askedBy;
+    }
 
-    public Instant getAnsweredAt() { return answeredAt; }
-    public void setAnsweredAt(Instant answeredAt) { this.answeredAt = answeredAt; }
+    public String getQuestion() {
+        return question;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public void setQuestion(String question) {
+        this.question = question;
+    }
+
+    public String getAnswer() {
+        return answer;
+    }
+
+    public void setAnswer(String answer) {
+        this.answer = answer;
+    }
+
+    public Long getAnsweredBy() {
+        return answeredBy;
+    }
+
+    public void setAnsweredBy(Long answeredBy) {
+        this.answeredBy = answeredBy;
+    }
+
+    public Instant getAnsweredAt() {
+        return answeredAt;
+    }
+
+    public void setAnsweredAt(Instant answeredAt) {
+        this.answeredAt = answeredAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
 }

@@ -7,5 +7,6 @@ import com.flowops.domain.request.RecoveryAssignment;
 import java.util.List;
 
 public record RecoverRequestCommand(Long id, Long stepInstanceId, Long expectedVersion, String reason,
-                                    boolean refreshPool, List<RecoveryAssignment> assignments,
-                                    boolean recheckOnly, CallerIdentity caller) implements Message<RequestDetail> {}
+        boolean refreshPool, List<RecoveryAssignment> assignments, boolean recheckOnly,
+        CallerIdentity caller) implements Message<RequestDetail> {
+}

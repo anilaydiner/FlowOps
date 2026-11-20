@@ -9,8 +9,9 @@ import java.util.Optional;
 /**
  * Persistence port for the {@link Workflow} aggregate.
  *
- * <p>Implemented by the JPA adapter in {@code persistence}; the domain
- * layer only sees this contract — no Spring Data types.
+ * <p>
+ * Implemented by the JPA adapter in {@code persistence}; the domain layer only sees this
+ * contract — no Spring Data types.
  */
 public interface WorkflowRepository {
 
@@ -24,4 +25,5 @@ public interface WorkflowRepository {
     Optional<Workflow> findByCode(String code);
 
     boolean existsByCode(String code);
+
 }

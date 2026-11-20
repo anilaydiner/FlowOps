@@ -14,6 +14,8 @@ public interface DecisionJpaRepository extends JpaRepository<DecisionEntity, Lon
     List<DecisionEntity> findByRequestIdOrderById(Long requestId);
 
     long countByStepInstanceIdAndAction(Long stepInstanceId, DecisionAction action);
+
     @Query(value = "SELECT count(*) FROM step_approval_votes WHERE step_instance_id = :stepId", nativeQuery = true)
     long countDistinctApprovers(@Param("stepId") Long stepInstanceId);
+
 }

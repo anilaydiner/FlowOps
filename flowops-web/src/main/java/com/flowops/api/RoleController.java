@@ -34,8 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/roles")
 public class RoleController {
 
-    private static final List<String> ALLOWED_SORT_FIELDS = List.of(
-            "id", "code", "name", "createdAt");
+    private static final List<String> ALLOWED_SORT_FIELDS = List.of("id", "code", "name", "createdAt");
 
     private final RoleService roleService;
 
@@ -44,37 +43,29 @@ public class RoleController {
     }
 
     @GetMapping
-    @Operation(summary = "List roles",
-            description = """
-                    Supports dynamic filtering, multi-sort, and pagination.
+    @Operation(summary = "List roles", description = """
+            Supports dynamic filtering, multi-sort, and pagination.
 
-                    **Filters** — all optional, combined with AND:
-                    - `code` — partial match (case-insensitive)
-                    - `name` — partial match
+            **Filters** — all optional, combined with AND:
+            - `code` — partial match (case-insensitive)
+            - `name` — partial match
 
-                    **Sorting** — repeatable `sort` param, format `field,asc|desc`
-                    **Pagination**: `page` (default 1), `size` (default 20, max 100)
-                    """)
-    @Parameters({
-            @Parameter(name = "code", description = "Partial role code match (case-insensitive)"),
+            **Sorting** — repeatable `sort` param, format `field,asc|desc`
+            **Pagination**: `page` (default 1), `size` (default 20, max 100)
+            """)
+    @Parameters({ @Parameter(name = "code", description = "Partial role code match (case-insensitive)"),
             @Parameter(name = "name", description = "Partial role name match"),
-            @Parameter(name = "sort", description = "Sort field + direction: field,asc|desc. Repeatable for multi-sort."),
+            @Parameter(name = "sort",
+                    description = "Sort field + direction: field,asc|desc. Repeatable for multi-sort."),
             @Parameter(name = "page", description = "One-based page number (default 1)"),
-            @Parameter(name = "size", description = "Page size (default 20, max 100)")
-    })
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Paged role list"),
+            @Parameter(name = "size", description = "Page size (default 20, max 100)") })
+    @ApiResponses({ @ApiResponse(responseCode = "200", description = "Paged role list"),
             @ApiResponse(responseCode = "401", description = "Not authenticated"),
-            @ApiResponse(responseCode = "403", description = "Missing permission")
-    })
-    public PageResponse<RoleResponse> list(
-            @RequestParam(required = false) String code,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) List<String> sort,
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @AuthenticationPrincipal UserPrincipal caller
-    ) {
+            @ApiResponse(responseCode = "403", description = "Missing permission") })
+    public PageResponse<RoleResponse> list(@RequestParam(required = false) String code,
+            @RequestParam(required = false) String name, @RequestParam(required = false) List<String> sort,
+            @RequestParam(defaultValue = "1") int page, @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal caller) {
         RoleFilter filter = new RoleFilter(code, name);
         PageQuery pageQuery = Pagination.toPageQuery(page, size, sort, ALLOWED_SORT_FIELDS);
         return PageResponse.from(roleService.list(filter, pageQuery, caller.toIdentity()).map(RoleResponse::from));
@@ -88,13 +79,11 @@ public class RoleController {
 
     @PostMapping
     @Operation(summary = "Create role")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Role created"),
+    @ApiResponses({ @ApiResponse(responseCode = "201", description = "Role created"),
             @ApiResponse(responseCode = "403", description = "Missing permission"),
-            @ApiResponse(responseCode = "409", description = "Role code already exists")
-    })
+            @ApiResponse(responseCode = "409", description = "Role code already exists") })
     public ResponseEntity<RoleResponse> create(@Valid @RequestBody RoleRequest request,
-                                               @AuthenticationPrincipal UserPrincipal caller) {
+            @AuthenticationPrincipal UserPrincipal caller) {
         RoleResponse response = RoleResponse.from(roleService.create(toSpec(request), caller.toIdentity()));
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -102,19 +91,16 @@ public class RoleController {
     @PutMapping("/{id}")
     @Operation(summary = "Update role")
     public RoleResponse update(@PathVariable Long id, @RequestBody RoleRequest request,
-                               @AuthenticationPrincipal UserPrincipal caller) {
+            @AuthenticationPrincipal UserPrincipal caller) {
         return RoleResponse.from(roleService.update(id, toSpec(request), caller.toIdentity()));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete role",
-            description = "Built-in roles (ADMIN, MEMBER) cannot be deleted.")
+    @Operation(summary = "Delete role", description = "Built-in roles (ADMIN, MEMBER) cannot be deleted.")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Role deleted"),
+    @ApiResponses({ @ApiResponse(responseCode = "204", description = "Role deleted"),
             @ApiResponse(responseCode = "403", description = "Missing permission"),
-            @ApiResponse(responseCode = "409", description = "Cannot delete built-in role")
-    })
+            @ApiResponse(responseCode = "409", description = "Cannot delete built-in role") })
     public void delete(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal caller) {
         roleService.delete(id, caller.toIdentity());
     }
@@ -122,4 +108,5 @@ public class RoleController {
     private RoleSpec toSpec(RoleRequest r) {
         return new RoleSpec(r.code(), r.name(), r.description(), r.permissions());
     }
+
 }

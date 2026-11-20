@@ -10,11 +10,15 @@ import org.springframework.stereotype.Service;
 /** A current decision assignment grants request context, never audit-log authority. */
 @Service
 public class ParticipantRequestAccess {
+
     private final StepInstanceRepository steps;
+
     private final ApprovalEligibilityService eligibility;
+
     private final RequestRepository requests;
 
-    public ParticipantRequestAccess(StepInstanceRepository steps, ApprovalEligibilityService eligibility, RequestRepository requests) {
+    public ParticipantRequestAccess(StepInstanceRepository steps, ApprovalEligibilityService eligibility,
+            RequestRepository requests) {
         this.steps = steps;
         this.eligibility = eligibility;
         this.requests = requests;
@@ -22,9 +26,12 @@ public class ParticipantRequestAccess {
 
     public boolean canRead(Long requestId, CallerIdentity caller) {
         var request = requests.findById(requestId).orElse(null);
-        if (request == null || request.getStatus() != RequestStatus.IN_REVIEW) return false;
+        if (request == null || request.getStatus() != RequestStatus.IN_REVIEW)
+            return false;
         var step = steps.findTopByRequestIdAndStateOrderById(requestId, StepState.PENDING).orElse(null);
-        if (step == null) return false;
+        if (step == null)
+            return false;
         return eligibility.canRead(eligibility.user(caller.id()), request, step);
     }
+
 }

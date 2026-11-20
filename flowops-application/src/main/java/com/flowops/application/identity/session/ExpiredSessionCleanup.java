@@ -7,7 +7,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ExpiredSessionCleanup {
+
     private final AuthenticationSessionRepository sessions;
+
     private final Clock clock;
 
     public ExpiredSessionCleanup(AuthenticationSessionRepository sessions, Clock clock) {
@@ -16,5 +18,8 @@ public class ExpiredSessionCleanup {
     }
 
     @Transactional
-    public int purge() { return sessions.deleteExpired(clock.instant()); }
+    public int purge() {
+        return sessions.deleteExpired(clock.instant());
+    }
+
 }

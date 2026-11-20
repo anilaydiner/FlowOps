@@ -7,12 +7,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A request type (e.g. EXPENSE, IT_ACCESS) with JSONB-driven
- * per-type field requirements and validation rules.
+ * A request type (e.g. EXPENSE, IT_ACCESS) with JSONB-driven per-type field requirements
+ * and validation rules.
  *
- * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
- * lives in {@code persistence.entity.RequestTypeEntity}; the
- * rehydration constructor and setters exist solely for that mapper.
+ * <p>
+ * Pure domain aggregate — no persistence annotations. The JPA mapping lives in
+ * {@code persistence.entity.RequestTypeEntity}; the rehydration constructor and setters
+ * exist solely for that mapper.
  */
 public class RequestType {
 
@@ -82,39 +83,112 @@ public class RequestType {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public String getCode() { return code; }
-    public String getName() { return name; }
-    public String getDescription() { return description; }
-    public Department getOwningDepartment() { return owningDepartment; }
-    public Workflow getDefaultWorkflow() { return defaultWorkflow; }
+    public Long getId() {
+        return id;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public Department getOwningDepartment() {
+        return owningDepartment;
+    }
+
+    public Workflow getDefaultWorkflow() {
+        return defaultWorkflow;
+    }
+
     public Long getDefaultWorkflowId() {
         Workflow wf = getDefaultWorkflow();
         return wf == null ? null : wf.getId();
     }
+
     public void setDefaultWorkflow(Workflow workflow) {
         this.defaultWorkflow = workflow;
         this.updatedAt = Instant.now();
     }
-    public Map<String, Object> getRequiredFields() { return requiredFields; }
-    public Map<String, Object> getValidationRules() { return validationRules; }
-    public List<String> getExecutionActions() { return executionActions; }
-    public boolean isActive() { return active; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
+
+    public Map<String, Object> getRequiredFields() {
+        return requiredFields;
+    }
+
+    public Map<String, Object> getValidationRules() {
+        return validationRules;
+    }
+
+    public List<String> getExecutionActions() {
+        return executionActions;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
 
     // ── Setters (persistence rehydration only) ─────────────────────────
 
-    public void setId(Long id) { this.id = id; }
-    public void setCode(String code) { this.code = code; }
-    public void setName(String name) { this.name = name; }
-    public void setDescription(String description) { this.description = description; }
-    public void setOwningDepartment(Department owningDepartment) { this.owningDepartment = owningDepartment; }
-    public void rehydrateDefaultWorkflow(Workflow workflow) { this.defaultWorkflow = workflow; }
-    public void rehydrateRequiredFields(Map<String, Object> requiredFields) { this.requiredFields = requiredFields; }
-    public void rehydrateValidationRules(Map<String, Object> validationRules) { this.validationRules = validationRules; }
-    public void setExecutionActions(List<String> executionActions) { this.executionActions = executionActions; }
-    public void rehydrateActive(boolean active) { this.active = active; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setOwningDepartment(Department owningDepartment) {
+        this.owningDepartment = owningDepartment;
+    }
+
+    public void rehydrateDefaultWorkflow(Workflow workflow) {
+        this.defaultWorkflow = workflow;
+    }
+
+    public void rehydrateRequiredFields(Map<String, Object> requiredFields) {
+        this.requiredFields = requiredFields;
+    }
+
+    public void rehydrateValidationRules(Map<String, Object> validationRules) {
+        this.validationRules = validationRules;
+    }
+
+    public void setExecutionActions(List<String> executionActions) {
+        this.executionActions = executionActions;
+    }
+
+    public void rehydrateActive(boolean active) {
+        this.active = active;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
 }

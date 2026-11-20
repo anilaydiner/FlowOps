@@ -21,10 +21,10 @@ import org.springframework.stereotype.Repository;
 public class SpringUserRepository implements UserRepository {
 
     private final UserJpaRepository jpaRepository;
+
     private final RoleJpaRepository roleJpaRepository;
 
-    public SpringUserRepository(UserJpaRepository jpaRepository,
-                                RoleJpaRepository roleJpaRepository) {
+    public SpringUserRepository(UserJpaRepository jpaRepository, RoleJpaRepository roleJpaRepository) {
         this.jpaRepository = jpaRepository;
         this.roleJpaRepository = roleJpaRepository;
     }
@@ -40,10 +40,11 @@ public class SpringUserRepository implements UserRepository {
             // later merge of the same role in this transaction (e.g. granting
             // a new permission) would not be visible through the user's
             // in-memory collection. Canonical instances keep both views in sync.
-            Set<RoleEntity> canonical = user.getRoles().stream()
-                    .map(role -> roleJpaRepository.findById(role.getId())
-                            .orElseThrow(() -> new IllegalStateException("Unknown role id: " + role.getId())))
-                    .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+            Set<RoleEntity> canonical = user.getRoles()
+                .stream()
+                .map(role -> roleJpaRepository.findById(role.getId())
+                    .orElseThrow(() -> new IllegalStateException("Unknown role id: " + role.getId())))
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
             entity.setRoles(canonical);
         }
         UserEntity saved = jpaRepository.saveAndFlush(entity);
@@ -65,8 +66,7 @@ public class SpringUserRepository implements UserRepository {
     public PageResult<User> findAll(UserFilter filter, PageQuery query) {
         Pageable pageable = Paging.toPageable(query);
         Specification<UserEntity> spec = UserSpecifications.from(filter);
-        Page<UserEntity> page = (spec == null)
-                ? jpaRepository.findAll(pageable)
+        Page<UserEntity> page = (spec == null) ? jpaRepository.findAll(pageable)
                 : jpaRepository.findAll(spec, pageable);
         return Paging.toPageResult(page.map(UserMappers::fromEntity));
     }
@@ -110,4 +110,5 @@ public class SpringUserRepository implements UserRepository {
     public boolean hasPermission(Long userId, String permissionCode) {
         return jpaRepository.hasPermission(userId, permissionCode);
     }
+
 }

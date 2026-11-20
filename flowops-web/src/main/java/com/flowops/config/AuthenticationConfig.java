@@ -9,13 +9,16 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class AuthenticationConfig {
-    @Bean
-    public Clock authenticationClock() { return Clock.systemUTC(); }
 
     @Bean
-    public SessionSettings sessionSettings(
-            @Value("${flowops.auth.refresh-token-lifetime:7d}") Duration refreshLifetime,
+    public Clock authenticationClock() {
+        return Clock.systemUTC();
+    }
+
+    @Bean
+    public SessionSettings sessionSettings(@Value("${flowops.auth.refresh-token-lifetime:7d}") Duration refreshLifetime,
             @Value("${flowops.auth.maximum-session-lifetime:30d}") Duration maximumLifetime) {
         return new SessionSettings(refreshLifetime, maximumLifetime);
     }
+
 }

@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class UpdateDraftHandler implements MessageHandler<UpdateDraftCommand, RequestDetail> {
+
     private final UpdateDraft useCase;
 
     public UpdateDraftHandler(UpdateDraft useCase) {
@@ -24,4 +25,5 @@ public class UpdateDraftHandler implements MessageHandler<UpdateDraftCommand, Re
     public RequestDetail handle(UpdateDraftCommand command) {
         return RequestDetail.of(useCase.execute(command.id(), command.payload(), command.caller()));
     }
+
 }

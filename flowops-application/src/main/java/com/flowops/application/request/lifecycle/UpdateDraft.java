@@ -20,9 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Use case: edit the payload of a DRAFT request.
  *
- * <p>Requires {@code request:update:own} for the requester or
- * {@code request:update} for others. The new payload must satisfy the
- * request type's validation rules.</p>
+ * <p>
+ * Requires {@code request:update:own} for the requester or {@code request:update} for
+ * others. The new payload must satisfy the request type's validation rules.
+ * </p>
  */
 @Service
 public class UpdateDraft {
@@ -30,11 +31,15 @@ public class UpdateDraft {
     private final LifecycleAuditRecorder audit;
 
     private final RequestRepository requests;
+
     private final RequestWriteLock requestWriteLock;
+
     private final PayloadValidator validator;
+
     private final AuthorizationEvaluator authz;
 
-    public UpdateDraft(RequestRepository requests, RequestWriteLock requestWriteLock, PayloadValidator validator, AuthorizationEvaluator authz, LifecycleAuditRecorder audit) {
+    public UpdateDraft(RequestRepository requests, RequestWriteLock requestWriteLock, PayloadValidator validator,
+            AuthorizationEvaluator authz, LifecycleAuditRecorder audit) {
         this.audit = audit;
         this.requests = requests;
         this.requestWriteLock = requestWriteLock;
@@ -47,7 +52,8 @@ public class UpdateDraft {
         Request request = load(id);
         boolean isOwn = caller.id().equals(request.getRequester().getId());
         TargetContext target = RequestTargets.from(request, null);
-        authz.require(caller, isOwn ? PermissionCodes.REQUEST_UPDATE_OWN : PermissionCodes.REQUEST_UPDATE, target, isOwn);
+        authz.require(caller, isOwn ? PermissionCodes.REQUEST_UPDATE_OWN : PermissionCodes.REQUEST_UPDATE, target,
+                isOwn);
         if (!request.isDraft()) {
             throw new ConflictException("Only DRAFT requests can be edited (current: " + request.getStatus() + ")");
         }
@@ -58,13 +64,15 @@ public class UpdateDraft {
         var before = LifecycleAuditRecorder.state(request);
         request.replacePayload(newPayload);
         Request saved = requests.save(request);
-        audit.record(saved, caller, "REQUEST", "DRAFT_UPDATED", "updated:" + saved.getVersion(), "Draft payload updated",
-                before, LifecycleAuditRecorder.state(saved), Map.of("payloadValuesRecorded", false), null);
+        audit.record(saved, caller, "REQUEST", "DRAFT_UPDATED", "updated:" + saved.getVersion(),
+                "Draft payload updated", before, LifecycleAuditRecorder.state(saved),
+                Map.of("payloadValuesRecorded", false), null);
         return saved;
     }
 
     private Request load(Long id) {
         return requestWriteLock.findByIdForUpdate(id)
-                .orElseThrow(() -> new NotFoundException("Request not found: " + id));
+            .orElseThrow(() -> new NotFoundException("Request not found: " + id));
     }
+
 }

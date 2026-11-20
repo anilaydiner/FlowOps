@@ -10,10 +10,11 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class PaginationTest {
+
     @Test
     void convertsOffsetsAndPreservesWhitelistedMultiSortAndSizeLimits() {
-        var query = Pagination.toPageQuery(2, 500,
-                List.of("createdAt,desc", "ID,asc", "passwordHash,desc"), List.of("createdAt", "id"));
+        var query = Pagination.toPageQuery(2, 500, List.of("createdAt,desc", "ID,asc", "passwordHash,desc"),
+                List.of("createdAt", "id"));
         assertEquals(1, query.page());
         assertEquals(100, query.size());
         assertEquals(List.of(new PageQuery.Order("createdAt", true), new PageQuery.Order("id", false)), query.orders());
@@ -40,4 +41,5 @@ class PaginationTest {
         assertFalse(beyond.first());
         assertTrue(beyond.last());
     }
+
 }

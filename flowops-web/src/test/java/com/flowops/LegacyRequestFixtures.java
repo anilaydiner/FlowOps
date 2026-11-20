@@ -5,7 +5,9 @@ import java.time.Instant;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 final class LegacyRequestFixtures {
-    private LegacyRequestFixtures() {}
+
+    private LegacyRequestFixtures() {
+    }
 
     static void approveWithoutManifest(JdbcTemplate jdbc, Long requestId, Instant at, boolean wasPlanned) {
         var timestamp = Timestamp.from(at);
@@ -16,4 +18,5 @@ final class LegacyRequestFixtures {
                 WHERE id = ?
                 """, timestamp, wasPlanned ? timestamp : null, timestamp, requestId);
     }
+
 }

@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DepartmentService {
 
     private final DepartmentRepository departments;
+
     private final AuthorizationEvaluator authz;
 
     public DepartmentService(DepartmentRepository departments, AuthorizationEvaluator authz) {
@@ -33,6 +34,7 @@ public class DepartmentService {
     public Department findByCode(String code, CallerIdentity caller) {
         authz.require(caller, PermissionCodes.DEPARTMENTS_READ);
         return departments.findByCode(code)
-                .orElseThrow(() -> new com.flowops.domain.exception.NotFoundException("Department not found: " + code));
+            .orElseThrow(() -> new com.flowops.domain.exception.NotFoundException("Department not found: " + code));
     }
+
 }

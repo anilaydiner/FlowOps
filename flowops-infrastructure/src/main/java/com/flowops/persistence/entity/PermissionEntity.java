@@ -12,9 +12,9 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 /**
- * JPA entity backing the {@link com.flowops.domain.identity.Permission} aggregate
- * (table {@code permissions}). Pure data carrier — all business behavior
- * lives on the domain aggregate.
+ * JPA entity backing the {@link com.flowops.domain.identity.Permission} aggregate (table
+ * {@code permissions}). Pure data carrier — all business behavior lives on the domain
+ * aggregate.
  */
 @Entity(name = "Permission")
 @Table(name = "permissions")
@@ -48,24 +48,60 @@ public class PermissionEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getCode() { return code; }
-    public void setCode(String code) { this.code = code; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getCode() {
+        return code;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public void setCode(String code) {
+        this.code = code;
+    }
 
-    public ScopeType getScopeType() { return scopeType; }
-    public void setScopeType(ScopeType scopeType) { this.scopeType = scopeType; }
+    public String getName() {
+        return name;
+    }
 
-    public String getScopeValue() { return scopeValue; }
-    public void setScopeValue(String scopeValue) { this.scopeValue = scopeValue; }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public ScopeType getScopeType() {
+        return scopeType;
+    }
+
+    public void setScopeType(ScopeType scopeType) {
+        this.scopeType = scopeType;
+    }
+
+    public String getScopeValue() {
+        return scopeValue;
+    }
+
+    public void setScopeValue(String scopeValue) {
+        this.scopeValue = scopeValue;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
 }

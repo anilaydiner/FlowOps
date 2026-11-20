@@ -8,10 +8,10 @@ import java.util.function.Function;
  * Framework-free paged result returned by repository ports.
  *
  * @param <T> element type
- * @param content        the page of elements
- * @param page           zero-based page number
- * @param size           requested page size
- * @param totalElements  total number of elements across all pages
+ * @param content the page of elements
+ * @param page zero-based page number
+ * @param size requested page size
+ * @param totalElements total number of elements across all pages
  */
 public record PageResult<T>(List<T> content, int page, int size, long totalElements) {
 

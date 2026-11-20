@@ -24,9 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Use case: create a DRAFT request for the caller.
  *
- * <p>Resolves and validates the request type, checks the payload against the
- * type's required fields and validation rules, then persists the new draft.
- * The caller is always the requester.</p>
+ * <p>
+ * Resolves and validates the request type, checks the payload against the type's required
+ * fields and validation rules, then persists the new draft. The caller is always the
+ * requester.
+ * </p>
  */
 @Service
 public class CreateDraft {
@@ -34,16 +36,17 @@ public class CreateDraft {
     private final LifecycleAuditRecorder audit;
 
     private final RequestTypeRepository requestTypes;
+
     private final UserRepository users;
+
     private final RequestRepository requests;
+
     private final PayloadValidator validator;
+
     private final AuthorizationEvaluator authz;
 
-    public CreateDraft(RequestTypeRepository requestTypes,
-                       UserRepository users,
-                       RequestRepository requests,
-                       PayloadValidator validator,
-                       AuthorizationEvaluator authz, LifecycleAuditRecorder audit) {
+    public CreateDraft(RequestTypeRepository requestTypes, UserRepository users, RequestRepository requests,
+            PayloadValidator validator, AuthorizationEvaluator authz, LifecycleAuditRecorder audit) {
         this.audit = audit;
         this.requestTypes = requestTypes;
         this.users = users;
@@ -57,22 +60,21 @@ public class CreateDraft {
         // 1 ── Resolve the request type first (needed for scope-aware authz)
         String resolvedCode = typeCode.strip().toUpperCase();
         RequestType type = requestTypes.findByCode(resolvedCode)
-                .orElseThrow(() -> new NotFoundException("Request type not found: " + typeCode));
+            .orElseThrow(() -> new NotFoundException("Request type not found: " + typeCode));
         if (!type.isActive()) {
             throw new ConflictException("Request type is inactive: " + type.getCode());
         }
 
         // 2 ── Scoped authorization: the target carries the type code so that
-        //    REQUEST_TYPE-scoped permissions are evaluated against the specific
-        //    type being requested (e.g. "can create EXPENSE but not IT_ACCESS").
-        String deptCode = type.getOwningDepartment() != null
-                ? type.getOwningDepartment().getCode() : null;
+        // REQUEST_TYPE-scoped permissions are evaluated against the specific
+        // type being requested (e.g. "can create EXPENSE but not IT_ACCESS").
+        String deptCode = type.getOwningDepartment() != null ? type.getOwningDepartment().getCode() : null;
         TargetContext target = new TargetContext(null, resolvedCode, deptCode, null, null);
         authz.require(caller, PermissionCodes.REQUEST_CREATE, target);
 
         // 3 ── Load requester, validate payload, persist
         User requester = users.findById(caller.id())
-                .orElseThrow(() -> new IllegalStateException("Caller not found: " + caller.id()));
+            .orElseThrow(() -> new IllegalStateException("Caller not found: " + caller.id()));
 
         Map<String, String> violations = validator.validate(type, payload);
         if (!violations.isEmpty()) {
@@ -85,4 +87,5 @@ public class CreateDraft {
         audit.created(saved, caller);
         return saved;
     }
+
 }

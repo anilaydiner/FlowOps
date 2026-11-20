@@ -18,9 +18,9 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * JPA entity backing the {@link com.flowops.domain.workflow.RequestType} aggregate
- * (table {@code request_types}). Pure data carrier — all business behavior
- * lives on the domain aggregate; field mapping is identical to the schema.
+ * JPA entity backing the {@link com.flowops.domain.workflow.RequestType} aggregate (table
+ * {@code request_types}). Pure data carrier — all business behavior lives on the domain
+ * aggregate; field mapping is identical to the schema.
  */
 @Entity(name = "RequestType")
 @Table(name = "request_types")
@@ -76,39 +76,100 @@ public class RequestTypeEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getCode() { return code; }
-    public void setCode(String code) { this.code = code; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getCode() {
+        return code;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public void setCode(String code) {
+        this.code = code;
+    }
 
-    public DepartmentEntity getOwningDepartment() { return owningDepartment; }
-    public void setOwningDepartment(DepartmentEntity owningDepartment) { this.owningDepartment = owningDepartment; }
+    public String getName() {
+        return name;
+    }
 
-    public WorkflowEntity getDefaultWorkflow() { return defaultWorkflow; }
-    public void setDefaultWorkflow(WorkflowEntity defaultWorkflow) { this.defaultWorkflow = defaultWorkflow; }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    public Map<String, Object> getRequiredFields() { return requiredFields; }
-    public void setRequiredFields(Map<String, Object> requiredFields) { this.requiredFields = requiredFields; }
+    public String getDescription() {
+        return description;
+    }
 
-    public Map<String, Object> getValidationRules() { return validationRules; }
-    public void setValidationRules(Map<String, Object> validationRules) { this.validationRules = validationRules; }
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-    public List<String> getExecutionActions() { return executionActions; }
-    public void setExecutionActions(List<String> executionActions) { this.executionActions = executionActions; }
+    public DepartmentEntity getOwningDepartment() {
+        return owningDepartment;
+    }
 
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
+    public void setOwningDepartment(DepartmentEntity owningDepartment) {
+        this.owningDepartment = owningDepartment;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public WorkflowEntity getDefaultWorkflow() {
+        return defaultWorkflow;
+    }
 
-    public Instant getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public void setDefaultWorkflow(WorkflowEntity defaultWorkflow) {
+        this.defaultWorkflow = defaultWorkflow;
+    }
+
+    public Map<String, Object> getRequiredFields() {
+        return requiredFields;
+    }
+
+    public void setRequiredFields(Map<String, Object> requiredFields) {
+        this.requiredFields = requiredFields;
+    }
+
+    public Map<String, Object> getValidationRules() {
+        return validationRules;
+    }
+
+    public void setValidationRules(Map<String, Object> validationRules) {
+        this.validationRules = validationRules;
+    }
+
+    public List<String> getExecutionActions() {
+        return executionActions;
+    }
+
+    public void setExecutionActions(List<String> executionActions) {
+        this.executionActions = executionActions;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
 }

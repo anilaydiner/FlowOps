@@ -39,8 +39,7 @@ public class SpringRequestTypeRepository implements RequestTypeRepository {
     public PageResult<RequestType> findAll(RequestTypeFilter filter, PageQuery query) {
         Pageable pageable = Paging.toPageable(query);
         Specification<RequestTypeEntity> spec = RequestTypeSpecifications.from(filter);
-        Page<RequestTypeEntity> page = (spec == null)
-                ? jpaRepository.findAll(pageable)
+        Page<RequestTypeEntity> page = (spec == null) ? jpaRepository.findAll(pageable)
                 : jpaRepository.findAll(spec, pageable);
         return Paging.toPageResult(page.map(RequestTypeMappers::fromEntity));
     }
@@ -63,4 +62,5 @@ public class SpringRequestTypeRepository implements RequestTypeRepository {
     private static void backfill(RequestType d, RequestTypeEntity e) {
         d.setId(e.getId());
     }
+
 }

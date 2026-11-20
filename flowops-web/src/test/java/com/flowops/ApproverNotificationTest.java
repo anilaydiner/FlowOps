@@ -28,29 +28,42 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Phase 8: when a request enters review (or advances to a new step), every
- * user who passes the <b>same eligibility gate</b> as {@code DecideStep}
- * (permission + scope + SoD) gets a FEED + EMAIL notification via the
- * transactional outbox — and no one who cannot act is notified.
+ * Phase 8: when a request enters review (or advances to a new step), every user who
+ * passes the <b>same eligibility gate</b> as {@code DecideStep} (permission + scope +
+ * SoD) gets a FEED + EMAIL notification via the transactional outbox — and no one who
+ * cannot act is notified.
  *
  * <ul>
- *   <li>Submit → eligible approvers notified (scope-filtered)</li>
- *   <li>Advance to next step → approvers re-notified (per-step idempotency)</li>
- *   <li>Actor who advanced the workflow is not re-notified about it</li>
- *   <li>BLOCKED step (no eligible approver exists) → no notifications</li>
+ * <li>Submit → eligible approvers notified (scope-filtered)</li>
+ * <li>Advance to next step → approvers re-notified (per-step idempotency)</li>
+ * <li>Actor who advanced the workflow is not re-notified about it</li>
+ * <li>BLOCKED step (no eligible approver exists) → no notifications</li>
  * </ul>
  */
 @AutoConfigureMockMvc
 @Transactional
 class ApproverNotificationTest extends AbstractIntegrationTest {
 
-    @Autowired private MockMvc mvc;
-    @Autowired private UserRepository users;
-    @Autowired private RoleRepository roles;
-    @Autowired private DepartmentRepository departments;
-    @Autowired private PasswordEncoder encoder;
-    @Autowired private OutboxMessageRepository outboxRepo;
-    @Autowired private StepInstanceRepository stepInstances;
+    @Autowired
+    private MockMvc mvc;
+
+    @Autowired
+    private UserRepository users;
+
+    @Autowired
+    private RoleRepository roles;
+
+    @Autowired
+    private DepartmentRepository departments;
+
+    @Autowired
+    private PasswordEncoder encoder;
+
+    @Autowired
+    private OutboxMessageRepository outboxRepo;
+
+    @Autowired
+    private StepInstanceRepository stepInstances;
 
     private static final String PASSWORD = "pass123456";
 
@@ -59,23 +72,22 @@ class ApproverNotificationTest extends AbstractIntegrationTest {
     private User createUser(String username, List<String> roleCodes, String deptCode) {
         Set<Role> roleSet = new LinkedHashSet<>();
         for (String code : roleCodes) {
-            roleSet.add(roles.findByCode(code)
-                    .orElseThrow(() -> new IllegalStateException("Role not found: " + code)));
+            roleSet.add(roles.findByCode(code).orElseThrow(() -> new IllegalStateException("Role not found: " + code)));
         }
-        com.flowops.domain.organization.Department dept = (deptCode != null)
-                ? departments.findByCode(deptCode)
-                        .orElseThrow(() -> new IllegalStateException("Dept not found: " + deptCode))
-                : null;
+        com.flowops.domain.organization.Department dept = (deptCode != null) ? departments.findByCode(deptCode)
+            .orElseThrow(() -> new IllegalStateException("Dept not found: " + deptCode)) : null;
         User user = User.newUser(username, username, null, dept, roleSet, encoder.encode(PASSWORD));
         return users.save(user);
     }
 
     private String userToken(String username, String password) throws Exception {
-        String json = mvc.perform(post("/api/v1/auth/token")
-                        .contentType("application/json")
-                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        String json = mvc
+            .perform(post("/api/v1/auth/token").contentType("application/json")
+                .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         int i = json.indexOf("\"token\":\"");
         String t = json.substring(i + "\"token\":\"".length());
         return t.substring(0, t.indexOf('"'));
@@ -85,32 +97,37 @@ class ApproverNotificationTest extends AbstractIntegrationTest {
         int i = json.indexOf("\"id\":");
         String n = json.substring(i + 5);
         int end = n.indexOf(',');
-        if (end < 0) end = n.indexOf('}');
+        if (end < 0)
+            end = n.indexOf('}');
         return Long.parseLong(n.substring(0, end).trim());
     }
 
     /** Alice (MEMBER) creates + submits a request of the given type/payload. */
     private long createAndSubmitAlice(String typeCode, String payload) throws Exception {
         String alice = userToken("alice", "alice123");
-        String body = mvc.perform(post("/api/v1/requests")
-                        .header("Authorization", "Bearer " + alice)
-                        .contentType("application/json")
-                        .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+        String body = mvc
+            .perform(post("/api/v1/requests").header("Authorization", "Bearer " + alice)
+                .contentType("application/json")
+                .content("{\"typeCode\":\"" + typeCode + "\",\"payload\":" + payload + "}"))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         long id = extractId(body);
-        mvc.perform(post("/api/v1/requests/" + id + "/submit")
-                        .header("Authorization", "Bearer " + alice))
-                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/requests/" + id + "/submit").header("Authorization", "Bearer " + alice))
+            .andExpect(status().isOk());
         return id;
     }
 
     private int decide(String approverToken, long requestId, String action) throws Exception {
-        return mvc.perform(post("/api/v1/requests/" + requestId + "/decisions")
-                        .header("Authorization", "Bearer " + approverToken)
-                        .contentType("application/json")
-                        .content("{\"action\":\"" + action + "\",\"justification\":\"test\"}"))
-                .andReturn().getResponse().getStatus();
+        return mvc
+            .perform(post("/api/v1/requests/" + requestId + "/decisions")
+                .header("Authorization", "Bearer " + approverToken)
+                .contentType("application/json")
+                .content("{\"action\":\"" + action + "\",\"justification\":\"test\"}"))
+            .andReturn()
+            .getResponse()
+            .getStatus();
     }
 
     // ── outbox query helpers ───────────────────────────────────────────
@@ -138,49 +155,52 @@ class ApproverNotificationTest extends AbstractIntegrationTest {
     /** Workflow with two steps (ADMIN then FINANCE_MANAGER), FINANCE-scoped type. */
     private String createDualType(String suffix) throws Exception {
         String admin = userToken("admin", "admin123");
-        String wf = mvc.perform(post("/api/v1/workflows")
-                        .header("Authorization", "Bearer " + admin)
-                        .contentType("application/json")
-                        .content("""
+        String wf = mvc
+            .perform(post("/api/v1/workflows").header("Authorization", "Bearer " + admin)
+                .contentType("application/json")
+                .content(
+                        """
                                 {"code":"WF_D8_%s","name":"Dual 8","steps":[
                                   {"position":1,"code":"D8_STEP1","name":"Step 1","requiredRole":"ADMIN","completionRule":"ANY_OF","requiredApprovals":1},
                                   {"position":2,"code":"D8_STEP2","name":"Step 2","requiredRole":"FINANCE_MANAGER","completionRule":"ANY_OF","requiredApprovals":1}]}
-                                """.formatted(suffix)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
+                                """
+                            .formatted(suffix)))
+            .andExpect(status().isCreated())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         assertThat(wf).contains("WF_D8_" + suffix);
 
-        mvc.perform(post("/api/v1/request-types")
-                        .header("Authorization", "Bearer " + admin)
-                        .contentType("application/json")
-                        .content("""
-                                {"code":"DUAL8_%s","name":"Dual 8","departmentCode":"FINANCE",
-                                 "workflowCode":"WF_D8_%s","requiredFields":{"note":"Why"}}
-                                """.formatted(suffix, suffix)))
-                .andExpect(status().isCreated());
+        mvc.perform(post("/api/v1/request-types").header("Authorization", "Bearer " + admin)
+            .contentType("application/json")
+            .content("""
+                    {"code":"DUAL8_%s","name":"Dual 8","departmentCode":"FINANCE",
+                     "workflowCode":"WF_D8_%s","requiredFields":{"note":"Why"}}
+                    """.formatted(suffix, suffix))).andExpect(status().isCreated());
         return "DUAL8_" + suffix;
     }
 
-    /** Single-step workflow whose required role nobody has → step materializes BLOCKED. */
+    /**
+     * Single-step workflow whose required role nobody has → step materializes BLOCKED.
+     */
     private String createGhostType(String suffix) throws Exception {
         String admin = userToken("admin", "admin123");
-        mvc.perform(post("/api/v1/workflows")
-                        .header("Authorization", "Bearer " + admin)
-                        .contentType("application/json")
-                        .content("""
-                                {"code":"WF_G8_%s","name":"Ghost 8","steps":[
-                                  {"position":1,"code":"G8_STEP1","name":"Ghost Step","requiredRole":"GHOST8_ROLE_%s","completionRule":"ANY_OF","requiredApprovals":1}]}
-                                """.formatted(suffix, suffix)))
-                .andExpect(status().isCreated());
+        mvc.perform(post("/api/v1/workflows").header("Authorization", "Bearer " + admin)
+            .contentType("application/json")
+            .content(
+                    """
+                            {"code":"WF_G8_%s","name":"Ghost 8","steps":[
+                              {"position":1,"code":"G8_STEP1","name":"Ghost Step","requiredRole":"GHOST8_ROLE_%s","completionRule":"ANY_OF","requiredApprovals":1}]}
+                            """
+                        .formatted(suffix, suffix)))
+            .andExpect(status().isCreated());
 
-        mvc.perform(post("/api/v1/request-types")
-                        .header("Authorization", "Bearer " + admin)
-                        .contentType("application/json")
-                        .content("""
-                                {"code":"GHOST8_%s","name":"Ghost 8","departmentCode":"FINANCE",
-                                 "workflowCode":"WF_G8_%s","requiredFields":{"note":"Why"}}
-                                """.formatted(suffix, suffix)))
-                .andExpect(status().isCreated());
+        mvc.perform(post("/api/v1/request-types").header("Authorization", "Bearer " + admin)
+            .contentType("application/json")
+            .content("""
+                    {"code":"GHOST8_%s","name":"Ghost 8","departmentCode":"FINANCE",
+                     "workflowCode":"WF_G8_%s","requiredFields":{"note":"Why"}}
+                    """.formatted(suffix, suffix))).andExpect(status().isCreated());
         return "GHOST8_" + suffix;
     }
 
@@ -244,14 +264,16 @@ class ApproverNotificationTest extends AbstractIntegrationTest {
             long id = createAndSubmitAlice("EXPENSE", "{\"amount\":100,\"description\":\"test\"}");
 
             OutboxMessage adminRow = emailRows(id).stream()
-                    .filter(m -> m.getRecipientId().equals(users.findByUsername("admin").orElseThrow().getId()))
-                    .findFirst().orElseThrow(() -> new AssertionError("no APPROVER_REQUEST row for admin"));
+                .filter(m -> m.getRecipientId().equals(users.findByUsername("admin").orElseThrow().getId()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("no APPROVER_REQUEST row for admin"));
 
             String payload = adminRow.getPayload();
             assertThat(payload).contains("awaits your approval");
             assertThat(payload).contains("#" + id);
             assertThat(payload).contains("http://localhost:5173/requests/" + id);
         }
+
     }
 
     @Nested
@@ -283,6 +305,7 @@ class ApproverNotificationTest extends AbstractIntegrationTest {
             // Request is still in review (step 2 pending), not approved
             assertThat(stepInstances.countByRequestIdAndState(id, StepState.PENDING)).isEqualTo(1);
         }
+
     }
 
     @Nested
@@ -296,11 +319,13 @@ class ApproverNotificationTest extends AbstractIntegrationTest {
 
             // The step materialized BLOCKED (no active user with GHOST8_ROLE)
             assertThat(stepInstances.findByRequestIdOrderById(id))
-                    .anySatisfy(si -> assertThat(si.getState()).isEqualTo(StepState.BLOCKED));
+                .anySatisfy(si -> assertThat(si.getState()).isEqualTo(StepState.BLOCKED));
 
             // Nobody was notified — there is no eligible approver to reach
             assertThat(emailRows(id)).as("no APPROVER_REQUEST emails").isEmpty();
             assertThat(feedRows(id)).as("no NOTIFY_APPROVER_REQUEST feeds").isEmpty();
         }
+
     }
+
 }

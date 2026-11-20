@@ -7,6 +7,10 @@ import com.flowops.domain.request.policy.ApprovalEligibilityPolicy.Authority;
 import java.time.Instant;
 
 public interface BlockedRequestQueries {
-    record Filter(BlockReason reason, Instant blockedBefore, Long ownerId, String team) {}
+
+    record Filter(BlockReason reason, Instant blockedBefore, Long ownerId, String team) {
+    }
+
     PageResult<BlockedRequestView> findPage(PageQuery page, Filter filter, Authority authority);
+
 }

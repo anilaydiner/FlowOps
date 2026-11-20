@@ -24,52 +24,61 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class JpaRequestDetailQueries implements RequestDetailQueries {
+
     private final EntityManager entityManager;
+
     private final com.flowops.application.request.port.RequestExecutionQueries execution;
 
-    public JpaRequestDetailQueries(EntityManager entityManager,com.flowops.application.request.port.RequestExecutionQueries execution) {
-        this.entityManager = entityManager;this.execution=execution;
+    public JpaRequestDetailQueries(EntityManager entityManager,
+            com.flowops.application.request.port.RequestExecutionQueries execution) {
+        this.entityManager = entityManager;
+        this.execution = execution;
     }
 
     @Override
     public Optional<RequestListItem> findRequest(Long id) {
-        return RequestListProjection.findById(entityManager, id,execution);
+        return RequestListProjection.findById(entityManager, id, execution);
     }
 
     @Override
     public RequestDetailView load(RequestListItem request) {
         Long id = request.id();
-        List<StepView> steps = project(StepView.class, StepInstanceEntity.class, id, "request.id", "id", false,
-                "id", "position", "stepCode", "stepName", "requiredRole", "state", "rule",
-                "requiredApprovals", "skipReason", "blockedReason", "satisfiedBy", "satisfiedAt", "rosterSnapshotted", "rosterSize",
-                "blockReasonCode", "blockedAt", "blockEpisode", "recoveryOwnerId", "recoveryTeam", "recoveredAt",
-                "activatedAt", "reviewDueAt", "nextEscalationAt", "expiresAt", "escalationLevel", "recoveryOwnerRevision", "recoveryOwnerUnavailable", "escalationIntervalMinutes", "maxEscalationLevels");
+        List<StepView> steps = project(StepView.class, StepInstanceEntity.class, id, "request.id", "id", false, "id",
+                "position", "stepCode", "stepName", "requiredRole", "state", "rule", "requiredApprovals", "skipReason",
+                "blockedReason", "satisfiedBy", "satisfiedAt", "rosterSnapshotted", "rosterSize", "blockReasonCode",
+                "blockedAt", "blockEpisode", "recoveryOwnerId", "recoveryTeam", "recoveredAt", "activatedAt",
+                "reviewDueAt", "nextEscalationAt", "expiresAt", "escalationLevel", "recoveryOwnerRevision",
+                "recoveryOwnerUnavailable", "escalationIntervalMinutes", "maxEscalationLevels");
         Map<Long, List<DecisionView>> byStep = new LinkedHashMap<>();
         steps.forEach(step -> byStep.put(step.id(), new ArrayList<>()));
         if (!steps.isEmpty()) {
-            List<DecisionView> decisions = project(DecisionView.class, DecisionEntity.class, id, "request.id", "id", false,
-                    "id", "stepInstance.id", "actorId", "actorUsername", "action", "justification", "evidence",
+            List<DecisionView> decisions = project(DecisionView.class, DecisionEntity.class, id, "request.id", "id",
+                    false, "id", "stepInstance.id", "actorId", "actorUsername", "action", "justification", "evidence",
                     "delegatedTo", "createdAt");
             for (DecisionView decision : decisions) {
                 List<DecisionView> bucket = byStep.get(decision.stepInstanceId());
-                if (bucket != null) bucket.add(decision);
+                if (bucket != null)
+                    bucket.add(decision);
             }
         }
         byStep.replaceAll((step, decisions) -> List.copyOf(decisions));
-        List<ClarificationView> clarifications = project(ClarificationView.class, ClarificationEntity.class,
-                id, "requestId", "createdAt", true, "id", "askedBy", "question", "answer", "answeredBy", "answeredAt", "createdAt");
-        List<JobView> jobs = project(JobView.class, ExecutionJobEntity.class, id, "requestId", "createdAt", false,
-                "id", "action", "status", "result", "lastError", "retryCount", "createdAt", "completedAt", "startedAt", "cancelledAt", "cancelledBy",
-                "attemptCount", "leaseExpiresAt", "startInferred");
+        List<ClarificationView> clarifications = project(ClarificationView.class, ClarificationEntity.class, id,
+                "requestId", "createdAt", true, "id", "askedBy", "question", "answer", "answeredBy", "answeredAt",
+                "createdAt");
+        List<JobView> jobs = project(JobView.class, ExecutionJobEntity.class, id, "requestId", "createdAt", false, "id",
+                "action", "status", "result", "lastError", "retryCount", "createdAt", "completedAt", "startedAt",
+                "cancelledAt", "cancelledBy", "attemptCount", "leaseExpiresAt", "startInferred");
         return new RequestDetailView(request, steps, Map.copyOf(byStep), clarifications, jobs);
     }
 
-    private <T> List<T> project(Class<T> view, Class<?> entity, Long requestId, String requestPath,
-                                String orderField, boolean descending, String... columns) {
+    private <T> List<T> project(Class<T> view, Class<?> entity, Long requestId, String requestPath, String orderField,
+            boolean descending, String... columns) {
         var cb = entityManager.getCriteriaBuilder();
         var query = cb.createQuery(view);
         var root = query.from(entity);
-        Selection<?>[] selections = Arrays.stream(columns).map(column -> path(root, column)).toArray(Selection<?>[]::new);
+        Selection<?>[] selections = Arrays.stream(columns)
+            .map(column -> path(root, column))
+            .toArray(Selection<?>[]::new);
         query.select(cb.construct(view, selections)).where(cb.equal(path(root, requestPath), requestId));
         query.orderBy(descending ? cb.desc(root.get(orderField)) : cb.asc(root.get(orderField)));
         return entityManager.createQuery(query).getResultList();
@@ -77,7 +86,9 @@ public class JpaRequestDetailQueries implements RequestDetailQueries {
 
     private static Path<?> path(Path<?> root, String field) {
         Path<?> result = root;
-        for (String segment : field.split("\\.")) result = result.get(segment);
+        for (String segment : field.split("\\."))
+            result = result.get(segment);
         return result;
     }
+
 }

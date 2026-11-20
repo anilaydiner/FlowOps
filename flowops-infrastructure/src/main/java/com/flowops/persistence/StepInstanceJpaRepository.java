@@ -28,4 +28,5 @@ public interface StepInstanceJpaRepository extends JpaRepository<StepInstanceEnt
 
     @Query("SELECT si.step.id FROM StepInstance si WHERE si.request.id = :requestId")
     java.util.Set<Long> findMaterializedDefinitionIds(@Param("requestId") Long requestId);
+
 }

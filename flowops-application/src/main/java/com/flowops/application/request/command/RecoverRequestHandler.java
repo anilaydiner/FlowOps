@@ -9,17 +9,29 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class RecoverRequestHandler implements MessageHandler<RecoverRequestCommand, RequestDetail> {
+
     private final RecoverBlockedRequest recovery;
+
     private final RequestDetailReader details;
+
     public RecoverRequestHandler(RecoverBlockedRequest recovery, RequestDetailReader details) {
-        this.recovery = recovery; this.details = details;
+        this.recovery = recovery;
+        this.details = details;
     }
-    @Override public Class<RecoverRequestCommand> messageType() { return RecoverRequestCommand.class; }
-    @Override @Transactional
+
+    @Override
+    public Class<RecoverRequestCommand> messageType() {
+        return RecoverRequestCommand.class;
+    }
+
+    @Override
+    @Transactional
     public RequestDetail handle(RecoverRequestCommand c) {
         var request = c.recheckOnly()
                 ? recovery.recheck(c.id(), c.stepInstanceId(), c.expectedVersion(), c.reason(), c.caller())
-                : recovery.recover(c.id(), c.stepInstanceId(), c.expectedVersion(), c.reason(), c.refreshPool(), c.assignments(), c.caller());
+                : recovery.recover(c.id(), c.stepInstanceId(), c.expectedVersion(), c.reason(), c.refreshPool(),
+                        c.assignments(), c.caller());
         return details.load(request);
     }
+
 }

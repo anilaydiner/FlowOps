@@ -12,4 +12,5 @@ public interface ClarificationJpaRepository extends JpaRepository<ClarificationE
     Optional<ClarificationEntity> findByIdAndRequestId(Long id, Long requestId);
 
     long countByRequestId(Long requestId);
+
 }

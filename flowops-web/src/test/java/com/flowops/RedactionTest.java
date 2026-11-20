@@ -26,51 +26,66 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Iteration 8 tests: secret redaction (PLAN §8).
  *
  * <ul>
- *   <li>User API responses never expose password hashes / credential fields</li>
- *   <li>Auth failure responses never echo the submitted password</li>
- *   <li>Rejected bearer tokens never appear in application logs
- *       (only the rejection reason + length)</li>
- *   <li>Rejected tokens are not reflected back in 401 responses</li>
- *   <li>Validation errors name the field, not the offending value</li>
+ * <li>User API responses never expose password hashes / credential fields</li>
+ * <li>Auth failure responses never echo the submitted password</li>
+ * <li>Rejected bearer tokens never appear in application logs (only the rejection reason
+ * + length)</li>
+ * <li>Rejected tokens are not reflected back in 401 responses</li>
+ * <li>Validation errors name the field, not the offending value</li>
  * </ul>
  */
 @AutoConfigureMockMvc
 class RedactionTest extends AbstractIntegrationTest {
 
-    @Autowired MockMvc mvc;
-    @Autowired JwtService jwtService;
-    @Autowired UserRepository users;
-    @Autowired RoleRepository roles;
-    @Autowired DepartmentRepository departments;
-    @Autowired org.springframework.security.crypto.password.PasswordEncoder encoder;
+    @Autowired
+    MockMvc mvc;
+
+    @Autowired
+    JwtService jwtService;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    RoleRepository roles;
+
+    @Autowired
+    DepartmentRepository departments;
+
+    @Autowired
+    org.springframework.security.crypto.password.PasswordEncoder encoder;
 
     private String hankToken;
+
     private String adminToken;
+
     private long hankId;
 
     @BeforeEach
     void setup() throws Exception {
         if (users.findByUsername("it8_hank").isEmpty()) {
-            com.flowops.domain.identity.User hank = com.flowops.domain.identity.User.newUser(
-                    "it8_hank", "It8 Hank", "it8_hank@example.com",
-                    departments.findByCode("IT").orElse(null),
+            com.flowops.domain.identity.User hank = com.flowops.domain.identity.User.newUser("it8_hank", "It8 Hank",
+                    "it8_hank@example.com", departments.findByCode("IT").orElse(null),
                     java.util.Set.of(roles.findByCode("MEMBER").orElseThrow()), encoder.encode("it8_hank123"));
             users.save(hank);
         }
         hankToken = userToken("it8_hank", "it8_hank123");
         adminToken = userToken("admin", "admin123");
-        hankId = extractId(mvc.perform(get("/api/v1/users/me")
-                .header("Authorization", "Bearer " + hankToken))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString());
+        hankId = extractId(mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + hankToken))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString());
     }
 
     private String userToken(String username, String password) throws Exception {
-        var resp = mvc.perform(post("/api/v1/auth/token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        var resp = mvc
+            .perform(post("/api/v1/auth/token").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         int idx = resp.indexOf("\"token\":\"");
         int start = idx + "\"token\":\"".length();
         int end = resp.indexOf("\"", start);
@@ -84,11 +99,10 @@ class RedactionTest extends AbstractIntegrationTest {
 
     private static void assertNoCredentialMaterial(String body, String... labels) {
         String lower = body.toLowerCase();
-        for (String label : new String[]{"password", "password_hash", "passwordhash",
-                "hash", "secret", "credential", "private_key", "bearer "}) {
-            assertThat(lower)
-                    .as("%s: response must not contain '%s'", String.join(",", labels), label)
-                    .doesNotContain(label);
+        for (String label : new String[] { "password", "password_hash", "passwordhash", "hash", "secret", "credential",
+                "private_key", "bearer " }) {
+            assertThat(lower).as("%s: response must not contain '%s'", String.join(",", labels), label)
+                .doesNotContain(label);
         }
     }
 
@@ -96,27 +110,25 @@ class RedactionTest extends AbstractIntegrationTest {
 
     @Test
     void userResponsesExposeNoCredentialMaterial() throws Exception {
-        MvcResult me = mvc.perform(get("/api/v1/users/me")
-                .header("Authorization", "Bearer " + hankToken))
-                .andExpect(status().isOk())
-                .andReturn();
+        MvcResult me = mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + hankToken))
+            .andExpect(status().isOk())
+            .andReturn();
         assertNoCredentialMaterial(me.getResponse().getContentAsString(), "GET /users/me");
 
-        MvcResult byId = mvc.perform(get("/api/v1/users/" + hankId)
-                .header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isOk())
-                .andReturn();
+        MvcResult byId = mvc.perform(get("/api/v1/users/" + hankId).header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isOk())
+            .andReturn();
         assertNoCredentialMaterial(byId.getResponse().getContentAsString(), "GET /users/{id}");
     }
 
     @Test
     void authFailureDoesNotEchoPassword() throws Exception {
         String wrongPassword = "definitely-wrong-pw-42";
-        MvcResult res = mvc.perform(post("/api/v1/auth/token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"it8_hank\",\"password\":\"" + wrongPassword + "\"}"))
-                .andExpect(status().isUnauthorized())
-                .andReturn();
+        MvcResult res = mvc
+            .perform(post("/api/v1/auth/token").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"it8_hank\",\"password\":\"" + wrongPassword + "\"}"))
+            .andExpect(status().isUnauthorized())
+            .andReturn();
         String body = res.getResponse().getContentAsString();
         assertThat(body).doesNotContain(wrongPassword);
         assertThat(body).doesNotContain("it8_hank123"); // nor any other password
@@ -125,10 +137,9 @@ class RedactionTest extends AbstractIntegrationTest {
     @Test
     void rejectedTokenIsNotReflectedInResponse() throws Exception {
         String garbageToken = "garbage.token.value.it8-secret";
-        MvcResult res = mvc.perform(get("/api/v1/users/me")
-                        .header("Authorization", "Bearer " + garbageToken))
-                .andExpect(status().isUnauthorized())
-                .andReturn();
+        MvcResult res = mvc.perform(get("/api/v1/users/me").header("Authorization", "Bearer " + garbageToken))
+            .andExpect(status().isUnauthorized())
+            .andReturn();
         assertThat(res.getResponse().getContentAsString()).doesNotContain(garbageToken);
     }
 
@@ -136,17 +147,18 @@ class RedactionTest extends AbstractIntegrationTest {
     void validationErrorNamesFieldNotValue() throws Exception {
         // Admin creates a user with an (invalid) short password.
         String badPassword = "x9short";
-        MvcResult res = mvc.perform(post("/api/v1/users")
-                        .header("Authorization", "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"it8_newbie\",\"displayName\":\"Newbie\","
-                                + "\"email\":\"it8_newbie@example.com\",\"roles\":[\"MEMBER\"],"
-                                + "\"password\":\"" + badPassword + "\"}"))
-                .andReturn();
+        MvcResult res = mvc
+            .perform(post("/api/v1/users").header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"it8_newbie\",\"displayName\":\"Newbie\","
+                        + "\"email\":\"it8_newbie@example.com\",\"roles\":[\"MEMBER\"]," + "\"password\":\""
+                        + badPassword + "\"}"))
+            .andReturn();
         if (res.getResponse().getStatus() == 400) {
             String body = res.getResponse().getContentAsString();
             assertThat(body).doesNotContain(badPassword);
-        } else {
+        }
+        else {
             // Username already exists from a prior run → 409 is fine, but
             // still must not leak the password.
             assertThat(res.getResponse().getStatus()).isIn(409);
@@ -166,7 +178,8 @@ class RedactionTest extends AbstractIntegrationTest {
         jwtLogger.addAppender(appender);
         try {
             assertThat(jwtService.parse(garbageToken)).isEmpty();
-        } finally {
+        }
+        finally {
             jwtLogger.detachAppender(appender);
         }
 
@@ -175,12 +188,12 @@ class RedactionTest extends AbstractIntegrationTest {
         // …but never with the token content itself.
         for (ILoggingEvent event : appender.list) {
             assertThat(event.getFormattedMessage()).as("log line: {}", event.getFormattedMessage())
-                    .doesNotContain(garbageToken);
+                .doesNotContain(garbageToken);
             assertThat(event.getFormattedMessage()).doesNotContain("AB12.cd34");
         }
         // And the rejection reason is still visible (only the secret is gone).
         assertThat(appender.list)
-                .anySatisfy(e -> assertThat(e.getFormattedMessage()).containsIgnoringCase("token rejected"));
+            .anySatisfy(e -> assertThat(e.getFormattedMessage()).containsIgnoringCase("token rejected"));
     }
 
     @Test
@@ -194,7 +207,8 @@ class RedactionTest extends AbstractIntegrationTest {
         jwtLogger.addAppender(appender);
         try {
             assertThat(jwtService.parse(token)).isPresent();
-        } finally {
+        }
+        finally {
             jwtLogger.detachAppender(appender);
         }
 
@@ -206,8 +220,10 @@ class RedactionTest extends AbstractIntegrationTest {
     private String userTokenOrNull(String username, String password) {
         try {
             return userToken(username, password);
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             return null;
         }
     }
+
 }

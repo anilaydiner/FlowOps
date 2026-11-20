@@ -13,9 +13,10 @@ import java.util.Set;
 /**
  * A named, code-identified approval workflow.
  *
- * <p>Pure domain aggregate — no persistence annotations. The JPA mapping
- * lives in {@code persistence.entity.WorkflowEntity}; the rehydration
- * constructor and setters exist solely for that mapper.
+ * <p>
+ * Pure domain aggregate — no persistence annotations. The JPA mapping lives in
+ * {@code persistence.entity.WorkflowEntity}; the rehydration constructor and setters
+ * exist solely for that mapper.
  */
 public class Workflow {
 
@@ -65,16 +66,18 @@ public class Workflow {
         }
 
         var ordered = definitions.stream()
-                .sorted(Comparator.comparingInt(spec -> spec.position() == null ? 0 : spec.position()))
-                .toList();
+            .sorted(Comparator.comparingInt(spec -> spec.position() == null ? 0 : spec.position()))
+            .toList();
         int nextPosition = 1;
         var steps = new ArrayList<WorkflowStep>(definitions.size());
         for (StepSpec spec : ordered) {
             int position;
             if (spec.position() == null) {
-                while (positions.contains(nextPosition)) nextPosition++;
+                while (positions.contains(nextPosition))
+                    nextPosition++;
                 position = nextPosition++;
-            } else {
+            }
+            else {
                 position = spec.position();
             }
             steps.add(defineStep(spec, position));
@@ -88,7 +91,8 @@ public class Workflow {
             throw invalidStep("requiredApprovals",
                     "ALL_OF uses every snapshotted participant; omit requiredApprovals or use K_OF_N for a numeric quorum");
         }
-        int approvals = rule == CompletionRule.ANY_OF || spec.requiredApprovals() == null ? 1 : spec.requiredApprovals();
+        int approvals = rule == CompletionRule.ANY_OF || spec.requiredApprovals() == null ? 1
+                : spec.requiredApprovals();
         if (approvals < 1) {
             throw invalidStep("requiredApprovals", "requiredApprovals must be >= 1 for rule " + rule);
         }
@@ -96,18 +100,20 @@ public class Workflow {
         requirePositive("escalationIntervalMinutes", spec.escalationIntervalMinutes());
         requirePositive("maxEscalationLevels", spec.maxEscalationLevels());
 
-        var step = new WorkflowStep(this, position, spec.code().strip().toUpperCase(Locale.ROOT),
-                spec.name().strip(), spec.requiredRole().strip().toUpperCase(Locale.ROOT));
+        var step = new WorkflowStep(this, position, spec.code().strip().toUpperCase(Locale.ROOT), spec.name().strip(),
+                spec.requiredRole().strip().toUpperCase(Locale.ROOT));
         step.configure(rule, approvals, spec.condition(), spec.slaMinutes(), spec.escalationRole(),
                 Boolean.TRUE.equals(spec.terminal()));
         step.setExpiryMinutes(spec.expiryMinutes());
-        if (spec.escalationIntervalMinutes() != null) step.setEscalationIntervalMinutes(spec.escalationIntervalMinutes());
+        if (spec.escalationIntervalMinutes() != null)
+            step.setEscalationIntervalMinutes(spec.escalationIntervalMinutes());
         step.setMaxEscalationLevels(spec.maxEscalationLevels());
         return step;
     }
 
     private static void requirePositive(String field, Integer value) {
-        if (value != null && value < 1) throw invalidStep(field, "Must be positive");
+        if (value != null && value < 1)
+            throw invalidStep(field, "Must be positive");
     }
 
     private static RequestValidationException invalidStep(String field, String message) {
@@ -116,21 +122,62 @@ public class Workflow {
 
     // ── Getters / Setters ──────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public String getCode() { return code; }
-    public String getName() { return name; }
-    public String getDescription() { return description; }
-    public boolean isActive() { return active; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
+    public Long getId() {
+        return id;
+    }
+
+    public String getCode() {
+        return code;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
 
     // ── Setters (persistence rehydration only) ─────────────────────────
 
-    public void setId(Long id) { this.id = id; }
-    public void setCode(String code) { this.code = code; }
-    public void setName(String name) { this.name = name; }
-    public void setDescription(String description) { this.description = description; }
-    public void rehydrateActive(boolean active) { this.active = active; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setCode(String code) {
+        this.code = code;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void rehydrateActive(boolean active) {
+        this.active = active;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
 }

@@ -15,9 +15,9 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
- * JPA entity backing the {@link com.flowops.domain.identity.Role} aggregate
- * (table {@code roles}). Pure data carrier — all business behavior lives
- * on the domain aggregate.
+ * JPA entity backing the {@link com.flowops.domain.identity.Role} aggregate (table
+ * {@code roles}). Pure data carrier — all business behavior lives on the domain
+ * aggregate.
  */
 @Entity(name = "Role")
 @Table(name = "roles")
@@ -39,11 +39,8 @@ public class RoleEntity {
     private Instant createdAt;
 
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(
-            name = "role_permissions",
-            joinColumns = @JoinColumn(name = "role_id"),
-            inverseJoinColumns = @JoinColumn(name = "permission_id")
-    )
+    @JoinTable(name = "role_permissions", joinColumns = @JoinColumn(name = "role_id"),
+            inverseJoinColumns = @JoinColumn(name = "permission_id"))
     private Set<PermissionEntity> permissions = new LinkedHashSet<>();
 
     public RoleEntity() {
@@ -52,21 +49,52 @@ public class RoleEntity {
 
     // ── Getters / Setters ──────────────────────────────────────────────
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getCode() { return code; }
-    public void setCode(String code) { this.code = code; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getCode() {
+        return code;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public void setCode(String code) {
+        this.code = code;
+    }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public String getName() {
+        return name;
+    }
 
-    public Set<PermissionEntity> getPermissions() { return permissions; }
-    public void setPermissions(Set<PermissionEntity> permissions) { this.permissions = permissions; }
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public Set<PermissionEntity> getPermissions() {
+        return permissions;
+    }
+
+    public void setPermissions(Set<PermissionEntity> permissions) {
+        this.permissions = permissions;
+    }
+
 }

@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class WorkflowDefinitionTest {
+
     private final Workflow workflow = new Workflow("APPROVAL", "Approval", null);
 
     @Test
@@ -39,4 +40,5 @@ class WorkflowDefinitionTest {
     private static StepSpec spec(int position, String code) {
         return new StepSpec(position, code, "Review", "ADMIN", null, null, null, null, null, null);
     }
+
 }

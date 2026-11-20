@@ -13,16 +13,22 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthenticationService {
+
     private final UserService users;
+
     private final UserRepository userRepository;
+
     private final AuthenticationSessionRepository sessions;
+
     private final AccessTokenIssuer accessTokens;
+
     private final SessionSettings settings;
+
     private final Clock clock;
 
     public AuthenticationService(UserService users, UserRepository userRepository,
-                                 AuthenticationSessionRepository sessions, AccessTokenIssuer accessTokens,
-                                 SessionSettings settings, Clock clock) {
+            AuthenticationSessionRepository sessions, AccessTokenIssuer accessTokens, SessionSettings settings,
+            Clock clock) {
         this.users = users;
         this.userRepository = userRepository;
         this.sessions = sessions;
@@ -41,10 +47,12 @@ public class AuthenticationService {
         return issue(user, id, now, deadline);
     }
 
-    // Reuse detection revokes the session before returning 401. That revocation must commit.
+    // Reuse detection revokes the session before returning 401. That revocation must
+    // commit.
     @Transactional(noRollbackFor = InvalidRefreshTokenException.class)
     public TokenPair refresh(String rawToken) {
-        if (rawToken == null || rawToken.isBlank()) throw new InvalidRefreshTokenException();
+        if (rawToken == null || rawToken.isBlank())
+            throw new InvalidRefreshTokenException();
         String hash = TokenSecrets.hash(rawToken);
         var grant = sessions.lockByRefreshToken(hash).orElseThrow(InvalidRefreshTokenException::new);
         Instant now = clock.instant();
@@ -55,7 +63,8 @@ public class AuthenticationService {
             sessions.revoke(grant.sessionId(), now);
             throw new InvalidRefreshTokenException();
         }
-        if (!now.isBefore(grant.tokenExpiresAt())) throw new InvalidRefreshTokenException();
+        if (!now.isBefore(grant.tokenExpiresAt()))
+            throw new InvalidRefreshTokenException();
         User user = userRepository.findById(grant.userId()).orElseThrow(InvalidRefreshTokenException::new);
         if (!user.isActive() || !TokenSecrets.matches(grant.credentialFingerprint(), user.getPasswordHash())) {
             sessions.revoke(grant.sessionId(), now);
@@ -74,7 +83,7 @@ public class AuthenticationService {
         }
         if (rawRefreshToken != null && !rawRefreshToken.isBlank()) {
             sessions.lockByRefreshToken(TokenSecrets.hash(rawRefreshToken))
-                    .ifPresent(grant -> sessions.revoke(grant.sessionId(), now));
+                .ifPresent(grant -> sessions.revoke(grant.sessionId(), now));
         }
     }
 
@@ -92,4 +101,5 @@ public class AuthenticationService {
         return new TokenPair(access.value(), access.expiresIn(), raw,
                 java.time.Duration.between(now, refreshDeadline).getSeconds(), deadline);
     }
+
 }

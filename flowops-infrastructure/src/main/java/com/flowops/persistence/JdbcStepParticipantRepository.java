@@ -7,22 +7,29 @@ import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-/** Roster assignments are append-only. Decision triggers record delegation successors atomically. */
+/**
+ * Roster assignments are append-only. Decision triggers record delegation successors
+ * atomically.
+ */
 @Repository
 public class JdbcStepParticipantRepository implements StepParticipantRepository {
+
     private final JdbcTemplate jdbc;
 
-    public JdbcStepParticipantRepository(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    public JdbcStepParticipantRepository(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
 
     @Override
     public void createInitialRoster(Long stepInstanceId, List<Long> userIds) {
-        if (userIds.stream().anyMatch(java.util.Objects::isNull) || userIds.stream().distinct().count() != userIds.size()) {
+        if (userIds.stream().anyMatch(java.util.Objects::isNull)
+                || userIds.stream().distinct().count() != userIds.size()) {
             throw new IllegalArgumentException("Roster participants must be distinct persisted users");
         }
         jdbc.batchUpdate("INSERT INTO step_participants(id, slot_id, step_instance_id, user_id) VALUES (?, ?, ?, ?)",
                 userIds.stream().map(userId -> {
                     UUID id = UUID.randomUUID();
-                    return new Object[]{id, id, stepInstanceId, userId};
+                    return new Object[] { id, id, stepInstanceId, userId };
                 }).toList());
     }
 
@@ -34,22 +41,27 @@ public class JdbcStepParticipantRepository implements StepParticipantRepository 
 
     @Override
     public List<StepParticipant> findByStepInstanceId(Long stepInstanceId) {
-        return query("SELECT * FROM step_participants WHERE step_instance_id = ? ORDER BY created_at, id", stepInstanceId);
+        return query("SELECT * FROM step_participants WHERE step_instance_id = ? ORDER BY created_at, id",
+                stepInstanceId);
     }
 
     @Override
     public void recordRecovery(com.flowops.domain.request.StepRecovery recovery) {
-        jdbc.update("INSERT INTO step_recoveries(id, step_instance_id, block_episode, actor_id, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-                recovery.id(), recovery.stepInstanceId(), recovery.blockEpisode(), recovery.actorId(), recovery.reason(),
-                java.sql.Timestamp.from(recovery.createdAt()));
+        jdbc.update(
+                "INSERT INTO step_recoveries(id, step_instance_id, block_episode, actor_id, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                recovery.id(), recovery.stepInstanceId(), recovery.blockEpisode(), recovery.actorId(),
+                recovery.reason(), java.sql.Timestamp.from(recovery.createdAt()));
     }
 
     @Override
-    public void appendRecoveryAssignment(Long stepInstanceId, UUID recoveryId, com.flowops.domain.request.RecoveryAssignment assignment) {
+    public void appendRecoveryAssignment(Long stepInstanceId, UUID recoveryId,
+            com.flowops.domain.request.RecoveryAssignment assignment) {
         UUID id = UUID.randomUUID();
-        UUID slot = assignment.predecessorId() == null ? id : jdbc.queryForObject(
-                "SELECT slot_id FROM step_participants WHERE id=? AND step_instance_id=?", UUID.class, assignment.predecessorId(), stepInstanceId);
-        jdbc.update("INSERT INTO step_participants(id, slot_id, step_instance_id, user_id, predecessor_id, recovery_id) VALUES (?, ?, ?, ?, ?, ?)",
+        UUID slot = assignment.predecessorId() == null ? id
+                : jdbc.queryForObject("SELECT slot_id FROM step_participants WHERE id=? AND step_instance_id=?",
+                        UUID.class, assignment.predecessorId(), stepInstanceId);
+        jdbc.update(
+                "INSERT INTO step_participants(id, slot_id, step_instance_id, user_id, predecessor_id, recovery_id) VALUES (?, ?, ?, ?, ?, ?)",
                 id, slot, stepInstanceId, assignment.userId(), assignment.predecessorId(), recoveryId);
     }
 
@@ -66,8 +78,10 @@ public class JdbcStepParticipantRepository implements StepParticipantRepository 
     private List<StepParticipant> query(String sql, Long id) {
         return jdbc.query(sql,
                 (rs, row) -> new StepParticipant(rs.getObject("id", UUID.class), rs.getObject("slot_id", UUID.class),
-                        rs.getLong("step_instance_id"), rs.getLong("user_id"), rs.getObject("predecessor_id", UUID.class),
-                        rs.getObject("decision_id", Long.class), rs.getTimestamp("created_at").toInstant(),
-                        rs.getObject("recovery_id", UUID.class)), id);
+                        rs.getLong("step_instance_id"), rs.getLong("user_id"),
+                        rs.getObject("predecessor_id", UUID.class), rs.getObject("decision_id", Long.class),
+                        rs.getTimestamp("created_at").toInstant(), rs.getObject("recovery_id", UUID.class)),
+                id);
     }
+
 }

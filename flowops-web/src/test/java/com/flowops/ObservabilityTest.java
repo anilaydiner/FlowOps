@@ -37,38 +37,65 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Iteration 8 tests: OpenTelemetry tracing + Micrometer metrics (PLAN §8).
  *
- * - One span per request-lifecycle event (submit / decide / job / outbox / SLA)
- * - Spans carry request + actor attributes; failures produce ERROR spans
- * - Counters increment for submit/decide/approve/outbox/job/SLA
- * - Pending gauges are registered
+ * - One span per request-lifecycle event (submit / decide / job / outbox / SLA) - Spans
+ * carry request + actor attributes; failures produce ERROR spans - Counters increment for
+ * submit/decide/approve/outbox/job/SLA - Pending gauges are registered
  */
 @AutoConfigureMockMvc
 class ObservabilityTest extends AbstractIntegrationTest {
 
-    @Autowired MockMvc mvc;
-    @Autowired InMemorySpanExporter spanExporter;
-    @Autowired MeterRegistry metrics;
-    @Autowired JobWorker jobWorker;
-    @Autowired OutboxDispatcher dispatcher;
-    @Autowired SlaScanner slaScanner;
-    @Autowired SimulatedEmailGateway emailGateway;
-    @Autowired com.flowops.action.SimulatedActionHandler actionHandler;
-    @Autowired UserRepository users;
-    @Autowired RoleRepository roles;
-    @Autowired DepartmentRepository departments;
-    @Autowired PasswordEncoder encoder;
-    @Autowired ExecutionJobRepository jobRepo;
-    @Autowired JdbcTemplate jdbc;
+    @Autowired
+    MockMvc mvc;
+
+    @Autowired
+    InMemorySpanExporter spanExporter;
+
+    @Autowired
+    MeterRegistry metrics;
+
+    @Autowired
+    JobWorker jobWorker;
+
+    @Autowired
+    OutboxDispatcher dispatcher;
+
+    @Autowired
+    SlaScanner slaScanner;
+
+    @Autowired
+    SimulatedEmailGateway emailGateway;
+
+    @Autowired
+    com.flowops.action.SimulatedActionHandler actionHandler;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    RoleRepository roles;
+
+    @Autowired
+    DepartmentRepository departments;
+
+    @Autowired
+    PasswordEncoder encoder;
+
+    @Autowired
+    ExecutionJobRepository jobRepo;
+
+    @Autowired
+    JdbcTemplate jdbc;
 
     private String hankToken;
+
     private String adminToken;
 
     @BeforeEach
     void setup() throws Exception {
         if (users.findByUsername("it8_hank").isEmpty()) {
             User hank = User.newUser("it8_hank", "It8 Hank", "it8_hank@example.com",
-                    departments.findByCode("IT").orElse(null),
-                    Set.of(roles.findByCode("MEMBER").orElseThrow()), encoder.encode("it8_hank123"));
+                    departments.findByCode("IT").orElse(null), Set.of(roles.findByCode("MEMBER").orElseThrow()),
+                    encoder.encode("it8_hank123"));
             users.save(hank);
         }
         hankToken = userToken("it8_hank", "it8_hank123");
@@ -84,14 +111,15 @@ class ObservabilityTest extends AbstractIntegrationTest {
     }
 
     /**
-     * Process any PLANNED/FAILED jobs left by earlier test classes so they don't
-     * consume job slots that this test's counter assertions depend on.
-     * Also clears leaked failure-injection state from the action handler.
+     * Process any PLANNED/FAILED jobs left by earlier test classes so they don't consume
+     * job slots that this test's counter assertions depend on. Also clears leaked
+     * failure-injection state from the action handler.
      */
     private void drainPendingJobs() {
         for (int i = 0; i < 10; i++) {
             long pending = jobRepo.countByStatus(JobStatus.PLANNED) + jobRepo.countByStatus(JobStatus.FAILED);
-            if (pending == 0) return;
+            if (pending == 0)
+                return;
             // Make all FAILED jobs immediately eligible for claim
             jdbc.update("UPDATE execution_jobs SET next_retry_at = ? WHERE status = 'FAILED'",
                     java.sql.Timestamp.from(Instant.now().minusSeconds(1)));
@@ -102,11 +130,13 @@ class ObservabilityTest extends AbstractIntegrationTest {
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private String userToken(String username, String password) throws Exception {
-        var resp = mvc.perform(post("/api/v1/auth/token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
+        var resp = mvc
+            .perform(post("/api/v1/auth/token").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         int idx = resp.indexOf("\"token\":\"");
         int start = idx + "\"token\":\"".length();
         int end = resp.indexOf("\"", start);
@@ -114,32 +144,31 @@ class ObservabilityTest extends AbstractIntegrationTest {
     }
 
     private long createAndSubmit(String token, String payload) throws Exception {
-        var resp = mvc.perform(post("/api/v1/requests")
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"typeCode\":\"IT_ACCESS\",\"payload\":" + payload + "}"))
-                .andExpect(status().is2xxSuccessful())
-                .andReturn().getResponse().getContentAsString();
+        var resp = mvc
+            .perform(post("/api/v1/requests").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"typeCode\":\"IT_ACCESS\",\"payload\":" + payload + "}"))
+            .andExpect(status().is2xxSuccessful())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
         int idIdx = resp.indexOf("\"id\":");
         long id = Long.parseLong(resp.substring(idIdx + 5).split("[,}\\s]")[0].trim());
 
-        mvc.perform(post("/api/v1/requests/" + id + "/submit")
-                        .header("Authorization", "Bearer " + token))
-                .andExpect(status().is2xxSuccessful());
+        mvc.perform(post("/api/v1/requests/" + id + "/submit").header("Authorization", "Bearer " + token))
+            .andExpect(status().is2xxSuccessful());
         return id;
     }
 
     private void approve(long requestId) throws Exception {
-        mvc.perform(post("/api/v1/requests/" + requestId + "/decisions")
-                        .header("Authorization", "Bearer " + adminToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"action\":\"APPROVE\",\"justification\":\"lgtm\"}"))
-                .andExpect(status().is2xxSuccessful());
+        mvc.perform(post("/api/v1/requests/" + requestId + "/decisions").header("Authorization", "Bearer " + adminToken)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{\"action\":\"APPROVE\",\"justification\":\"lgtm\"}")).andExpect(status().is2xxSuccessful());
     }
 
     private double counter(String name) {
         // Sum across all tag variants — the counter is registered with an
-        // "action" tag, so multiple meters share the same name.  find(name).counter()
+        // "action" tag, so multiple meters share the same name. find(name).counter()
         // returns only the first match, which may be a different tag variant
         // that wasn't incremented by this test.
         double total = 0;
@@ -152,9 +181,7 @@ class ObservabilityTest extends AbstractIntegrationTest {
     }
 
     private SpanData lastSpan(String name) {
-        List<SpanData> matches = spanExporter.finishedSpans().stream()
-                .filter(s -> s.getName().equals(name))
-                .toList();
+        List<SpanData> matches = spanExporter.finishedSpans().stream().filter(s -> s.getName().equals(name)).toList();
         assertThat(matches).as("spans named '%s'", name).isNotEmpty();
         return matches.get(matches.size() - 1);
     }
@@ -170,23 +197,23 @@ class ObservabilityTest extends AbstractIntegrationTest {
 
         SpanData submit = lastSpan("request.submit");
         assertThat(submit.getAttributes().get(io.opentelemetry.api.common.AttributeKey.stringKey("request.id")))
-                .isEqualTo(String.valueOf(reqId));
+            .isEqualTo(String.valueOf(reqId));
         assertThat(submit.getAttributes().get(io.opentelemetry.api.common.AttributeKey.stringKey("user")))
-                .isEqualTo("it8_hank");
+            .isEqualTo("it8_hank");
         assertThat(submit.getStatus().getStatusCode()).isEqualTo(StatusCode.OK);
 
         SpanData decide = lastSpan("request.decide");
         assertThat(decide.getAttributes().get(io.opentelemetry.api.common.AttributeKey.stringKey("action")))
-                .isEqualTo("APPROVE");
+            .isEqualTo("APPROVE");
 
         SpanData job = lastSpan("job.execute");
         assertThat(job.getAttributes().get(io.opentelemetry.api.common.AttributeKey.stringKey("request.id")))
-                .isEqualTo(String.valueOf(reqId));
+            .isEqualTo(String.valueOf(reqId));
         assertThat(job.getStatus().getStatusCode()).isEqualTo(StatusCode.OK);
 
         SpanData deliver = lastSpan("outbox.deliver");
         assertThat(deliver.getAttributes().get(io.opentelemetry.api.common.AttributeKey.stringKey("outbox.key")))
-                .isNotBlank();
+            .isNotBlank();
     }
 
     @Test
@@ -198,16 +225,17 @@ class ObservabilityTest extends AbstractIntegrationTest {
         emailGateway.setSimulatedFailure(true, 1);
         try {
             dispatcher.dispatch();
-        } finally {
+        }
+        finally {
             emailGateway.clearSimulatedFailure();
         }
 
-        List<SpanData> delivers = spanExporter.finishedSpans().stream()
-                .filter(s -> s.getName().equals("outbox.deliver"))
-                .toList();
+        List<SpanData> delivers = spanExporter.finishedSpans()
+            .stream()
+            .filter(s -> s.getName().equals("outbox.deliver"))
+            .toList();
         assertThat(delivers).isNotEmpty();
-        assertThat(delivers)
-                .anySatisfy(s -> assertThat(s.getStatus().getStatusCode()).isEqualTo(StatusCode.ERROR));
+        assertThat(delivers).anySatisfy(s -> assertThat(s.getStatus().getStatusCode()).isEqualTo(StatusCode.ERROR));
     }
 
     @Test
@@ -217,7 +245,7 @@ class ObservabilityTest extends AbstractIntegrationTest {
 
         SpanData scan = lastSpan("sla.scan");
         assertThat(scan.getAttributes().get(io.opentelemetry.api.common.AttributeKey.stringKey("component")))
-                .isEqualTo("sla-scanner");
+            .isEqualTo("sla-scanner");
         assertThat(scan.getStatus().getStatusCode()).isEqualTo(StatusCode.OK);
     }
 
@@ -277,10 +305,12 @@ class ObservabilityTest extends AbstractIntegrationTest {
         actionHandler.setSimulatedFailure(true, 1);
         try {
             jobWorker.process();
-        } finally {
+        }
+        finally {
             actionHandler.clearSimulatedFailure();
         }
 
         assertThat(counter("flowops.job.failed") - failedBefore).isGreaterThanOrEqualTo(1);
     }
+
 }

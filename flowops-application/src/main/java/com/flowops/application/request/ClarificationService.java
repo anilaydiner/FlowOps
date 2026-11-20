@@ -18,11 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Clarification Q&A on a request (PLAN §8, iteration 7).
  *
- * <p>Access rules (consistent with the rest of the request API):
+ * <p>
+ * Access rules (consistent with the rest of the request API):
  * <ul>
- *   <li><b>Ask</b>: requester or admin, on a non-terminal request</li>
- *   <li><b>Answer</b>: requester or admin, on an unanswered clarification</li>
- *   <li><b>List</b>: requester or admin</li>
+ * <li><b>Ask</b>: requester or admin, on a non-terminal request</li>
+ * <li><b>Answer</b>: requester or admin, on an unanswered clarification</li>
+ * <li><b>List</b>: requester or admin</li>
  * </ul>
  */
 @Service
@@ -31,14 +32,15 @@ public class ClarificationService {
     private final LifecycleAuditRecorder audit;
 
     private final ClarificationRepository clarifications;
+
     private final RequestRepository requests;
+
     private final RequestWriteLock requestWriteLock;
+
     private final AuthorizationEvaluator authz;
 
-    public ClarificationService(ClarificationRepository clarifications,
-                                RequestRepository requests,
-                                RequestWriteLock requestWriteLock,
-                                AuthorizationEvaluator authz, LifecycleAuditRecorder audit) {
+    public ClarificationService(ClarificationRepository clarifications, RequestRepository requests,
+            RequestWriteLock requestWriteLock, AuthorizationEvaluator authz, LifecycleAuditRecorder audit) {
         this.audit = audit;
         this.clarifications = clarifications;
         this.requests = requests;
@@ -68,12 +70,13 @@ public class ClarificationService {
     public Clarification answer(Long clarificationId, Long requestId, String answer, CallerIdentity caller) {
         Request request = loadRequestForUpdate(requestId);
         boolean isOwn = caller.id().equals(request.getRequester().getId());
-        authz.require(caller, isOwn ? PermissionCodes.CLARIFICATIONS_ANSWER_OWN : PermissionCodes.CLARIFICATIONS_ANSWER);
+        authz.require(caller,
+                isOwn ? PermissionCodes.CLARIFICATIONS_ANSWER_OWN : PermissionCodes.CLARIFICATIONS_ANSWER);
         if (request.getStatus().isFinalized()) {
             throw new ConflictException("Cannot answer clarifications on a terminal request: " + request.getStatus());
         }
         Clarification c = clarifications.findByIdAndRequestId(clarificationId, requestId)
-                .orElseThrow(() -> new NotFoundException("Clarification not found: " + clarificationId));
+            .orElseThrow(() -> new NotFoundException("Clarification not found: " + clarificationId));
         if (c.isAnswered()) {
             throw new ConflictException("Clarification already answered");
         }
@@ -98,11 +101,12 @@ public class ClarificationService {
     // ── helpers ──────────────────────────────────────────────────────────
 
     private Request loadRequestForUpdate(Long requestId) {
-        return requestWriteLock.findByIdForUpdate(requestId).orElseThrow(() -> new NotFoundException("Request not found: " + requestId));
+        return requestWriteLock.findByIdForUpdate(requestId)
+            .orElseThrow(() -> new NotFoundException("Request not found: " + requestId));
     }
 
     private Request loadRequest(Long requestId) {
-        return requests.findById(requestId)
-                .orElseThrow(() -> new NotFoundException("Request not found: " + requestId));
+        return requests.findById(requestId).orElseThrow(() -> new NotFoundException("Request not found: " + requestId));
     }
+
 }
